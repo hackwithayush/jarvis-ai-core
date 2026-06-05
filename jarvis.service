@@ -1,0 +1,25 @@
+[Unit]
+Description=Jarvis Professional AI Assistant
+After=network.target
+
+[Service]
+# User and Group (standard for Ubuntu is 'ubuntu' or 'root', update if needed)
+User=root
+Group=root
+
+# The path to your project folder on the VPS
+WorkingDirectory=/root/assistant.py
+
+# Path to the virtual environment python
+ExecStart=/root/assistant.py/.venv/bin/python telegram_bot.py
+
+# Environment variables
+Environment=SERVER_MODE=true
+Environment=PYTHONUNBUFFERED=1
+
+# Restart logic
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

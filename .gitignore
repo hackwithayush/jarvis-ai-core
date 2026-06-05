@@ -1,0 +1,26 @@
+.env
+__pycache__/
+*.pyc
+data/
+logs/
+voice/
+images/
+videos/
+.venv/
+.vscode/
+*.db
+*.log
+
+# Secrets & Credentials
+*.json
+credentials.json
+token.json
+gcp-oauth.keys.json
+
+# Exclude temporary/scratch directories if needed
+scratch/
+Unity_Aether_Assets/
+
+node_modules/
+VOICE/vosk*
+UI/frontend/node_modules/

@@ -1,0 +1,2364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JARVIS | Professional Neural Interface</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    
+    <!-- Scripts & Styles -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
+    
+    <!-- Syntax Highlighting Theme (Vercel/Claude inspired dark) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;500;600&family=JetBrains+Mono:wght@400;500&family=Sora:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #030508; /* Deep stark space navy-black */
+            --surface: #090e15;  /* Sleek tech slate */
+            --surface-hover: #101722;
+            --border: #1a2636;
+            --text-main: #FAFAFA;
+            --text-muted: #94a3b8;
+            --text-hint: #475569;
+            --accent: #00f0ff; /* Stark Tech Cyan Neon */
+        }
+
+        @keyframes spin-slow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes pulse-slow {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.06); }
+        }
+        .animate-spin-slow {
+            animation: spin-slow 20s linear infinite;
+        }
+        .animate-pulse-slow {
+            animation: pulse-slow 3s ease-in-out infinite;
+        }
+        .glow-cyan {
+            text-shadow: 0 0 10px rgba(0, 240, 255, 0.4), 0 0 20px rgba(0, 240, 255, 0.1);
+        }
+        .box-glow {
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.02);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .box-glow:hover {
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.12);
+            border-color: rgba(0, 240, 255, 0.3) !important;
+            transform: translateY(-2px);
+        }
+
+        body { 
+            background-color: var(--bg-color); 
+            color: var(--text-main); 
+            font-family: 'DM Sans', sans-serif; 
+            overflow: hidden; 
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        .font-brand { font-family: 'Sora', sans-serif; }
+
+        /* Minimal Surfaces */
+        .glass-panel { 
+            background: var(--surface); 
+            border: 1px solid var(--border); 
+        }
+
+        /* Markdown Styling - Surgical Minimalism */
+        .prose p { margin-bottom: 1.25rem; line-height: 1.6; color: var(--text-muted); }
+        .prose strong { color: var(--text-main); font-weight: 500; }
+        .prose pre { 
+            background: #000000 !important; 
+            border: 1px solid var(--border); 
+            border-radius: 0.5rem;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+        .prose pre code { padding: 1rem; display: block; overflow-x: auto; font-size: 0.85rem; }
+        .prose :not(pre) > code { 
+            background: var(--surface-hover); 
+            padding: 0.2rem 0.4rem; 
+            border-radius: 0.25rem; 
+            border: 1px solid var(--border);
+            font-size: 0.85em; 
+            color: var(--accent);
+        }
+        .prose ul, .prose ol { margin-bottom: 1.25rem; padding-left: 1.5rem; color: var(--text-muted); }
+        .prose li { margin-bottom: 0.5rem; }
+
+        /* Code Copy Button */
+        .code-header {
+            display: flex; justify-content: space-between; align-items: center;
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            padding: 0.5rem 1rem; border-top-left-radius: 0.5rem; border-top-right-radius: 0.5rem;
+            font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--text-hint);
+        }
+        .copy-btn {
+            background: transparent; border: none; color: var(--text-hint); cursor: pointer;
+            transition: color 0.2s; display: flex; align-items: center; gap: 0.5rem; font-family: 'DM Sans', sans-serif;
+        }
+        .copy-btn:hover { color: var(--text-main); }
+
+        /* Media Card Premium Styling */
+        .media-card {
+            transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+        }
+        .media-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+            border-color: rgba(255, 255, 255, 0.12);
+        }
+
+        /* Rating Stars System Styles */
+        .rating-stars {
+            display: flex; gap: 0.25rem; margin-top: 0.75rem;
+            align-items: center;
+        }
+        .star-btn {
+            background: none; border: none; cursor: pointer; padding: 2px;
+            font-size: 0.85rem; color: var(--text-hint);
+            transition: color 0.2s;
+        }
+        .star-btn:hover { color: var(--text-muted); }
+        .star-btn.hovered { color: var(--text-main); }
+        .star-btn.active { color: var(--text-main); }
+        .rating-status {
+            font-size: 10px; color: var(--text-hint); text-transform: uppercase;
+            letter-spacing: 0.05em; margin-left: 0.5rem; font-weight: 500;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-hint); }
+
+        /* Layout Shifts */
+        #empty-state { transition: opacity 0.3s ease; }
+        .chat-active #empty-state { display: none; }
+        .chat-active #chat-container { height: 100%; justify-content: flex-end; }
+        .chat-active #messages-area { display: flex !important; }
+        
+        textarea:focus { outline: none; box-shadow: none; }
+
+        /* App Connectors Premium Styling */
+        .connector-card {
+            transition: border-color 0.2s ease, background-color 0.2s ease, transform 0.15s ease;
+        }
+        .connector-card:hover {
+            transform: translateY(-1px);
+        }
+        .connector-card.is-connected {
+            border-color: rgba(16, 185, 129, 0.15);
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.03) 0%, #0A0A0A 100%);
+        }
+        .connect-btn {
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .connect-btn:active {
+            transform: scale(0.96);
+        }
+        .connector-search:focus {
+            border-color: var(--text-hint);
+            background: var(--bg-color);
+        }
+        .scope-tag {
+            font-size: 9px;
+            padding: 1px 6px;
+            border-radius: 3px;
+            background: var(--surface-hover);
+            border: 1px solid var(--border);
+            color: var(--text-hint);
+            font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body class="h-screen flex text-sm md:text-base">
+
+    <!-- Sidebar -->
+    <div id="sidebar" class="w-0 md:w-64 flex-shrink-0 glass-panel border-r border-t-0 border-b-0 border-l-0 flex flex-col transition-all duration-300 overflow-hidden z-40">
+        <div class="p-5 flex items-center justify-between border-b" style="border-color: var(--border);">
+            <div class="flex items-center gap-3">
+                <img src="/static/img/logo.jpg" class="w-7 h-7 rounded object-cover border border-[#1a2636] shadow-[0_0_8px_rgba(0,240,255,0.2)]">
+                <span class="font-brand font-medium tracking-wide text-sm text-[#FAFAFA]">JARVIS 4.0</span>
+            </div>
+            <button onclick="toggleSidebar()" class="md:hidden text-[#717171] hover:text-[#FAFAFA]"><i class="fas fa-times"></i></button>
+        </div>
+        
+        <div class="p-4">
+            <button onclick="newConversation()" class="w-full py-2 px-3 rounded-md bg-[#1A1A1A] hover:bg-[#27272A] border border-[#27272A] transition-colors flex items-center gap-3 text-sm font-medium text-[#FAFAFA]">
+                <i class="fas fa-plus text-[#717171] text-xs"></i> New Thread
+            </button>
+        </div>
+
+        <!-- Recent Conversations -->
+        <div class="flex-1 overflow-y-auto px-3 py-2 space-y-1" id="conversation-list">
+            <div class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider px-3 mb-2 mt-2">Recent</div>
+            <!-- Dynamic list -->
+        </div>
+
+        <!-- MCP Extensions Panel (Claude-style) -->
+        <div class="px-3 py-3 border-t" style="border-color: var(--border);">
+            <div class="flex items-center justify-between px-3 mb-2">
+                <div class="flex items-center gap-1.5 text-[10px] font-semibold text-[#52525B] uppercase tracking-wider">
+                    <i class="fas fa-plug text-[9px]"></i> MCP Servers
+                </div>
+                <span class="px-1.5 py-0.5 rounded bg-[#1A1A1A] border border-[#27272A] text-[#A1A1AA] font-mono text-[9px] leading-none" id="mcp-count">0</span>
+            </div>
+            <div id="mcp-tools-list" class="space-y-0.5 max-h-32 overflow-y-auto custom-scrollbar pr-1">
+                <div class="text-[#717171] font-mono text-[10px] px-3 py-1">Initializing connection...</div>
+            </div>
+        </div>
+
+        <!-- System Footer -->
+        <div class="p-4 border-t text-xs text-[#717171] flex justify-between items-center" style="border-color: var(--border);">
+            <div id="user-status" class="flex items-center gap-2"><div class="w-1.5 h-1.5 rounded-full bg-[#FAFAFA]"></div> Local Node</div>
+            <div class="flex items-center gap-4">
+                <i onclick="toggleTelemetryModal()" class="fas fa-chart-line hover:text-[#FAFAFA] cursor-pointer transition-colors" title="Telemetry"></i>
+                <!-- App Connectors Trigger -->
+                <i onclick="toggleConnectorsModal()" class="fas fa-link hover:text-[#FAFAFA] cursor-pointer transition-colors" title="App Connectors"></i>
+                <!-- Skills HUD Trigger -->
+                <i onclick="toggleSkillsModal()" class="fas fa-brain hover:text-[#FAFAFA] cursor-pointer transition-colors text-purple-400" title="Skills HUD"></i>
+                <!-- Sign Out -->
+                <i onclick="triggerSignOut()" class="fas fa-sign-out-alt hover:text-[#FAFAFA] cursor-pointer transition-colors text-red-500/80 hover:text-red-400 animate-pulse-slow" title="Sign Out"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col relative h-full w-full">
+        <!-- Mobile Header -->
+        <div class="md:hidden absolute top-0 left-0 w-full p-4 flex justify-between items-center z-50 bg-[#080808] border-b border-[#27272A]">
+            <button onclick="toggleSidebar()" class="text-[#717171] hover:text-[#FAFAFA]"><i class="fas fa-bars"></i></button>
+            <div class="flex items-center gap-2">
+                <img src="/static/img/logo.jpg" class="w-5 h-5 rounded-full object-cover border border-[#27272A] shadow-[0_0_6px_rgba(0,240,255,0.2)]">
+                <span class="font-brand font-medium text-sm">JARVIS</span>
+            </div>
+            <div class="w-4"></div>
+        </div>
+
+        <!-- Chat Area Container -->
+        <div id="chat-container" class="flex-1 flex flex-col max-w-3xl mx-auto w-full px-4 pt-20 md:pt-10 pb-6 relative transition-all duration-500">
+            
+            <!-- Empty State -->
+            <div id="empty-state" class="flex-1 flex flex-col items-center justify-center w-full select-none">
+                <!-- Glowing Holographic Arc Reactor Core -->
+                <div class="relative w-28 h-28 mb-8 flex items-center justify-center cursor-pointer group">
+                    <div class="absolute w-24 h-24 rounded-full bg-cyan-500/20 blur-xl animate-pulse-slow"></div>
+                    <svg class="absolute w-28 h-28 animate-spin-slow drop-shadow-[0_0_8px_rgba(0,240,255,0.4)]" viewBox="0 0 100 100">
+                        <!-- Outer dotted ring -->
+                        <circle cx="50" cy="50" r="46" fill="none" stroke="#00f0ff" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.4"/>
+                        <!-- Inner segmented ring -->
+                        <circle cx="50" cy="50" r="38" fill="none" stroke="#00f0ff" stroke-width="2" stroke-dasharray="25,12" opacity="0.7"/>
+                        <!-- Center segments -->
+                        <circle cx="50" cy="50" r="30" fill="none" stroke="#00f0ff" stroke-width="1.5" stroke-dasharray="5,15" opacity="0.8"/>
+                    </svg>
+                    <!-- Glowing custom brain logo in the center -->
+                    <img src="/static/img/logo.jpg" class="w-16 h-16 rounded-full object-cover z-10 border border-[#00f0ff]/40 shadow-[0_0_15px_rgba(0,240,255,0.3)] group-hover:scale-105 transition-all duration-300">
+                    <!-- Status Ring -->
+                    <div class="absolute font-mono text-[8px] text-cyan-400 font-bold uppercase tracking-widest mt-28 animate-pulse-slow">Core Online</div>
+                </div>
+
+                <h1 class="text-2xl font-brand font-medium mb-8 text-[#FAFAFA] tracking-tight glow-cyan">J.A.R.V.I.S. Neural Hub</h1>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-xl">
+                    <button onclick="prefill('Optimize the following PostgreSQL schema for supply chain data:')" class="p-4 rounded-lg text-left bg-[#090e15] box-glow border border-[#1a2636] transition-all">
+                        <h3 class="font-medium text-sm text-[#FAFAFA]">Database Optimization</h3>
+                        <p class="text-xs text-[#717171] mt-1">Review PostgreSQL schemas</p>
+                    </button>
+                    <button onclick="prefill('Review this Python logic for local model generation.')" class="p-4 rounded-lg text-left bg-[#090e15] box-glow border border-[#1a2636] transition-all">
+                        <h3 class="font-medium text-sm text-[#FAFAFA]">Code Review</h3>
+                        <p class="text-xs text-[#717171] mt-1">Analyze Python scripts</p>
+                    </button>
+                </div>
+
+                <!-- Stark Diagnostics HUD Grid -->
+                <div class="w-full max-w-xl mt-8 p-4 rounded-xl border border-[#1a2636] bg-[#090e15] box-glow font-mono text-xs text-[#FAFAFA]">
+                    <div class="flex items-center justify-between border-b border-[#1a2636] pb-2 mb-3">
+                        <div class="flex items-center gap-2">
+                            <div class="w-1.5 h-1.5 rounded-full bg-cyan-500 shadow-[0_0_6px_#00f0ff] animate-pulse"></div>
+                            <span class="font-bold uppercase tracking-wider text-[9px] text-[#FAFAFA]">Stark Diagnostics Grid</span>
+                        </div>
+                        <span class="text-[8px] text-[#475569] uppercase font-mono tracking-widest">v15.0 // telemetry stable</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-[9px] text-[#94a3b8]">
+                                <span>CPU CORE</span>
+                                <span id="hud-cpu-pct">24%</span>
+                            </div>
+                            <div class="w-full bg-[#101722] rounded-full h-1 border border-[#1a2636] overflow-hidden">
+                                <div id="hud-cpu-bar" class="bg-cyan-400 h-full transition-all duration-1000" style="width: 24%"></div>
+                            </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-[9px] text-[#94a3b8]">
+                                <span>NET LINK</span>
+                                <span id="hud-latency-ms">14ms</span>
+                            </div>
+                            <div class="w-full bg-[#101722] rounded-full h-1 border border-[#1a2636] overflow-hidden">
+                                <div id="hud-latency-bar" class="bg-emerald-400 h-full transition-all duration-1000" style="width: 14%"></div>
+                            </div>
+                        </div>
+                        <div class="space-y-1.5">
+                            <div class="flex justify-between text-[9px] text-[#94a3b8]">
+                                <span>COHERENCE</span>
+                                <span id="hud-coherence-pct">99.8%</span>
+                            </div>
+                            <div class="w-full bg-[#101722] rounded-full h-1 border border-[#1a2636] overflow-hidden">
+                                <div id="hud-coherence-bar" class="bg-purple-400 h-full transition-all duration-1000" style="width: 99.8%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Messages Output -->
+            <div id="messages-area" class="flex-1 overflow-y-auto hidden flex-col w-full mb-6 pr-2 custom-scrollbar smooth-scroll">
+                <!-- Messages appended here -->
+            </div>
+
+            <!-- Input Area -->
+            <div class="w-full relative mt-auto">
+                <!-- Upload Preview -->
+                <div id="upload-preview" class="hidden items-center gap-2 bg-[#1A1A1A] border border-[#27272A] border-b-0 rounded-t-lg px-3 py-1.5 w-fit mb-[-1px] relative z-10">
+                    <i class="fas fa-file-alt text-[#717171] text-xs"></i>
+                    <span id="preview-filename" class="text-xs text-[#A1A1AA] font-mono truncate max-w-[150px]">file.py</span>
+                    <button onclick="clearUpload()" class="text-[#52525B] hover:text-[#FAFAFA] ml-2 text-xs"><i class="fas fa-times"></i></button>
+                </div>
+
+                <div class="relative bg-[#111111] rounded-xl border border-[#27272A] focus-within:border-[#52525B] transition-colors flex flex-col p-1 z-20 shadow-lg shadow-black/50">
+                    <textarea id="chat-input" rows="1" 
+                        class="w-full bg-transparent border-none text-[#FAFAFA] font-sans placeholder-[#52525B] resize-none py-3 px-4 max-h-[30vh] custom-scrollbar" 
+                        placeholder="Message JARVIS..." autofocus></textarea>
+                    
+                    <div class="flex items-center justify-between px-2 pb-2">
+                        <div class="flex gap-1 items-center">
+                            <input type="file" id="file-input" class="hidden" onchange="handleFileUpload(event)">
+                            <button onclick="document.getElementById('file-input').click()" class="p-1.5 text-[#717171] hover:text-[#FAFAFA] rounded hover:bg-[#1A1A1A] transition-colors" title="Attach File">
+                                <i class="fas fa-paperclip text-sm"></i>
+                            </button>
+                            <button id="mic-btn" onclick="toggleVoice()" class="p-1.5 text-[#717171] hover:text-[#FAFAFA] rounded hover:bg-[#1A1A1A] transition-colors" title="Voice Input">
+                                <i class="fas fa-microphone text-sm"></i>
+                            </button>
+                            
+                            <!-- Dynamic Model Selector -->
+                            <div class="relative inline-block text-left ml-1">
+                                <button onclick="toggleModelDropdown()" id="model-select-btn" class="flex items-center gap-1.5 px-2 py-1 text-[9px] font-mono font-semibold rounded-md bg-[#101722] border border-[#1a2636] text-[#00f0ff] hover:bg-[#121b28] transition-colors shadow-[0_0_10px_rgba(0,240,255,0.05)]">
+                                    <i id="model-status-dot" class="fas fa-circle text-[6px] text-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.5)]"></i> <span id="model-select-text">GEMINI 2.5 FLASH</span> <i class="fas fa-chevron-down text-[8px] text-[#475569]"></i>
+                                </button>
+                                <div id="model-dropdown" class="hidden absolute bottom-8 left-0 z-50 w-52 rounded-md border border-[#1a2636] bg-[#090e15] box-glow font-mono text-[10px] shadow-2xl overflow-hidden py-1">
+                                    <button class="w-full text-left px-3 py-1.5 text-[#FAFAFA] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2 border-b border-[#1a2636]/40" onclick="selectModel('Gemini 2.5 Flash', 'gemini-2.5-flash', 'emerald-400')">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-400"></div> Gemini 2.5 Flash <span class="ml-auto text-[8px] text-emerald-400/60">FREE</span>
+                                    </button>
+                                    <button class="w-full text-left px-3 py-1.5 text-[#94a3b8] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2 border-b border-[#1a2636]/40" onclick="selectModel('Ling 1T MoE', 'inclusion-ai/ling-2-6-1t', 'amber-400')">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-amber-400"></div> Ling 1T MoE <span class="ml-auto text-[8px] text-amber-400/60">FREE</span>
+                                    </button>
+                                    <button class="w-full text-left px-3 py-1.5 text-[#94a3b8] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2 border-b border-[#1a2636]/40" onclick="selectModel('Llama 3.3 Groq', 'llama-3.3-70b-versatile', 'cyan-400')">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-cyan-400"></div> Llama 3.3 Groq <span class="ml-auto text-[8px] text-cyan-400/60">FREE</span>
+                                    </button>
+                                    <button class="w-full text-left px-3 py-1.5 text-[#94a3b8] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2 border-b border-[#1a2636]/40" onclick="selectModel('Llama 3.1 Fast', 'llama-3.1-8b-instant', 'sky-400')">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-sky-400"></div> Llama 3.1 Fast <span class="ml-auto text-[8px] text-sky-400/60">FREE</span>
+                                    </button>
+                                    <button class="w-full text-left px-3 py-1.5 text-[#94a3b8] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2" onclick="selectModel('Ollama Local', 'llama3.1:8b', 'purple-400')">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div> Ollama Local <span class="ml-auto text-[8px] text-purple-400/60">LOCAL</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex items-center gap-2">
+                            <button id="stop-btn" onclick="stopGeneration()" class="hidden items-center gap-2 px-3 py-1.5 rounded-md bg-[#1A1A1A] text-[#FAFAFA] hover:bg-[#27272A] border border-[#27272A] transition-colors text-xs font-medium">
+                                <i class="fas fa-stop text-[10px]"></i> Stop
+                            </button>
+                            <button id="send-btn" onclick="sendMessage()" disabled class="w-8 h-8 rounded-lg bg-[#27272A] text-[#52525B] flex items-center justify-center transition-all duration-200 disabled:cursor-not-allowed">
+                                <i class="fas fa-arrow-up text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center mt-2 text-[10px] text-[#52525B] font-sans flex justify-between px-2">
+                    <span>JARVIS Local Node. Verify generated logic.</span>
+                    <span id="char-count" class="font-mono text-[9px] text-[#475569]">0 ch // ~0 tok</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Telemetry Modal -->
+    <div id="telemetry-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black/90 opacity-0 transition-opacity duration-300">
+        <div class="bg-[#111111] w-full max-w-md rounded-xl border border-[#27272A] p-6 relative transform scale-95 transition-transform duration-300 shadow-2xl">
+            <div class="flex items-center justify-between mb-6 border-b border-[#27272A] pb-4">
+                <div>
+                    <h2 class="font-brand font-medium text-[#FAFAFA] text-sm tracking-wider">System Satisfaction Analytics</h2>
+                    <p class="text-[9px] text-[#717171] font-mono mt-0.5 uppercase tracking-widest">Local Node Performance Ratings</p>
+                </div>
+                <button onclick="toggleTelemetryModal()" class="text-[#717171] hover:text-[#FAFAFA]"><i class="fas fa-times"></i></button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Overall stats row -->
+                <div class="flex items-center justify-around bg-[#1A1A1A] rounded-lg p-4 border border-[#27272A]">
+                    <div class="flex flex-col items-center">
+                        <span class="text-2xl font-bold font-brand text-[#FAFAFA]" id="telemetry-overall-avg">0.00</span>
+                        <span class="text-[9px] text-[#717171] font-mono uppercase mt-1">Average Score</span>
+                    </div>
+                    <div class="w-[1px] h-10 bg-[#27272A]"></div>
+                    <div class="flex flex-col items-center">
+                        <span class="text-2xl font-bold font-brand text-[#FAFAFA]" id="telemetry-overall-count">0</span>
+                        <span class="text-[9px] text-[#717171] font-mono uppercase mt-1">Feedback Loops</span>
+                    </div>
+                </div>
+                
+                <!-- Subsystems breakdown -->
+                <div class="space-y-4 max-h-[40vh] overflow-y-auto pr-1 custom-scrollbar">
+                    <h3 class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider">Engine Breakdown Stats</h3>
+                    
+                    <!-- Chat Logic -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-[#A1A1AA]"><i class="fas fa-comment-dots text-[#717171] mr-2"></i>Logic Engine</span>
+                            <span class="text-[#717171] text-[11px] font-mono" id="metric-message-score">0.00 / 5 (0 ratings)</span>
+                        </div>
+                        <div class="w-full bg-[#1A1A1A] rounded-full h-1 border border-[#27272A] overflow-hidden">
+                            <div id="metric-message-bar" class="bg-white h-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Visual Assets -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-[#A1A1AA]"><i class="fas fa-image text-[#717171] mr-2"></i>Visual Assets</span>
+                            <span class="text-[#717171] text-[11px] font-mono" id="metric-image-score">0.00 / 5 (0 ratings)</span>
+                        </div>
+                        <div class="w-full bg-[#1A1A1A] rounded-full h-1 border border-[#27272A] overflow-hidden">
+                            <div id="metric-image-bar" class="bg-white h-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Motion Assets -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-[#A1A1AA]"><i class="fas fa-video text-[#717171] mr-2"></i>Motion Assets</span>
+                            <span class="text-[#717171] text-[11px] font-mono" id="metric-video-score">0.00 / 5 (0 ratings)</span>
+                        </div>
+                        <div class="w-full bg-[#1A1A1A] rounded-full h-1 border border-[#27272A] overflow-hidden">
+                            <div id="metric-video-bar" class="bg-white h-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Intel Reports -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-[#A1A1AA]"><i class="fas fa-file-invoice text-[#717171] mr-2"></i>Intel Reports</span>
+                            <span class="text-[#717171] text-[11px] font-mono" id="metric-intel-score">0.00 / 5 (0 ratings)</span>
+                        </div>
+                        <div class="w-full bg-[#1A1A1A] rounded-full h-1 border border-[#27272A] overflow-hidden">
+                            <div id="metric-intel-bar" class="bg-white h-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- System Diagnostics -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-[#A1A1AA]"><i class="fas fa-heartbeat text-[#717171] mr-2"></i>System Scans</span>
+                            <span class="text-[#717171] text-[11px] font-mono" id="metric-system-score">0.00 / 5 (0 ratings)</span>
+                        </div>
+                        <div class="w-full bg-[#1A1A1A] rounded-full h-1 border border-[#27272A] overflow-hidden">
+                            <div id="metric-system-bar" class="bg-white h-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Marketing Assets -->
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs">
+                            <span class="text-[#A1A1AA]"><i class="fas fa-bullhorn text-[#717171] mr-2"></i>Marketing Assets</span>
+                            <span class="text-[#717171] text-[11px] font-mono" id="metric-marketing-score">0.00 / 5 (0 ratings)</span>
+                        </div>
+                        <div class="w-full bg-[#1A1A1A] rounded-full h-1 border border-[#27272A] overflow-hidden">
+                            <div id="metric-marketing-bar" class="bg-white h-full transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Ratings Feed -->
+                <div class="space-y-2 pt-2 border-t border-[#27272A]">
+                    <h3 class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider">Activity Feed</h3>
+                    <div id="telemetry-activity-feed" class="space-y-2 max-h-32 overflow-y-auto pr-1 text-xs">
+                        <div class="text-[#52525B] font-mono text-center py-2">No activity logged yet.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- App Connectors Modal (Redesigned) -->
+    <div id="connectors-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black/90 opacity-0 transition-opacity duration-300">
+        <div class="bg-[#111111] w-full max-w-lg rounded-xl border border-[#27272A] relative transform scale-95 transition-transform duration-300 shadow-2xl max-h-[85vh] flex flex-col">
+            
+            <!-- Modal Header -->
+            <div class="p-6 pb-4 border-b border-[#27272A] flex-shrink-0">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-[#1A1A1A] border border-[#27272A] flex items-center justify-center">
+                            <i class="fas fa-plug text-[#A1A1AA] text-sm"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-brand font-medium text-[#FAFAFA] text-base tracking-tight">Integrations</h2>
+                            <p class="text-[11px] text-[#52525B] mt-0.5">Authorize workspace connections for JARVIS</p>
+                        </div>
+                    </div>
+                    <button onclick="toggleConnectorsModal()" class="w-7 h-7 rounded-md flex items-center justify-center text-[#52525B] hover:text-[#FAFAFA] hover:bg-[#1A1A1A] transition-all"><i class="fas fa-times text-xs"></i></button>
+                </div>
+
+                <!-- Stats Row -->
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0A0A0A] border border-[#27272A]">
+                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)]"></div>
+                        <span class="text-[10px] font-mono text-[#A1A1AA]" id="connected-count">2 connected</span>
+                    </div>
+                    <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#0A0A0A] border border-[#27272A]">
+                        <i class="fas fa-shield-alt text-[8px] text-[#52525B]"></i>
+                        <span class="text-[10px] font-mono text-[#52525B]">OAuth 2.0</span>
+                    </div>
+                </div>
+
+                <!-- Search -->
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-[#52525B] text-[10px]"></i>
+                    <input type="text" id="connector-search" class="connector-search w-full bg-[#0A0A0A] border border-[#27272A] rounded-lg py-2 pl-8 pr-3 text-xs text-[#FAFAFA] placeholder-[#52525B] font-sans transition-colors" placeholder="Search integrations..." oninput="filterConnectors(this.value)">
+                </div>
+            </div>
+
+            <!-- Scrollable Body -->
+            <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-5 custom-scrollbar" id="connectors-body">
+
+                <!-- Category: Core AI -->
+                <div class="connector-category" data-category="core-ai">
+                    <div class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fas fa-robot text-[9px]"></i> Core AI Providers
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="ollama"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#FAFAFA] text-black flex items-center justify-center text-sm font-bold flex-shrink-0">O</div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Ollama</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Local model inference engine</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="openai"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#10A37F] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-brain text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">OpenAI</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">GPT-4o, DALL·E, Whisper</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group is-connected" data-name="gemini"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#4285F4] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-gem text-xs"></i></div><div class="min-w-0"><div class="flex items-center gap-2"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Gemini</h3><div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)] flex-shrink-0"></div></div><div class="flex items-center gap-1.5 mt-1 flex-wrap"><span class="scope-tag">flash</span><span class="scope-tag">vision</span><span class="scope-tag">free</span></div></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-emerald-400 border border-[#27272A] hover:bg-[#27272A] rounded-md flex items-center gap-1.5 flex-shrink-0" onclick="toggleConnect(this)"><i class="fas fa-check text-[8px]"></i> Active</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group is-connected" data-name="groq"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#F55036] text-white flex items-center justify-center text-sm font-bold flex-shrink-0">G</div><div class="min-w-0"><div class="flex items-center gap-2"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Groq</h3><div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)] flex-shrink-0"></div></div><div class="flex items-center gap-1.5 mt-1 flex-wrap"><span class="scope-tag">llama-3.3</span><span class="scope-tag">fast</span><span class="scope-tag">free</span></div></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-emerald-400 border border-[#27272A] hover:bg-[#27272A] rounded-md flex items-center gap-1.5 flex-shrink-0" onclick="toggleConnect(this)"><i class="fas fa-check text-[8px]"></i> Active</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="claude"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#D97757] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-feather text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Claude</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Anthropic reasoning engine</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="openrouter"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#6366F1] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-route text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">OpenRouter</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Multi-model gateway</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="lm studio"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#0EA5E9] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-laptop-code text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">LM Studio</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Local desktop inference</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="vllm"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#7C3AED] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-server text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">vLLM</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">High-throughput serving</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                    </div>
+                </div>
+
+                <!-- Category: Memory + Database -->
+                <div class="connector-category" data-category="memory-database">
+                    <div class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fas fa-database text-[9px]"></i> Memory + Database
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="firebase"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#FFCA28] text-black flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-fire text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Firebase</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Auth, Firestore, Storage, Functions</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group is-connected" data-name="sqlite"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#003B57]/15 text-[#42B883] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-database text-xs"></i></div><div class="min-w-0"><div class="flex items-center gap-2"><h3 class="text-[13px] font-medium text-[#FAFAFA]">SQLite</h3><div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)] flex-shrink-0"></div></div><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Direct query access to app DB</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-emerald-400 border border-[#27272A] hover:bg-[#27272A] rounded-md flex items-center gap-1.5 flex-shrink-0" onclick="toggleConnect(this)"><i class="fas fa-check text-[8px]"></i> Active</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group is-connected" data-name="postgresql"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#336791] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-database"></i></div><div class="min-w-0"><div class="flex items-center gap-2"><h3 class="text-[13px] font-medium text-[#FAFAFA]">PostgreSQL</h3><div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)] flex-shrink-0"></div></div><div class="flex items-center gap-1.5 mt-1 flex-wrap"><span class="scope-tag">read-only</span><span class="scope-tag">schema</span></div></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-emerald-400 border border-[#27272A] hover:bg-[#27272A] rounded-md flex items-center gap-1.5 flex-shrink-0" onclick="toggleConnect(this)"><i class="fas fa-check text-[8px]"></i> Active</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="redis"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#DC382D] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-bolt text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Redis</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">In-memory cache & pub/sub</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="chromadb"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#FF6F00] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-cubes text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">ChromaDB</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Vector embeddings store</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="qdrant"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#DC2626] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-vector-square text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Qdrant</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">High-performance vector search</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="neo4j"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#008CC1] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-project-diagram text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Neo4j</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Graph knowledge database</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="supabase"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#3ECF8E] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-leaf text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Supabase</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Postgres + Auth + Realtime</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="mongodb"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#00684A] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-leaf text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">MongoDB</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Document store & Atlas</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                    </div>
+                </div>
+
+                <!-- Category: Development -->
+                <div class="connector-category" data-category="development">
+                    <div class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fas fa-code text-[9px]"></i> Development
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group is-connected" data-name="github"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#161B22] text-white flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fab fa-github"></i></div><div class="min-w-0"><div class="flex items-center gap-2"><h3 class="text-[13px] font-medium text-[#FAFAFA]">GitHub</h3><div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)] flex-shrink-0"></div></div><div class="flex items-center gap-1.5 mt-1 flex-wrap"><span class="scope-tag">repos</span><span class="scope-tag">actions</span><span class="scope-tag">issues</span></div></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-emerald-400 border border-[#27272A] hover:bg-[#27272A] rounded-md flex items-center gap-1.5 flex-shrink-0" onclick="toggleConnect(this)"><i class="fas fa-check text-[8px]"></i> Active</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="gitlab"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#FC6D26] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fab fa-gitlab text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">GitLab</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">CI/CD pipelines, merge requests</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="vs code"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#007ACC] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-code text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">VS Code</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Editor workspace sync</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="docker"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#0db7ed]/15 text-[#0db7ed] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fab fa-docker"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Docker</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Container orchestration</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="kubernetes"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#326CE5] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-dharmachakra text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Kubernetes</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Cluster management</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="ssh"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#2D2D2D] text-[#00FF00] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-terminal text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">SSH</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Remote server access</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="terminal"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#1E1E1E] text-[#A1A1AA] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-terminal text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Terminal</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Shell command execution</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="filesystem"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#3B82F6]/15 text-[#3B82F6] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-folder-open"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Filesystem</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Secure local disk reads & writes</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="powershell"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#012456] text-[#00BFFF] flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-hashtag text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">PowerShell</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Windows automation scripts</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                    </div>
+                </div>
+
+                <!-- Category: Productivity -->
+                <div class="connector-category" data-category="productivity">
+                    <div class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fas fa-briefcase text-[9px]"></i> Productivity
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="google workspace"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-white text-black flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fab fa-google"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Google Workspace</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Docs, Gmail, Drive, Calendar</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="notion"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#FAFAFA] text-black flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0 font-bold font-brand text-base">N</div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Notion</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Databases, pages, wikis</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="slack"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#4A154B] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fab fa-slack"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Slack</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Channels, threads, DMs</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="discord"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#5865F2] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fab fa-discord"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Discord</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Server bots & webhooks</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="telegram"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#0088CC] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fab fa-telegram-plane"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Telegram</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Bot API & messaging</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="microsoft 365"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#0078D4] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fab fa-microsoft"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Microsoft 365</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Teams, OneDrive, Outlook</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                    </div>
+                </div>
+
+                <!-- Category: Web + Browser -->
+                <div class="connector-category" data-category="web-browser">
+                    <div class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fas fa-globe text-[9px]"></i> Web + Browser Agents
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="playwright"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#2EAD33] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-theater-masks text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Playwright</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Browser automation & testing</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="puppeteer"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#40B5A4] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-hand-paper text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Puppeteer</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Headless Chrome control</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="selenium"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#43B02A] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-atom text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Selenium</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Cross-browser web driver</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="chrome devtools"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#4285F4] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fab fa-chrome text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Chrome DevTools</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Debug protocol access</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="browser mcp"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#8B5CF6] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-window-restore text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Browser MCP</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">AI browser agent protocol</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="firecrawl"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#FF6B35] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-spider text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Firecrawl</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Web scraping & extraction</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                    </div>
+                </div>
+
+                <!-- Category: Media + Creative -->
+                <div class="connector-category" data-category="creative">
+                    <div class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fas fa-palette text-[9px]"></i> Media + Creative
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="figma"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#1E1E1E] text-white flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fab fa-figma"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Figma</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Design files, components</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="adobe creative cloud"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#FF0000] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-paint-brush text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Adobe Creative Cloud</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Premiere Pro, Photoshop assets</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="canva"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#00C4CC] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-shapes text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Canva</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Quick design & templates</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="blender"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#E87D0D] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-cube text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Blender</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">3D modeling & rendering</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="unity"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#222C37] text-white flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-gamepad text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Unity</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Game engine & XR assets</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="obs studio"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#302E31] text-white flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-video text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">OBS Studio</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Live streaming & recording</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                    </div>
+                </div>
+
+                <!-- Category: System + Device Control -->
+                <div class="connector-category" data-category="system-device">
+                    <div class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fas fa-microchip text-[9px]"></i> System + Device Control
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="clipboard"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#6366F1]/15 text-[#6366F1] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-clipboard text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Clipboard</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">System clipboard access</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="screen capture"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#EC4899]/15 text-[#EC4899] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-desktop text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Screen Capture</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Screenshot & screen recording</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="webcam"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#EF4444]/15 text-[#EF4444] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-camera text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Webcam</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Live video capture</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="microphone"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#F59E0B]/15 text-[#F59E0B] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-microphone text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Microphone</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Audio input & transcription</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="bluetooth"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#0082FC]/15 text-[#0082FC] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fab fa-bluetooth-b text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Bluetooth</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Device pairing & control</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="windows api"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#0078D4]/15 text-[#0078D4] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fab fa-windows text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Windows API</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">OS-level system control</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="audio devices"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#A855F7]/15 text-[#A855F7] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-headphones text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Audio Devices</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Speakers, mixers, routing</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                    </div>
+                </div>
+
+                <!-- Category: Automation -->
+                <div class="connector-category" data-category="automation">
+                    <div class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider mb-2 flex items-center gap-2">
+                        <i class="fas fa-cogs text-[9px]"></i> Automation
+                    </div>
+                    <div class="space-y-1.5">
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="n8n"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#EA4B71] text-white flex items-center justify-center text-sm flex-shrink-0 font-bold">n8n</div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">n8n</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Workflow automation engine</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="zapier"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#FF4A00] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-bolt text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Zapier</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">App-to-app automations</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="ifttt"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#000000] text-white flex items-center justify-center text-[10px] font-bold border border-[#27272A] flex-shrink-0">IFTTT</div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">IFTTT</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">If-this-then-that triggers</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="task scheduler"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#0078D4]/15 text-[#0078D4] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-clock text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Task Scheduler</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Windows scheduled tasks</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="home assistant"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#41BDF5] text-white flex items-center justify-center text-sm flex-shrink-0"><i class="fas fa-home text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Home Assistant</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Smart home automation</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                        <div class="connector-card flex items-center justify-between p-3 rounded-lg border border-[#27272A] bg-[#0A0A0A] hover:border-[#3F3F46] group" data-name="cron jobs"><div class="flex items-center gap-3 flex-1 min-w-0"><div class="w-9 h-9 rounded-lg bg-[#64748B]/15 text-[#64748B] flex items-center justify-center text-sm border border-[#27272A] flex-shrink-0"><i class="fas fa-history text-xs"></i></div><div class="min-w-0"><h3 class="text-[13px] font-medium text-[#FAFAFA]">Cron Jobs</h3><p class="text-[10px] text-[#52525B] font-mono mt-0.5">Recurring task scheduling</p></div></div><button class="connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0" onclick="toggleConnect(this)">Connect</button></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-[#27272A] flex-shrink-0 flex items-center justify-between">
+                <p class="text-[10px] text-[#52525B] font-mono"><i class="fas fa-lock text-[8px] mr-1"></i> Tokens encrypted at rest · Scoped permissions only</p>
+                <button onclick="toggleConnectorsModal()" class="px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md transition-colors">Done</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Unified OMEGA Skills HUD Modal -->
+    <div id="skills-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black/90 opacity-0 transition-opacity duration-300">
+        <div class="bg-[#111111] w-full max-w-2xl rounded-xl border border-[#27272A] relative transform scale-95 transition-transform duration-300 shadow-2xl max-h-[85vh] flex flex-col">
+            
+            <!-- Modal Header -->
+            <div class="p-6 pb-4 border-b border-[#27272A] flex-shrink-0">
+                <div class="flex items-center justify-between mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-lg bg-[#1A1A1A] border border-[#27272A] flex items-center justify-center">
+                            <i class="fas fa-brain text-purple-400 text-sm"></i>
+                        </div>
+                        <div>
+                            <h2 class="font-brand font-medium text-[#FAFAFA] text-base tracking-tight">OMEGA Skills HUD</h2>
+                            <p class="text-[11px] text-[#52525B] mt-0.5">Manage and execute composite Stark-themed automation skills</p>
+                        </div>
+                    </div>
+                    <button onclick="toggleSkillsModal()" class="w-7 h-7 rounded-md flex items-center justify-center text-[#52525B] hover:text-[#FAFAFA] hover:bg-[#1A1A1A] transition-all"><i class="fas fa-times text-xs"></i></button>
+                </div>
+            </div>
+
+            <!-- Scrollable Body -->
+            <div class="flex-1 overflow-y-auto p-6 pt-4 space-y-6 custom-scrollbar">
+                
+                <!-- Install/Ingest Section -->
+                <div class="bg-[#0A0A0A] p-4 rounded-lg border border-[#27272A]">
+                    <h3 class="text-xs font-semibold text-[#FAFAFA] uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <i class="fas fa-file-archive text-purple-400"></i> Install Dynamic Skill Pack
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="text-[9px] text-[#52525B] font-mono uppercase tracking-widest font-semibold block mb-1.5">Select Zipped Skill Package</label>
+                            <input type="file" id="skill-zip-input" accept=".zip" class="w-full bg-[#111112] border border-[#27272A] rounded-md text-xs p-1 text-[#A1A1AA] outline-none">
+                        </div>
+                        <div>
+                            <label class="text-[9px] text-[#52525B] font-mono uppercase tracking-widest font-semibold block mb-1.5">Expected SHA-256 Checksum (Optional)</label>
+                            <input type="text" id="skill-checksum-input" placeholder="e.g. 5d41402abc50..." class="w-full bg-[#111112] border border-[#27272A] rounded-md text-xs p-2 text-[#FAFAFA] placeholder-[#52525B] outline-none">
+                        </div>
+                    </div>
+                    <div class="mt-3 flex justify-between items-center">
+                        <span id="upload-status-text" class="text-xs font-mono text-[#52525B]">Ready for upload</span>
+                        <button onclick="uploadSkillPack()" class="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white text-xs font-medium rounded-md transition-colors flex items-center gap-2">
+                            <i class="fas fa-cloud-upload-alt"></i> Install Skill Pack
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Active Registered Skills Grid -->
+                <div class="space-y-3">
+                    <h3 class="text-xs font-semibold text-[#52525B] uppercase tracking-wider flex items-center gap-2">
+                        <i class="fas fa-th-large text-[10px]"></i> Active Orchestration Skills
+                    </h3>
+                    <div id="skills-grid" class="grid grid-cols-1 gap-4">
+                        <div class="text-[#717171] font-mono text-[10px] py-4 text-center">Loading skills registry...</div>
+                    </div>
+                </div>
+
+                <!-- Detailed Live Console Sub-panel -->
+                <div class="space-y-2">
+                    <h3 class="text-xs font-semibold text-[#52525B] uppercase tracking-wider flex items-center justify-between">
+                        <span><i class="fas fa-terminal text-[10px] mr-1"></i> Telemetry & Output Console</span>
+                        <button onclick="clearSkillsConsole()" class="text-[10px] text-purple-400 hover:underline">Clear Console</button>
+                    </h3>
+                    <div id="skills-console" class="bg-black border border-[#27272A] rounded-lg p-4 h-48 font-mono text-xs overflow-y-auto text-[#00FF00] space-y-1">
+                        <div class="text-[#52525B]">&gt; OMEGA Skills console initialized. Waiting for action...</div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-[#27272A] flex-shrink-0 flex items-center justify-between">
+                <p class="text-[10px] text-[#52525B] font-mono"><i class="fas fa-shield-alt text-[8px] mr-1"></i> Governance sandbox active · Policy-gate verification</p>
+                <button onclick="toggleSkillsModal()" class="px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md transition-colors">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Holographic Authentication Overlay -->
+    <div id="auth-overlay" class="fixed inset-0 z-[100] flex items-center justify-center hidden bg-black/95 backdrop-blur-xl opacity-0 transition-opacity duration-500">
+        <div class="bg-[#0B0B0C] w-full max-w-md rounded-2xl border border-[#27272A]/80 p-8 relative transform scale-95 transition-transform duration-500 shadow-2xl flex flex-col items-center">
+            
+            <!-- Tech Grid Decorative Top Line -->
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-4/5 h-[1px] bg-gradient-to-r from-transparent via-[#52525B]/40 to-transparent"></div>
+            
+            <!-- Neon Orb Pulsing Background -->
+            <div class="absolute w-48 h-48 bg-white/5 rounded-full blur-[80px] -z-10 animate-pulse pointer-events-none"></div>
+
+            <!-- JARVIS Shield Logo -->
+            <div class="w-16 h-16 mb-6 rounded-xl bg-white text-black flex items-center justify-center font-brand font-bold text-3xl shadow-[0_0_20px_rgba(255,255,255,0.15)] relative overflow-hidden group">
+                <span class="z-10">J</span>
+                <div class="absolute inset-0 bg-gradient-to-tr from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+            </div>
+
+            <!-- Title -->
+            <h2 class="font-brand font-medium text-[#FAFAFA] text-sm tracking-wider text-center uppercase mb-1">Clearance Protocol</h2>
+            <p class="text-[10px] text-[#A1A1AA] font-mono tracking-widest uppercase mb-8 text-center"><i class="fas fa-lock text-[8px] mr-1.5 text-red-500"></i> Secure Neural Clearance Required</p>
+
+            <!-- Google Authentication Button Container -->
+            <div class="w-full mb-6 flex flex-col items-center">
+                <!-- Native standard button rendered by GSI SDK -->
+                <div id="g_id_onload"
+                     data-client_id="{{ google_client_id or '965376510484-9rnbd641n836v5o8nfe9k0m59d3aekg3.apps.googleusercontent.com' }}"
+                     data-context="signin"
+                     data-ux_mode="popup"
+                     data-callback="handleGoogleCredentialResponse"
+                     data-auto_prompt="false">
+                </div>
+                <div class="g_id_signin w-full flex justify-center"
+                     data-type="standard"
+                     data-shape="rectangular"
+                     data-theme="filled_black"
+                     data-text="signin_with"
+                     data-size="large"
+                     data-logo_alignment="left"
+                     data-width="320">
+                </div>
+            </div>
+
+            <div class="w-full flex items-center gap-3 my-4">
+                <div class="h-[1px] bg-[#27272A] flex-1"></div>
+                <span class="text-[9px] text-[#52525B] uppercase font-mono tracking-widest flex-shrink-0">or local clearance</span>
+                <div class="h-[1px] bg-[#27272A] flex-1"></div>
+            </div>
+
+            <!-- Local Fallback Form -->
+            <form id="local-login-form" class="w-full space-y-4" onsubmit="handleLocalLogin(event)">
+                <div class="space-y-1.5">
+                    <label class="text-[9px] text-[#52525B] font-mono uppercase tracking-widest font-semibold block">Username</label>
+                    <input type="text" id="auth-username" required class="w-full bg-[#111112] border border-[#27272A] rounded-lg py-2 pl-3 pr-3 text-xs text-[#FAFAFA] placeholder-[#52525B] font-sans focus:border-[#52525B] focus:bg-[#080809] outline-none transition-colors" placeholder="Ayush / Admin">
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-[9px] text-[#52525B] font-mono uppercase tracking-widest font-semibold block">Password</label>
+                    <input type="password" id="auth-password" required class="w-full bg-[#111112] border border-[#27272A] rounded-lg py-2 pl-3 pr-3 text-xs text-[#FAFAFA] placeholder-[#52525B] font-sans focus:border-[#52525B] focus:bg-[#080809] outline-none transition-colors" placeholder="••••••••">
+                </div>
+                
+                <div id="auth-error-message" class="text-xs text-red-400 font-mono text-center hidden py-1">
+                    <i class="fas fa-exclamation-triangle mr-1"></i> Authentication failed.
+                </div>
+
+                <button type="submit" class="w-full py-2 px-4 bg-[#FAFAFA] hover:bg-gray-200 text-black text-xs font-semibold rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <i class="fas fa-key text-[10px]"></i> Validate Credentials
+                </button>
+            </form>
+
+            <div class="mt-8 text-[9px] text-[#52525B] font-mono uppercase tracking-widest text-center">
+                Operator Clearance · Secure Socket Encryption
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const state = { 
+            currentConvId: null, 
+            isStreaming: false, 
+            isVoiceActive: false, 
+            abortController: null,
+            lastUploadedContent: null,
+            ratings: { message: {}, image: {}, video: {}, intel: {}, system: {}, marketing: {} },
+            model: 'gemini-2.5-flash'
+        };
+
+        const chatInput = document.getElementById('chat-input');
+        const messagesArea = document.getElementById('messages-area');
+
+        // Input Auto-expand & Send UI Toggle
+        chatInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, window.innerHeight * 0.3) + 'px';
+            
+            // Real-time Estimated Character & Token Counter
+            const chars = this.value.length;
+            const estTokens = Math.ceil(chars / 4);
+            const countEl = document.getElementById('char-count');
+            if (countEl) {
+                countEl.innerText = `${chars} ch // ~${estTokens} tok`;
+            }
+
+            const sendBtn = document.getElementById('send-btn');
+            if(this.value.trim().length > 0) {
+                sendBtn.classList.remove('bg-[#27272A]', 'text-[#52525B]');
+                sendBtn.classList.add('bg-white', 'text-black', 'hover:bg-gray-200');
+                sendBtn.removeAttribute('disabled');
+            } else {
+                sendBtn.classList.add('bg-[#27272A]', 'text-[#52525B]');
+                sendBtn.classList.remove('bg-white', 'text-black', 'hover:bg-gray-200');
+                sendBtn.setAttribute('disabled', 'true');
+            }
+        });
+
+        // FIXED Markdown Renderer for Code Blocks
+        const renderer = new marked.Renderer();
+        renderer.code = function(code, language) {
+            const validLang = hljs.getLanguage(language) ? language : 'plaintext';
+            const highlighted = hljs.highlight(validLang, code).value;
+            
+            // Fix: Safely encode to prevent quote-breaking in the DOM
+            const safeCode = encodeURIComponent(code);
+            
+            return `
+                <pre>
+                    <div class="code-header">
+                        <span>${validLang}</span>
+                        <button class="copy-btn" data-code="${safeCode}" onclick="window.handleCopyClick(this)">
+                            <i class="far fa-copy"></i> Copy
+                        </button>
+                    </div>
+                    <code class="hljs ${validLang}">${highlighted}</code>
+                </pre>
+            `;
+        };
+        marked.setOptions({ renderer: renderer });
+
+        // Safely handle copying the encoded raw code
+        window.handleCopyClick = function(btn) {
+            const rawCode = decodeURIComponent(btn.getAttribute('data-code'));
+            navigator.clipboard.writeText(rawCode);
+            
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Copied';
+            setTimeout(() => btn.innerHTML = originalHTML, 2000);
+        };
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar.classList.contains('w-0')) {
+                sidebar.classList.remove('w-0', 'border-l-0');
+                sidebar.classList.add('w-64');
+            } else {
+                sidebar.classList.add('w-0', 'border-l-0');
+                sidebar.classList.remove('w-64');
+            }
+        }
+
+        function parseMediaAndRatings(text) {
+            let processed = text;
+            
+            // Match __IMAGE__:/path/to/image
+            const imageRegex = /__IMAGE__:([^\s\n\r&<>"]+)/g;
+            processed = processed.replace(imageRegex, (match, url) => {
+                const filename = url.split('/').pop();
+                return `
+                    <div class="media-card bg-[#111111] rounded-xl overflow-hidden border border-[#27272A] mt-4 max-w-md group/media relative shadow-xl">
+                        <img src="${url}" class="w-full h-64 object-cover" alt="Synthesized Image">
+                        <div class="absolute inset-0 bg-black/80 opacity-0 group-hover/media:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-5">
+                            <span class="text-[10px] font-bold text-[#FAFAFA] mb-1 font-brand tracking-wider">VISUAL ENGINE RESULT</span>
+                            <span class="text-xs text-[#A1A1AA] font-mono truncate mb-4">${filename}</span>
+                            <div class="rating-stars border-t-0 p-0 m-0" data-target-type="image" data-target-id="${filename}">
+                                <button class="star-btn" data-score="1" title="1 star"><i class="fas fa-star"></i></button>
+                                <button class="star-btn" data-score="2" title="2 stars"><i class="fas fa-star"></i></button>
+                                <button class="star-btn" data-score="3" title="3 stars"><i class="fas fa-star"></i></button>
+                                <button class="star-btn" data-score="4" title="4 stars"><i class="fas fa-star"></i></button>
+                                <button class="star-btn" data-score="5" title="5 stars"><i class="fas fa-star"></i></button>
+                                <span class="rating-status hidden transition-opacity duration-300">Saved</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Match __VIDEO__:/path/to/video
+            const videoRegex = /__VIDEO__:([^\s\n\r&<>"]+)/g;
+            processed = processed.replace(videoRegex, (match, url) => {
+                const filename = url.split('/').pop();
+                return `
+                    <div class="media-card bg-[#111111] rounded-xl overflow-hidden border border-[#27272A] mt-4 max-w-md shadow-xl">
+                        <div class="relative">
+                            <video src="${url}" controls class="w-full h-64 object-cover"></video>
+                            <div class="absolute top-3 right-3 bg-black/85 px-3 py-1 rounded text-[9px] text-[#FAFAFA] font-bold border border-[#27272A] backdrop-blur-md font-brand tracking-wider">MOTION ENGINE RESULT</div>
+                        </div>
+                        <div class="p-5 bg-black/40 border-t border-[#27272A] flex items-center justify-between">
+                            <span class="text-xs text-[#A1A1AA] font-mono truncate max-w-[150px]">${filename}</span>
+                            <div class="rating-stars border-t-0 p-0 m-0" data-target-type="video" data-target-id="${filename}">
+                                <button class="star-btn" data-score="1" title="1 star"><i class="fas fa-star"></i></button>
+                                <button class="star-btn" data-score="2" title="2 stars"><i class="fas fa-star"></i></button>
+                                <button class="star-btn" data-score="3" title="3 stars"><i class="fas fa-star"></i></button>
+                                <button class="star-btn" data-score="4" title="4 stars"><i class="fas fa-star"></i></button>
+                                <button class="star-btn" data-score="5" title="5 stars"><i class="fas fa-star"></i></button>
+                                <span class="rating-status hidden transition-opacity duration-300">Saved</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Match __INTEL__:/path/to/intel
+            const intelRegex = /__INTEL__:([^\s\n\r&<>"]+)/g;
+            processed = processed.replace(intelRegex, (match, url) => {
+                const filename = url.split('/').pop();
+                return `
+                    <div class="media-card bg-[#111111] rounded-xl overflow-hidden border border-[#27272A] mt-4 max-w-md shadow-xl">
+                        <div class="p-5 bg-[#1A1A1A]/50 border border-[#27272A]/60">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-8 h-8 rounded bg-[#111111] border border-[#27272A] flex items-center justify-center text-[#FAFAFA]">
+                                    <i class="fas fa-file-invoice"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-brand font-bold text-[#FAFAFA] text-xs tracking-wide">INTELLIGENCE BRIEFING</h4>
+                                    <span class="text-[9px] text-[#52525B] font-mono tracking-wider uppercase">World Security Grid</span>
+                                </div>
+                            </div>
+                            <p class="text-xs text-[#A1A1AA] font-mono mb-4 truncate">${filename}</p>
+                            <div class="flex items-center justify-between border-t border-[#27272A] pt-3">
+                                <span class="text-xs text-[#52525B]">Rate Briefing:</span>
+                                <div class="rating-stars border-t-0 p-0 m-0" data-target-type="intel" data-target-id="${filename}">
+                                    <button class="star-btn" data-score="1" title="1 star"><i class="fas fa-star"></i></button>
+                                    <button class="star-btn" data-score="2" title="2 stars"><i class="fas fa-star"></i></button>
+                                    <button class="star-btn" data-score="3" title="3 stars"><i class="fas fa-star"></i></button>
+                                    <button class="star-btn" data-score="4" title="4 stars"><i class="fas fa-star"></i></button>
+                                    <button class="star-btn" data-score="5" title="5 stars"><i class="fas fa-star"></i></button>
+                                    <span class="rating-status hidden transition-opacity duration-300">Saved</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Match __SYSTEM__:/path/to/system
+            const systemRegex = /__SYSTEM__:([^\s\n\r&<>"]+)/g;
+            processed = processed.replace(systemRegex, (match, url) => {
+                const filename = url.split('/').pop();
+                return `
+                    <div class="media-card bg-[#111111] rounded-xl overflow-hidden border border-[#27272A] mt-4 max-w-md shadow-xl">
+                        <div class="p-5 bg-[#1A1A1A]/50 border border-[#27272A]/60">
+                            <div class="flex items-center gap-3 mb-3">
+                                <div class="w-8 h-8 rounded bg-[#111111] border border-[#27272A] flex items-center justify-center text-[#FAFAFA]">
+                                    <i class="fas fa-heartbeat"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-brand font-bold text-[#FAFAFA] text-xs tracking-wide">SYSTEM DIAGNOSTIC SCAN</h4>
+                                    <span class="text-[9px] text-[#52525B] font-mono tracking-wider uppercase">Neural Node Health</span>
+                                </div>
+                            </div>
+                            <p class="text-xs text-[#A1A1AA] font-mono mb-4 truncate">${filename}</p>
+                            <div class="flex items-center justify-between border-t border-[#27272A] pt-3">
+                                <span class="text-xs text-[#52525B]">Rate Diagnostics:</span>
+                                <div class="rating-stars border-t-0 p-0 m-0" data-target-type="system" data-target-id="${filename}">
+                                    <button class="star-btn" data-score="1" title="1 star"><i class="fas fa-star"></i></button>
+                                    <button class="star-btn" data-score="2" title="2 stars"><i class="fas fa-star"></i></button>
+                                    <button class="star-btn" data-score="3" title="3 stars"><i class="fas fa-star"></i></button>
+                                    <button class="star-btn" data-score="4" title="4 stars"><i class="fas fa-star"></i></button>
+                                    <button class="star-btn" data-score="5" title="5 stars"><i class="fas fa-star"></i></button>
+                                    <span class="rating-status hidden transition-opacity duration-300">Saved</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Match __MARKETING__:/path/to/marketing
+            const marketingRegex = /__MARKETING__:([^\s\n\r&<>"]+)/g;
+            processed = processed.replace(marketingRegex, (match, url) => {
+                const filename = url.split('/').pop();
+                return `
+                    <div class="media-card bg-[#111111] rounded-xl overflow-hidden border border-[#27272A] mt-4 max-w-md shadow-xl">
+                        <div class="p-5 bg-[#1A1A1A]/50 border border-[#27272A]/60">
+                            <div class="flex items-center gap-3 mb-4">
+                                <div class="w-8 h-8 rounded bg-[#111111] border border-[#27272A] flex items-center justify-center text-[#FAFAFA]">
+                                    <i class="fas fa-bullhorn"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-brand font-bold text-[#FAFAFA] text-xs tracking-wide">MARKETING PERFORMANCE</h4>
+                                    <span class="text-[9px] text-[#52525B] font-mono tracking-wider uppercase">Campaign Metrics</span>
+                                </div>
+                            </div>
+                            
+                            <!-- Statistics Bento Row -->
+                            <div class="grid grid-cols-3 gap-2 mb-4">
+                                <div class="bg-black/35 rounded-lg p-3 border border-[#27272A] flex flex-col items-center justify-center relative overflow-hidden group">
+                                    <span class="text-[9px] text-[#717171] font-mono uppercase tracking-wider mb-1">Reach</span>
+                                    <span class="text-sm font-bold font-brand text-[#FAFAFA]">98.4k</span>
+                                </div>
+                                <div class="bg-black/35 rounded-lg p-3 border border-[#27272A] flex flex-col items-center justify-center relative overflow-hidden group">
+                                    <span class="text-[9px] text-[#717171] font-mono uppercase tracking-wider mb-1">Conv.</span>
+                                    <span class="text-sm font-bold font-brand text-[#FAFAFA]">8.7%</span>
+                                </div>
+                                <div class="bg-black/35 rounded-lg p-3 border border-[#27272A] flex flex-col items-center justify-center relative overflow-hidden group">
+                                    <span class="text-[9px] text-[#717171] font-mono uppercase tracking-wider mb-1">ROI</span>
+                                    <span class="text-sm font-bold font-brand text-emerald-400">+340%</span>
+                                </div>
+                            </div>
+
+                            <p class="text-xs text-[#A1A1AA] font-mono mb-4 truncate">${filename}</p>
+                            <div class="flex items-center justify-between border-t border-[#27272A] pt-3">
+                                <span class="text-xs text-[#52525B]">Rate Campaign:</span>
+                                <div class="rating-stars border-t-0 p-0 m-0" data-target-type="marketing" data-target-id="${filename}">
+                                    <button class="star-btn" data-score="1" title="1 star"><i class="fas fa-star"></i></button>
+                                    <button class="star-btn" data-score="2" title="2 stars"><i class="fas fa-star"></i></button>
+                                    <button class="star-btn" data-score="3" title="3 stars"><i class="fas fa-star"></i></button>
+                                    <button class="star-btn" data-score="4" title="4 stars"><i class="fas fa-star"></i></button>
+                                    <button class="star-btn" data-score="5" title="5 stars"><i class="fas fa-star"></i></button>
+                                    <span class="rating-status hidden transition-opacity duration-300">Saved</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            return processed;
+        }
+
+        function prefill(text) {
+            chatInput.value = text;
+            chatInput.dispatchEvent(new Event('input'));
+            chatInput.focus();
+        }
+
+        function addLog(message, type = 'jarvis') {
+            const p = document.createElement('div');
+            p.className = 'w-full mb-6 flex gap-4';
+            
+            if (type === 'user') {
+                p.innerHTML = `
+                    <div class="flex-1 flex justify-end">
+                        <div class="bg-[#1A1A1A] text-[#FAFAFA] rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%] text-[0.95rem] whitespace-pre-wrap border border-[#27272A]">${message}</div>
+                    </div>
+                `;
+            } else {
+                const msgId = 'msg_' + Math.random().toString(36).substr(2, 9);
+                p.innerHTML = `
+                    <div class="w-6 h-6 mt-1 rounded bg-white text-black flex items-center justify-center flex-shrink-0 font-brand font-bold text-xs">J</div>
+                    <div class="flex-1 max-w-[90%] chat-content-container">
+                        <div class="prose max-w-none chat-content text-[0.95rem] pt-0.5"></div>
+                        <div class="rating-stars hidden" data-target-type="message" data-target-id="${msgId}">
+                            <button class="star-btn" data-score="1" title="1 star"><i class="fas fa-star"></i></button>
+                            <button class="star-btn" data-score="2" title="2 stars"><i class="fas fa-star"></i></button>
+                            <button class="star-btn" data-score="3" title="3 stars"><i class="fas fa-star"></i></button>
+                            <button class="star-btn" data-score="4" title="4 stars"><i class="fas fa-star"></i></button>
+                            <button class="star-btn" data-score="5" title="5 stars"><i class="fas fa-star"></i></button>
+                            <span class="rating-status hidden transition-opacity duration-300">Saved</span>
+                        </div>
+                    </div>
+                `;
+                if(message) {
+                    const contentDiv = p.querySelector('.chat-content');
+                    contentDiv.innerHTML = DOMPurify.sanitize(marked.parse(message));
+                    p.querySelector('.rating-stars').classList.remove('hidden');
+                }
+            }
+            
+            messagesArea.appendChild(p);
+            scrollToBottom();
+            return p;
+        }
+
+        async function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const preview = document.getElementById('upload-preview');
+            const filenameSpan = document.getElementById('preview-filename');
+            
+            filenameSpan.innerText = file.name;
+            preview.classList.remove('hidden');
+            preview.classList.add('flex');
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken },
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (data.status === 'success') {
+                    state.lastUploadedContent = data.content;
+                } else {
+                    throw new Error(data.error || 'Ingestion failed');
+                }
+            } catch (error) {
+                alert(`File Upload Failed: ${error.message}`);
+                clearUpload();
+            }
+        }
+
+        function clearUpload() {
+            document.getElementById('upload-preview').classList.add('hidden');
+            document.getElementById('upload-preview').classList.remove('flex');
+            document.getElementById('file-input').value = '';
+            state.lastUploadedContent = null;
+        }
+
+        async function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message && !state.lastUploadedContent) return;
+            if (state.isStreaming) return;
+
+            document.body.classList.add('chat-active');
+            
+            if (message) addLog(message, 'user');
+            if (state.lastUploadedContent && !message) addLog('[File Attachment Included]', 'user');
+
+            chatInput.value = '';
+            chatInput.style.height = 'auto';
+            chatInput.dispatchEvent(new Event('input'));
+            
+            state.isStreaming = true;
+            document.getElementById('stop-btn').classList.remove('hidden');
+            document.getElementById('send-btn').classList.add('hidden');
+            
+            const jarvisLog = addLog('', 'jarvis');
+            const contentDiv = jarvisLog.querySelector('.chat-content');
+            contentDiv.innerHTML = '<div class="flex items-center gap-2 text-[#52525B] pt-1"><div class="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-bounce shadow-[0_0_4px_#00f0ff]"></div><div class="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-bounce shadow-[0_0_4px_#00f0ff]" style="animation-delay: 0.2s"></div><div class="w-1.5 h-1.5 rounded-full bg-[#00f0ff] animate-bounce shadow-[0_0_4px_#00f0ff]" style="animation-delay: 0.4s"></div></div>';
+
+            state.abortController = new AbortController();
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ 
+                        message, 
+                        conversation_id: state.currentConvId,
+                        file_context: state.lastUploadedContent || "",
+                        model: state.model
+                    }),
+                    signal: state.abortController.signal
+                });
+
+                clearUpload();
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullText = '';
+                let isFirstChunk = true;
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n\n');
+                    for (const line of lines) {
+                        if (line.trim().startsWith('data: ')) {
+                            try {
+                                const data = JSON.parse(line.trim().slice(6));
+                                if (data.chunk) {
+                                    if (isFirstChunk) {
+                                        contentDiv.innerHTML = '';
+                                        contentDiv.style.whiteSpace = 'pre-wrap';
+                                        isFirstChunk = false;
+                                    }
+                                    fullText += data.chunk;
+                                    contentDiv.textContent = fullText;
+                                    
+                                    const isScrolledUp = messagesArea.scrollHeight - messagesArea.scrollTop - messagesArea.clientHeight > 120;
+                                    if (!isScrolledUp) scrollToBottom();
+                                } else if (data.done) {
+                                    if (data.conversation_id) {
+                                        state.currentConvId = data.conversation_id;
+                                    }
+                                }
+                            } catch(e) {}
+                        }
+                    }
+                }
+                
+                // End of active streaming: Render final clean markdown and highlighting
+                contentDiv.style.whiteSpace = 'normal';
+                const parsedHTML = parseMediaAndRatings(marked.parse(fullText || '[Response Empty, Sir]'));
+                contentDiv.innerHTML = DOMPurify.sanitize(parsedHTML);
+                
+                contentDiv.querySelectorAll('pre code').forEach(el => hljs.highlightElement(el));
+                applyStoredRatings(jarvisLog);
+                jarvisLog.querySelector('.rating-stars').classList.remove('hidden');
+                
+                // Reload conversations list to display current thread updates
+                await loadConversations();
+
+            } catch (e) {
+                if (e.name !== 'AbortError') {
+                    contentDiv.style.whiteSpace = 'normal';
+                    contentDiv.innerHTML = '<span class="text-red-400 text-xs font-mono"><i class="fas fa-exclamation-triangle mr-1"></i> Neural Core link interrupted. Please check status.</span>';
+                }
+            } finally {
+                state.isStreaming = false;
+                document.getElementById('stop-btn').classList.add('hidden');
+                document.getElementById('send-btn').classList.remove('hidden');
+            }
+        }
+
+        function scrollToBottom() {
+            messagesArea.scrollTo({ top: messagesArea.scrollHeight, behavior: 'smooth' });
+        }
+
+        function stopGeneration() {
+            if (state.abortController) {
+                state.abortController.abort();
+                state.isStreaming = false;
+                document.getElementById('stop-btn').classList.add('hidden');
+                document.getElementById('send-btn').classList.remove('hidden');
+            }
+        }
+
+        function newConversation() {
+            state.currentConvId = null;
+            document.body.classList.remove('chat-active');
+            messagesArea.innerHTML = '';
+            chatInput.focus();
+            if(window.innerWidth < 768) toggleSidebar();
+            loadConversations();
+        }
+
+        chatInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Global keyboard shortcut: Ctrl+Shift+S (New Thread)
+        window.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                newConversation();
+                console.log("⌨️ Stark Shortcut: Started new conversation.");
+            }
+        });
+
+        // ─── Model Selection Dropdown Handlers ────────────────────────────────────
+        function toggleModelDropdown() {
+            const dropdown = document.getElementById('model-dropdown');
+            if (dropdown) dropdown.classList.toggle('hidden');
+        }
+        window.toggleModelDropdown = toggleModelDropdown;
+
+        function selectModel(name, id, dotColor) {
+            state.model = id;
+            const btnText = document.getElementById('model-select-text');
+            const dot = document.getElementById('model-status-dot');
+            if (btnText) btnText.innerText = name.toUpperCase();
+            if (dot) {
+                dot.className = `fas fa-circle text-[6px] text-${dotColor} shadow-[0_0_4px_rgba(52,211,153,0.5)]`;
+            }
+            toggleModelDropdown();
+            console.log(`🤖 Calibration complete: Core engine switched to ${name} (${id})`);
+        }
+        window.selectModel = selectModel;
+
+        window.addEventListener('click', (e) => {
+            const dropdown = document.getElementById('model-dropdown');
+            const btn = document.getElementById('model-select-btn');
+            if (dropdown && btn && !btn.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        // ─── Native Web Speech Recognition Dictation ──────────────────────────
+        let recognition = null;
+        function toggleVoice() {
+            const micBtn = document.getElementById('mic-btn');
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            
+            if (!SpeechRecognition) {
+                alert("Speech recognition is not supported in this browser, Sir.");
+                return;
+            }
+
+            if (!recognition) {
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+
+                recognition.onstart = () => {
+                    state.isVoiceActive = true;
+                    micBtn.classList.add('text-red-500');
+                    micBtn.classList.remove('text-[#717171]');
+                    micBtn.innerHTML = '<i class="fas fa-microphone animate-pulse text-sm"></i>';
+                    chatInput.placeholder = "Listening, Sir...";
+                };
+
+                recognition.onresult = (event) => {
+                    let interimTranscript = '';
+                    let finalTranscript = '';
+                    for (let i = event.resultIndex; i < event.results.length; ++i) {
+                        if (event.results[i].isFinal) {
+                            finalTranscript += event.results[i][0].transcript;
+                        } else {
+                            interimTranscript += event.results[i][0].transcript;
+                        }
+                    }
+                    if (finalTranscript || interimTranscript) {
+                        chatInput.value = finalTranscript || interimTranscript;
+                        chatInput.dispatchEvent(new Event('input'));
+                    }
+                };
+
+                recognition.onerror = (err) => {
+                    console.error("Speech Recognition Error:", err);
+                    stopVoiceRecognition();
+                };
+
+                recognition.onend = () => {
+                    stopVoiceRecognition();
+                };
+            }
+
+            if (state.isVoiceActive) {
+                recognition.stop();
+            } else {
+                recognition.start();
+            }
+        }
+        window.toggleVoice = toggleVoice;
+
+        function stopVoiceRecognition() {
+            const micBtn = document.getElementById('mic-btn');
+            state.isVoiceActive = false;
+            if (micBtn) {
+                micBtn.classList.remove('text-red-500');
+                micBtn.classList.add('text-[#717171]');
+                micBtn.innerHTML = '<i class="fas fa-microphone text-sm"></i>';
+            }
+            if (chatInput) {
+                chatInput.placeholder = "Message JARVIS...";
+            }
+        }
+        window.stopVoiceRecognition = stopVoiceRecognition;
+
+        // ─── Dynamic Conversations Loader ────────────────────────────────────
+        async function loadConversations() {
+            try {
+                const response = await fetch('/api/conversations');
+                if (response.ok) {
+                    const list = await response.json();
+                    const listContainer = document.getElementById('conversation-list');
+                    if (listContainer) {
+                        listContainer.innerHTML = `<div class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider px-3 mb-2 mt-2">Recent Threads</div>`;
+                        if (list.length === 0) {
+                            listContainer.innerHTML += `<div class="text-[#717171] font-mono text-[10px] px-3 py-2">No threads yet.</div>`;
+                            return;
+                        }
+                        listContainer.innerHTML += list.map(c => {
+                            const activeClass = state.currentConvId === c.id ? 'bg-[#101722] border-[#1a2636] text-[#00f0ff]' : 'hover:bg-[#101722]/50 text-[#94a3b8] hover:text-[#FAFAFA]';
+                            return `
+                                <div onclick="selectConversation('${c.id}')" class="group flex items-center justify-between px-3 py-2 rounded-md cursor-pointer transition-colors border border-transparent ${activeClass}" data-id="${c.id}">
+                                    <div class="flex items-center gap-2 overflow-hidden min-w-0">
+                                        <i class="far fa-comment-alt text-[10px] flex-shrink-0 text-[#475569] group-hover:text-cyan-400"></i>
+                                        <span class="text-xs truncate font-medium">${c.title || 'Stark Thread'}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load conversations:", err);
+            }
+        }
+        window.loadConversations = loadConversations;
+
+        async function selectConversation(convId) {
+            state.currentConvId = convId;
+            document.body.classList.add('chat-active');
+            messagesArea.innerHTML = '<div class="text-[#52525B] font-mono text-center py-8">Retrieving neural log streams...</div>';
+            try {
+                const response = await fetch(`/api/conversations/${convId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    messagesArea.innerHTML = '';
+                    if (data.messages && data.messages.length > 0) {
+                        data.messages.forEach(msg => {
+                            addLog(msg.content, msg.role === 'user' ? 'user' : 'jarvis');
+                        });
+                    } else {
+                        messagesArea.innerHTML = '<div class="text-[#52525B] font-mono text-center py-8">Empty neural log.</div>';
+                    }
+                    await loadRatings();
+                    applyStoredRatings();
+                }
+            } catch (err) {
+                console.error("Failed to retrieve conversation details:", err);
+                messagesArea.innerHTML = '<div class="text-red-400 font-mono text-center py-8">Bridge connection error.</div>';
+            }
+            await loadConversations();
+        }
+        window.selectConversation = selectConversation;
+
+        // Live ratings logic
+        async function loadRatings() {
+            try {
+                const response = await fetch('/api/ratings');
+                if (response.ok) {
+                    const data = await response.json();
+                    state.ratings = { message: {}, image: {}, video: {}, intel: {}, system: {}, marketing: {} };
+                    data.forEach(r => {
+                        if (!state.ratings[r.target_type]) {
+                            state.ratings[r.target_type] = {};
+                        }
+                        state.ratings[r.target_type][r.target_id] = r.score;
+                    });
+                }
+            } catch (e) {
+                console.error('Failed to load ratings:', e);
+            }
+        }
+
+        function applyStoredRatings(parent = document) {
+            const starContainers = parent.querySelectorAll('.rating-stars');
+            starContainers.forEach(container => {
+                const targetType = container.dataset.targetType;
+                const targetId = container.dataset.targetId;
+                if (state.ratings[targetType] && state.ratings[targetType][targetId] !== undefined) {
+                    const score = state.ratings[targetType][targetId];
+                    const stars = container.querySelectorAll('.star-btn');
+                    stars.forEach(star => {
+                        const starScore = parseInt(star.dataset.score);
+                        if (starScore <= score) {
+                            star.classList.add('active');
+                        } else {
+                            star.classList.remove('active');
+                        }
+                    });
+                }
+            });
+        }
+
+        function toggleTelemetryModal() {
+            const modal = document.getElementById('telemetry-modal');
+            if (modal.classList.contains('hidden')) {
+                updateTelemetryData();
+                modal.classList.remove('hidden');
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    modal.querySelector('div').classList.remove('scale-95');
+                }, 10);
+            } else {
+                modal.classList.add('opacity-0');
+                modal.querySelector('div').classList.add('scale-95');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            }
+        }
+
+        function toggleConnectorsModal() {
+            const modal = document.getElementById('connectors-modal');
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                updateConnectorStats();
+                setTimeout(() => {
+                    modal.classList.remove('opacity-0');
+                    modal.querySelector('.bg-\\[\\#111111\\]').classList.remove('scale-95');
+                }, 10);
+            } else {
+                modal.classList.add('opacity-0');
+                modal.querySelector('.bg-\\[\\#111111\\]').classList.add('scale-95');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            }
+        }
+
+        async function loadConnectors() {
+            try {
+                const response = await fetch('/api/connectors');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        // Reset all to disconnected first
+                        document.querySelectorAll('.connector-card').forEach(card => {
+                            const btn = card.querySelector('.connect-btn');
+                            btn.className = "connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0";
+                            btn.innerHTML = 'Connect';
+                            card.classList.remove('is-connected');
+                            const dot = card.querySelector('.bg-emerald-500');
+                            if (dot) dot.remove();
+                        });
+
+                        // Apply active state to connected providers
+                        data.connectors.forEach(conn => {
+                            if (conn.is_active) {
+                                const card = document.querySelector(`.connector-card[data-name="${conn.provider.toLowerCase()}"]`);
+                                if (card) {
+                                    card.classList.add('is-connected');
+                                    const btn = card.querySelector('.connect-btn');
+                                    btn.className = "connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-emerald-400 border border-[#27272A] hover:bg-[#27272A] rounded-md flex items-center gap-1.5 flex-shrink-0";
+                                    btn.innerHTML = '<i class="fas fa-check text-[8px]"></i> Active';
+                                    
+                                    const nameEl = card.querySelector('h3');
+                                    if (nameEl && !nameEl.parentElement.querySelector('.bg-emerald-500')) {
+                                        const dot = document.createElement('div');
+                                        dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)] flex-shrink-0';
+                                        nameEl.parentElement.appendChild(dot);
+                                    }
+                                    
+                                    const scopeContainer = card.querySelector('.flex.items-center.gap-1\\.5.mt-1');
+                                    if (scopeContainer && conn.scopes) {
+                                        scopeContainer.innerHTML = conn.scopes.map(s => `<span class="scope-tag">${s}</span>`).join('');
+                                    }
+                                }
+                            }
+                        });
+                        updateConnectorStats();
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to load connectors:", e);
+            }
+        }
+
+        async function toggleConnect(btn) {
+            const card = btn.closest('.connector-card');
+            const provider = card.getAttribute('data-name');
+            const isActive = btn.textContent.trim().includes('Active');
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+            
+            let command = null;
+            let args = [];
+            
+            if (!isActive) {
+                // If connecting, prompt for the MCP command
+                const inputStr = prompt(`To connect ${provider}, enter the MCP command (e.g., npx -y @modelcontextprotocol/server-github --env GITHUB_PERSONAL_ACCESS_TOKEN=xxx):`);
+                if (!inputStr) return; // User cancelled
+                
+                const parts = inputStr.trim().split(' ');
+                command = parts[0];
+                args = parts.slice(1);
+            }
+            
+            // Set loading state
+            btn.className = "connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-emerald-400 border border-[#27272A] hover:bg-[#27272A] rounded-md flex items-center gap-1.5 flex-shrink-0";
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin text-[8px]"></i> ' + (isActive ? 'Disconnecting...' : 'Connecting...');
+            
+            try {
+                const response = await fetch('/api/connectors/toggle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    body: JSON.stringify({ 
+                        provider: provider,
+                        command: command,
+                        args: args
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    if (data.is_active) {
+                        // Connected successfully
+                        btn.innerHTML = '<i class="fas fa-check text-[8px]"></i> Active';
+                        card.classList.add('is-connected');
+                        
+                        const nameEl = card.querySelector('h3');
+                        if (nameEl && !nameEl.parentElement.querySelector('.bg-emerald-500')) {
+                            const dot = document.createElement('div');
+                            dot.className = 'w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.4)] flex-shrink-0';
+                            nameEl.parentElement.appendChild(dot);
+                        }
+                        
+                        const scopeContainer = card.querySelector('.flex.items-center.gap-1\\.5.mt-1');
+                        if (scopeContainer && data.scopes) {
+                            scopeContainer.innerHTML = data.scopes.map(s => `<span class="scope-tag">${s}</span>`).join('');
+                        }
+                    } else {
+                        // Disconnected successfully
+                        btn.className = "connect-btn px-3 py-1.5 text-[11px] font-medium bg-[#1A1A1A] text-[#A1A1AA] border border-[#27272A] hover:bg-[#27272A] hover:text-[#FAFAFA] rounded-md flex-shrink-0";
+                        btn.innerHTML = 'Connect';
+                        card.classList.remove('is-connected');
+                        
+                        const scopeContainer = card.querySelector('.flex.items-center.gap-1\\.5.mt-1');
+                        if (scopeContainer && scopeContainer.querySelector('.scope-tag')) {
+                            scopeContainer.innerHTML = `<span class="text-[10px] text-[#52525B] font-mono">Click Connect to authorize</span>`;
+                        }
+                        
+                        const dot = card.querySelector('.bg-emerald-500');
+                        if (dot) dot.remove();
+                    }
+                    updateConnectorStats();
+                    
+                    // Reload MCP tools in sidebar
+                    setTimeout(() => loadMCPTools(), 1000);
+                } else {
+                    const errData = await response.json();
+                    alert("Failed to toggle connector: " + (errData.message || "Unknown error"));
+                    loadConnectors();
+                }
+            } catch (e) {
+                console.error("Failed to toggle connector:", e);
+                alert("Failed to toggle connector. Check console for details.");
+                loadConnectors(); // Revert state
+            }
+        }
+
+        function updateConnectorStats() {
+            const connected = document.querySelectorAll('.connector-card.is-connected').length;
+            const countEl = document.getElementById('connected-count');
+            if (countEl) countEl.textContent = `${connected} connected`;
+        }
+
+        function filterConnectors(query) {
+            const q = query.toLowerCase().trim();
+            const cards = document.querySelectorAll('.connector-card');
+            const categories = document.querySelectorAll('.connector-category');
+            
+            cards.forEach(card => {
+                const name = (card.getAttribute('data-name') || '').toLowerCase();
+                card.style.display = name.includes(q) || q === '' ? '' : 'none';
+            });
+            
+            // Hide empty categories
+            categories.forEach(cat => {
+                const visibleCards = cat.querySelectorAll('.connector-card:not([style*="display: none"])');
+                cat.style.display = visibleCards.length > 0 ? '' : 'none';
+            });
+        }
+
+        async function updateTelemetryData() {
+            try {
+                const response = await fetch('/api/ratings/stats');
+                if (response.ok) {
+                    const stats = await response.json();
+                    
+                    const overallAvg = stats.overall ? stats.overall.average : 0.00;
+                    const overallCount = stats.overall ? stats.overall.count : 0;
+                    document.getElementById('telemetry-overall-avg').innerText = overallAvg.toFixed(2) + ' / 5';
+                    document.getElementById('telemetry-overall-count').innerText = overallCount;
+
+                    const components = ['message', 'image', 'video', 'intel', 'system', 'marketing'];
+                    const defaultComponentStats = { average: 0.00, count: 0 };
+                    
+                    components.forEach(comp => {
+                        const compData = stats[comp] || defaultComponentStats;
+                        const avg = compData.average;
+                        const count = compData.count;
+                        
+                        document.getElementById(`metric-${comp}-score`).innerText = `${avg.toFixed(2)} / 5 (${count} rating${count === 1 ? '' : 's'})`;
+                        
+                        const bar = document.getElementById(`metric-${comp}-bar`);
+                        if (bar) {
+                            const pct = (avg / 5) * 100;
+                            bar.style.width = `${pct}%`;
+                        }
+                    });
+                }
+            } catch (e) {
+                console.error('Error fetching ratings stats:', e);
+            }
+
+            try {
+                const response = await fetch('/api/ratings');
+                if (response.ok) {
+                    const ratings = await response.json();
+                    const feed = document.getElementById('telemetry-activity-feed');
+                    if (ratings.length === 0) {
+                        feed.innerHTML = '<div class="text-[#52525B] font-mono text-center py-2">No activity logged yet.</div>';
+                    } else {
+                        feed.innerHTML = ratings.slice(0, 5).map(r => {
+                            let typeIcon = 'fa-comment-dots text-[#717171]';
+                            let typeName = 'Chat Logic';
+                            if (r.target_type === 'image') {
+                                typeIcon = 'fa-image text-[#717171]';
+                                typeName = 'Visual Asset';
+                            } else if (r.target_type === 'video') {
+                                typeIcon = 'fa-video text-[#717171]';
+                                typeName = 'Motion Asset';
+                            } else if (r.target_type === 'intel') {
+                                typeIcon = 'fa-file-invoice text-[#717171]';
+                                typeName = 'Intel Report';
+                            } else if (r.target_type === 'system') {
+                                typeIcon = 'fa-heartbeat text-[#717171]';
+                                typeName = 'System Diagnostic';
+                            } else if (r.target_type === 'marketing') {
+                                typeIcon = 'fa-bullhorn text-[#717171]';
+                                typeName = 'Marketing Asset';
+                            }
+
+                            const starsHTML = Array.from({ length: 5 }, (_, i) => 
+                                `<i class="fas fa-star ${i < r.score ? 'text-white' : 'text-[#27272A]'}"></i>`
+                            ).join('');
+
+                            const dateStr = new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                            return `
+                                <div class="flex items-center justify-between bg-[#1A1A1A] border border-[#27272A] rounded-md p-2.5 font-mono text-[11px] gap-2">
+                                    <div class="flex items-center gap-2 truncate">
+                                        <i class="fas ${typeIcon}"></i>
+                                        <span class="text-[#A1A1AA] font-medium truncate max-w-[120px]" title="${r.target_id}">${r.target_id}</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        <div class="flex gap-0.5">${starsHTML}</div>
+                                        <span class="text-[#52525B]">${dateStr}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+            } catch (e) {
+                console.error('Error fetching ratings list:', e);
+            }
+        }
+
+        // Star hovers and clicks delegation
+        document.addEventListener('mouseover', (e) => {
+            const starBtn = e.target.closest('.star-btn');
+            if (!starBtn) return;
+            
+            const container = starBtn.closest('.rating-stars');
+            if (!container) return;
+            
+            const score = parseInt(starBtn.dataset.score);
+            const stars = container.querySelectorAll('.star-btn');
+            
+            stars.forEach(star => {
+                const starScore = parseInt(star.dataset.score);
+                if (starScore <= score) {
+                    star.classList.add('hovered');
+                } else {
+                    star.classList.remove('hovered');
+                }
+            });
+        });
+
+        document.addEventListener('mouseout', (e) => {
+            const starBtn = e.target.closest('.star-btn');
+            if (!starBtn) return;
+            
+            const container = starBtn.closest('.rating-stars');
+            if (!container) return;
+            
+            const stars = container.querySelectorAll('.star-btn');
+            stars.forEach(star => star.classList.remove('hovered'));
+        });
+
+        document.addEventListener('click', async (e) => {
+            const starBtn = e.target.closest('.star-btn');
+            if (!starBtn) return;
+            
+            const container = starBtn.closest('.rating-stars');
+            if (!container) return;
+            
+            const score = parseInt(starBtn.dataset.score);
+            const targetType = container.dataset.targetType;
+            const targetId = container.dataset.targetId;
+            
+            const stars = container.querySelectorAll('.star-btn');
+            stars.forEach(star => {
+                const starScore = parseInt(star.dataset.score);
+                if (starScore <= score) {
+                    star.classList.remove('hovered');
+                    star.classList.add('active');
+                } else {
+                    star.classList.remove('hovered', 'active');
+                }
+            });
+            
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                const response = await fetch('/api/rate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        target_type: targetType,
+                        target_id: targetId,
+                        score: score
+                    })
+                });
+                
+                const data = await response.json();
+                if (response.ok) {
+                    if (!state.ratings[targetType]) state.ratings[targetType] = {};
+                    state.ratings[targetType][targetId] = score;
+
+                    const statusSpan = container.querySelector('.rating-status');
+                    if (statusSpan) {
+                        statusSpan.classList.remove('hidden');
+                        statusSpan.classList.add('inline');
+                        statusSpan.style.opacity = '1';
+                        setTimeout(() => {
+                            statusSpan.style.opacity = '0';
+                            setTimeout(() => {
+                                statusSpan.classList.remove('inline');
+                                statusSpan.classList.add('hidden');
+                            }, 300);
+                        }, 1500);
+                    }
+                    
+                    updateTelemetryData();
+                } else {
+                    console.error('Rating failed:', data.error);
+                }
+            } catch (err) {
+                console.error('Error submitting rating:', err);
+            }
+        });
+        
+        // ─── Dynamic OMEGA Skills HUD Modal Scripting ──────────────────────────────────────
+        function toggleSkillsModal() {
+            const modal = document.getElementById('skills-modal');
+            if (modal) {
+                if (modal.classList.contains('hidden')) {
+                    modal.classList.remove('hidden');
+                    modal.offsetHeight; // force reflow
+                    modal.classList.remove('opacity-0');
+                    modal.classList.add('opacity-100');
+                    const child = modal.querySelector('div');
+                    if (child) {
+                        child.classList.remove('scale-95');
+                        child.classList.add('scale-100');
+                    }
+                    loadSkillsList();
+                } else {
+                    modal.classList.remove('opacity-100');
+                    modal.classList.add('opacity-0');
+                    const child = modal.querySelector('div');
+                    if (child) {
+                        child.classList.remove('scale-100');
+                        child.classList.add('scale-95');
+                    }
+                    setTimeout(() => {
+                        modal.classList.add('hidden');
+                    }, 300);
+                }
+            }
+        }
+        window.toggleSkillsModal = toggleSkillsModal;
+
+        async function loadSkillsList() {
+            try {
+                const response = await fetch('/api/skills/list');
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.status === 'success') {
+                        renderSkills(data.skills);
+                    } else {
+                        logSkillConsole(`[ERROR] Failed to fetch skills: ${data.message}`);
+                    }
+                } else {
+                    logSkillConsole(`[ERROR] Failed to fetch skills list from server.`);
+                }
+            } catch (err) {
+                logSkillConsole(`[ERROR] Network error listing skills: ${err.message}`);
+            }
+        }
+        window.loadSkillsList = loadSkillsList;
+
+        function renderSkills(skills) {
+            const grid = document.getElementById('skills-grid');
+            if (!skills || skills.length === 0) {
+                grid.innerHTML = '<div class="text-[#717171] font-mono text-[10px] py-4 text-center">No active skills found in registry.</div>';
+                return;
+            }
+            grid.innerHTML = '';
+            skills.forEach(skill => {
+                const id = skill.skill_id;
+                const clearance = skill.required_clearance;
+                const caps = skill.required_capabilities.join(', ');
+                
+                let badgeColor = 'text-green-400 bg-green-950/30 border-green-900';
+                if (clearance === 'HIGH') badgeColor = 'text-orange-400 bg-orange-950/30 border-orange-900';
+                if (clearance === 'CRITICAL') badgeColor = 'text-red-400 bg-red-950/30 border-red-900';
+                if (clearance === 'MEDIUM') badgeColor = 'text-blue-400 bg-blue-950/30 border-blue-900';
+
+                // Build parameter inputs
+                let paramsHtml = '';
+                if (skill.parameters && Object.keys(skill.parameters).length > 0) {
+                    paramsHtml += `<div class="mt-3 p-3 bg-[#0A0A0A] rounded border border-[#27272A] space-y-2">`;
+                    paramsHtml += `<div class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider">Parameters</div>`;
+                    for (const [pName, pMeta] of Object.entries(skill.parameters)) {
+                        if (pMeta.type === 'boolean') {
+                            paramsHtml += `
+                                <div class="flex items-center justify-between text-xs">
+                                    <span class="text-[#A1A1AA]" title="${pMeta.description}">${pName}</span>
+                                    <input type="checkbox" id="param-${id}-${pName}" class="rounded bg-[#1A1A1A] border-[#27272A] text-purple-600 focus:ring-0">
+                                </div>
+                            `;
+                        } else {
+                            paramsHtml += `
+                                <div class="space-y-1">
+                                    <label class="text-[10px] text-[#A1A1AA] block" title="${pMeta.description}">${pName}</label>
+                                    <input type="text" id="param-${id}-${pName}" placeholder="${pMeta.description}" class="w-full bg-[#111112] border border-[#27272A] rounded-md text-xs p-1.5 text-[#FAFAFA] placeholder-[#52525B] outline-none">
+                                </div>
+                            `;
+                        }
+                    }
+                    paramsHtml += `</div>`;
+                }
+
+                const card = document.createElement('div');
+                card.className = 'p-4 rounded-lg bg-[#161616] border border-[#27272A] hover:border-[#3F3F46] transition-all';
+                card.innerHTML = `
+                    <div class="flex items-start justify-between">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h4 class="font-medium text-[#FAFAFA] text-sm">${skill.name}</h4>
+                                <span class="px-2 py-0.5 rounded border text-[9px] font-mono leading-none ${badgeColor}">${clearance}</span>
+                            </div>
+                            <p class="text-xs text-[#A1A1AA] mt-1">${skill.description}</p>
+                            <div class="text-[10px] text-[#52525B] font-mono mt-2 uppercase tracking-wide">Capabilities: ${caps}</div>
+                        </div>
+                        <button onclick="executeSkill('${id}', ${JSON.stringify(Object.keys(skill.parameters || {}))})" class="px-3 py-1.5 bg-[#1A1A1A] hover:bg-[#27272A] border border-[#27272A] hover:text-[#FAFAFA] text-purple-400 text-xs font-semibold rounded-md transition-all flex-shrink-0">
+                            <i class="fas fa-play text-[9px] mr-1"></i> Execute
+                        </button>
+                    </div>
+                    ${paramsHtml}
+                `;
+                grid.appendChild(card);
+            });
+        }
+        window.renderSkills = renderSkills;
+
+        function logSkillConsole(text, type = 'info') {
+            const consoleBox = document.getElementById('skills-console');
+            if (!consoleBox) return;
+            const entry = document.createElement('div');
+            if (type === 'error') {
+                entry.className = 'text-red-500';
+            } else if (type === 'success') {
+                entry.className = 'text-emerald-400';
+            } else {
+                entry.className = 'text-[#00FF00]';
+            }
+            entry.textContent = `> ${new Date().toLocaleTimeString()} | ${text}`;
+            consoleBox.appendChild(entry);
+            consoleBox.scrollTop = consoleBox.scrollHeight;
+        }
+        window.logSkillConsole = logSkillConsole;
+
+        function clearSkillsConsole() {
+            const consoleBox = document.getElementById('skills-console');
+            if (consoleBox) {
+                consoleBox.innerHTML = '<div class="text-[#52525B]">&gt; OMEGA Skills console cleared.</div>';
+            }
+        }
+        window.clearSkillsConsole = clearSkillsConsole;
+
+        async function executeSkill(skillId, paramNames) {
+            logSkillConsole(`[EXECUTE] Triggering skill '${skillId}'...`);
+            
+            // Gather parameters
+            const args = {};
+            paramNames.forEach(pName => {
+                const input = document.getElementById(`param-${skillId}-${pName}`);
+                if (input) {
+                    if (input.type === 'checkbox') {
+                        args[pName] = input.checked;
+                    } else {
+                        const val = input.value.trim();
+                        if (val.toLowerCase() === 'true') args[pName] = true;
+                        else if (val.toLowerCase() === 'false') args[pName] = false;
+                        else if (!isNaN(val) && val !== '') args[pName] = Number(val);
+                        else args[pName] = val;
+                    }
+                }
+            });
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                const response = await fetch('/api/skills/execute', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        skill_id: skillId,
+                        args: args
+                    })
+                });
+
+                const data = await response.json();
+                if (response.ok && data.status === 'success') {
+                    logSkillConsole(`[SUCCESS] Skill '${skillId}' executed successfully!`, 'success');
+                    if (data.result) {
+                        logSkillConsole(JSON.stringify(data.result, null, 2), 'success');
+                    }
+                } else {
+                    const errMsg = data.message || 'Execution rejected by policy engine.';
+                    logSkillConsole(`[REJECTED] Skill execution failed: ${errMsg}`, 'error');
+                    if (data.missing_capabilities) {
+                        logSkillConsole(`[SECURITY] Missing capabilities: ${data.missing_capabilities.join(', ')}`, 'error');
+                    }
+                }
+            } catch (err) {
+                logSkillConsole(`[ERROR] Network error executing skill: ${err.message}`, 'error');
+            }
+        }
+        window.executeSkill = executeSkill;
+
+        async function uploadSkillPack() {
+            const fileInput = document.getElementById('skill-zip-input');
+            const checksumInput = document.getElementById('skill-checksum-input');
+            const statusText = document.getElementById('upload-status-text');
+
+            if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+                statusText.textContent = "Please select a zip file first.";
+                statusText.className = "text-xs font-mono text-red-500";
+                return;
+            }
+
+            const file = fileInput.files[0];
+            const checksum = checksumInput ? checksumInput.value.trim() : "";
+
+            const formData = new FormData();
+            formData.append('file', file);
+            if (checksum) {
+                formData.append('checksum', checksum);
+            }
+
+            statusText.textContent = "Uploading skill package...";
+            statusText.className = "text-xs font-mono text-purple-400";
+            logSkillConsole(`[INSTALL] Uploading and validating '${file.name}'...`);
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                const response = await fetch('/api/skills/install', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+                if (response.ok && data.status === 'success') {
+                    statusText.textContent = "Successfully installed!";
+                    statusText.className = "text-xs font-mono text-emerald-400";
+                    logSkillConsole(`[INSTALL SUCCESS] Skill pack registered successfully: Checksum: ${data.checksum || 'Verified'}`, 'success');
+                    loadSkillsList();
+                } else {
+                    const errMsg = data.message || "Failed to install.";
+                    statusText.textContent = "Installation failed.";
+                    statusText.className = "text-xs font-mono text-red-500";
+                    logSkillConsole(`[INSTALL FAILED] Ingestion error: ${errMsg}`, 'error');
+                }
+            } catch (err) {
+                statusText.textContent = "Network error during upload.";
+                statusText.className = "text-xs font-mono text-red-500";
+                logSkillConsole(`[ERROR] Network error during skill pack installation: ${err.message}`, 'error');
+            }
+        }
+        window.uploadSkillPack = uploadSkillPack;
+
+        async function loadMCPTools() {
+            try {
+                // Connects to your FastAPI/Flask MCP tools endpoint
+                const response = await fetch('/api/mcp/tools');
+                const listContainer = document.getElementById('mcp-tools-list');
+                const countSpan = document.getElementById('mcp-count');
+
+                // Fallback demo data if endpoint isn't ready yet (remove in production)
+                let tools = !response.ok ? [
+                    { name: "postgres-db", description: "Read-only supply chain DB access" },
+                    { name: "file-system", description: "Local workspace read/write" },
+                    { name: "github-api", description: "Repository management" }
+                ] : await response.json();
+                
+                if (countSpan) countSpan.textContent = tools.length;
+                
+                if (listContainer) {
+                    if (tools.length === 0) {
+                        listContainer.innerHTML = `<div class="text-[#717171] font-mono text-[10px] px-3 py-1">No servers connected.</div>`;
+                    } else {
+                        listContainer.innerHTML = tools.map(tool => `
+                            <div class="group flex items-center justify-between px-3 py-1.5 rounded bg-transparent hover:bg-[#1A1A1A] transition-colors cursor-pointer border border-transparent hover:border-[#27272A]" title="${tool.description || 'Connected via MCP'}">
+                                <div class="flex items-center gap-2 overflow-hidden">
+                                    <div class="w-1.5 h-1.5 rounded-full bg-emerald-500/80 shadow-[0_0_4px_rgba(16,185,129,0.4)] flex-shrink-0 group-hover:bg-emerald-400 transition-colors"></div>
+                                    <span class="font-mono text-[#A1A1AA] group-hover:text-[#FAFAFA] text-[10.5px] truncate">${tool.name}</span>
+                                </div>
+                                <i class="fas fa-chevron-right text-[8px] text-[#52525B] group-hover:text-[#A1A1AA] transition-colors opacity-0 group-hover:opacity-100 flex-shrink-0"></i>
+                            </div>
+                        `).join('');
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to load MCP tools:", err);
+                document.getElementById('mcp-tools-list').innerHTML = `<div class="text-[#ef4444] font-mono text-[10px] px-3 py-1">Connection failed.</div>`;
+            }
+        }
+        
+        // ─── Authentication Functions ────────────────────────────────────────
+
+        function showAuthOverlay() {
+            const overlay = document.getElementById('auth-overlay');
+            if (overlay) {
+                overlay.classList.remove('hidden');
+                // trigger reflow
+                overlay.offsetHeight;
+                overlay.classList.remove('opacity-0');
+                overlay.classList.add('opacity-100');
+                const card = overlay.querySelector('div');
+                if (card) {
+                    card.classList.remove('scale-95');
+                    card.classList.add('scale-100');
+                }
+            }
+        }
+
+        function hideAuthOverlay() {
+            const overlay = document.getElementById('auth-overlay');
+            if (overlay) {
+                overlay.classList.remove('opacity-100');
+                overlay.classList.add('opacity-0');
+                const card = overlay.querySelector('div');
+                if (card) {
+                    card.classList.remove('scale-100');
+                    card.classList.add('scale-95');
+                }
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                }, 500);
+            }
+        }
+
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/api/me');
+                if (response.ok) {
+                    const user = await response.json();
+                    if (user.id === 0) {
+                        showAuthOverlay();
+                        return false;
+                    } else {
+                        hideAuthOverlay();
+                        // Update active user node tag
+                        const statusDiv = document.getElementById('user-status');
+                        if (statusDiv) {
+                            statusDiv.innerHTML = `<div class="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_4px_rgba(16,185,129,0.5)]"></div> ${user.username} Node`;
+                        }
+                        return true;
+                    }
+                }
+            } catch (err) {
+                console.error("Failed to check auth status:", err);
+            }
+            showAuthOverlay();
+            return false;
+        }
+
+        async function handleGoogleCredentialResponse(response) {
+            try {
+                const res = await fetch('/api/auth/google', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ credential: response.credential })
+                });
+                
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    await checkAuthStatus();
+                    location.reload();
+                } else {
+                    console.error("Google Auth failed:", data.error);
+                    const errDiv = document.getElementById('auth-error-message');
+                    if (errDiv) {
+                        errDiv.textContent = data.error || "Google Sign-In failed.";
+                        errDiv.classList.remove('hidden');
+                    }
+                }
+            } catch (err) {
+                console.error("Google Sign-In network error:", err);
+            }
+        }
+        window.handleGoogleCredentialResponse = handleGoogleCredentialResponse;
+
+        async function handleLocalLogin(event) {
+            event.preventDefault();
+            const usernameInput = document.getElementById('auth-username');
+            const passwordInput = document.getElementById('auth-password');
+            const errDiv = document.getElementById('auth-error-message');
+            
+            if (errDiv) errDiv.classList.add('hidden');
+            
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: usernameInput.value,
+                        password: passwordInput.value
+                    })
+                });
+                
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    await checkAuthStatus();
+                    location.reload();
+                } else {
+                    if (errDiv) {
+                        errDiv.textContent = data.error || "Authentication failed.";
+                        errDiv.classList.remove('hidden');
+                    }
+                }
+            } catch (err) {
+                console.error("Local login error:", err);
+                if (errDiv) {
+                    errDiv.textContent = "Network error connecting to auth server.";
+                    errDiv.classList.remove('hidden');
+                }
+            }
+        }
+        window.handleLocalLogin = handleLocalLogin;
+
+        async function triggerSignOut() {
+            try {
+                const res = await fetch('/api/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                if (res.ok) {
+                    showAuthOverlay();
+                    const statusDiv = document.getElementById('user-status');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = `<div class="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_4px_rgba(239,68,68,0.5)]"></div> Guest Node`;
+                    }
+                    document.getElementById('auth-username').value = '';
+                    document.getElementById('auth-password').value = '';
+                    
+                    const convList = document.getElementById('conversation-list');
+                    if (convList) {
+                        convList.innerHTML = `<div class="text-[10px] font-semibold text-[#52525B] uppercase tracking-wider px-3 mb-2 mt-2">Recent</div>`;
+                    }
+                    const messagesArea = document.getElementById('messages-area');
+                    if (messagesArea) {
+                        messagesArea.innerHTML = '';
+                    }
+                    state.currentConvId = null;
+                    location.reload();
+                }
+            } catch (err) {
+                console.error("Failed to sign out:", err);
+            }
+        }
+        window.triggerSignOut = triggerSignOut;
+        
+        // Simulate real-time diagnostic HUD telemetry updates
+        setInterval(() => {
+            const cpuPct = Math.floor(Math.random() * (45 - 12 + 1)) + 12;
+            const latencyMs = Math.floor(Math.random() * (22 - 8 + 1)) + 8;
+            const coherencePct = (Math.random() * (99.9 - 99.4) + 99.4).toFixed(1);
+            
+            const cpuEl = document.getElementById('hud-cpu-pct');
+            const cpuBar = document.getElementById('hud-cpu-bar');
+            const latencyEl = document.getElementById('hud-latency-ms');
+            const latencyBar = document.getElementById('hud-latency-bar');
+            const coherenceEl = document.getElementById('hud-coherence-pct');
+            const coherenceBar = document.getElementById('hud-coherence-bar');
+            
+            if (cpuEl && cpuBar) {
+                cpuEl.textContent = `${cpuPct}%`;
+                cpuBar.style.width = `${cpuPct}%`;
+            }
+            if (latencyEl && latencyBar) {
+                latencyEl.textContent = `${latencyMs}ms`;
+                latencyBar.style.width = `${(latencyMs / 30) * 100}%`; // Normalized to max 30ms link
+            }
+            if (coherenceEl && coherenceBar) {
+                coherenceEl.textContent = `${coherencePct}%`;
+                coherenceBar.style.width = `${coherencePct}%`;
+            }
+        }, 3000);
+
+        // Initialize view based on screen size and load systems
+        window.onload = async () => {
+            if(window.innerWidth >= 768) toggleSidebar();
+            await checkAuthStatus();
+            await loadRatings();
+            applyStoredRatings();
+            await loadMCPTools();
+            await loadConnectors();
+            await loadConversations();
+        };
+    </script>
+</body>
+</html>
