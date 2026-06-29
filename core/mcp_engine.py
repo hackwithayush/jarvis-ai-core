@@ -25,7 +25,8 @@ class MCPEngine:
     async def connect_server(self, provider_id: str, command: str, args: List[str], env: Optional[Dict[str, str]] = None):
         """Spawns an MCP server via stdio and establishes a session."""
         if not MCP_AVAILABLE:
-            raise RuntimeError("MCP library is not installed.")
+            logger.warning("MCP library is not installed. Ignoring MCP server connection request.")
+            return
 
         async with self._lock:
             if provider_id in self._sessions:

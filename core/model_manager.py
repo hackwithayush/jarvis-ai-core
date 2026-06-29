@@ -235,6 +235,9 @@ class ModelManager:
         """Ensure at least one model is available. Returns available model name."""
         model_name = model_name or self.current_model
         
+        if config.SERVER_MODE:
+            return model_name
+            
         # Only fetch models once to prevent timeout stacking if node is offline
         models = self.list_models()
         model_names = [m["name"] for m in models]
