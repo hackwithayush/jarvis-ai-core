@@ -1,134 +1,108 @@
-# JARVIS AI Neural OS v16.0 🧠
+<div align="center">
+  <h1>🧠 JARVIS AI Neural OS</h1>
+  <p><b>A multi-agent, autonomous AI system that actually gets things done.</b></p>
+</div>
 
-A next-generation autonomous AI operating system designed to combine conversational intelligence, multi-agent reasoning, retrieval-augmented memory, automation, multimodal processing, and real-time decision making into a unified platform.
-
-## Overview
-JARVIS AI Neural OS is an advanced AI assistant framework built to operate as a personal intelligence system capable of understanding user intent, managing tasks, coordinating specialized agents, retrieving knowledge, and interacting across multiple interfaces.
-
-The project integrates modern Large Language Models, Retrieval-Augmented Generation (RAG), automation workflows, memory systems, and multimodal capabilities to create a highly adaptive AI environment.
-
----
-
-## Core Features
-
-### 🔀 Multi-Model Intelligence Layer
-- Dynamic routing across multiple AI models
-- Local and cloud model support
-- Cost-aware and performance-aware inference selection
-- Fallback and redundancy mechanisms
-
-### 🤖 Multi-Agent Architecture
-- Specialized reasoning agents
-- Research and analysis workflows
-- Planning and execution pipelines
-- Collaborative agent orchestration
-
-### 💾 Advanced Memory System
-- Long-term memory storage
-- Context persistence
-- Semantic retrieval
-- User preference adaptation
-
-### 📚 Retrieval-Augmented Generation (RAG)
-- ChromaDB vector storage
-- Knowledge indexing
-- Document understanding
-- Context-aware information retrieval
-
-### 👁️ Multimodal Capabilities
-- Text processing
-- Image understanding
-- Video analysis support
-- Audio integration pipelines
-
-### ⚙️ Automation Framework
-- Task automation
-- Workflow orchestration
-- Tool integration
-- Event-driven execution
-
-### 📡 Communication Interfaces
-- Web Dashboard
-- Telegram Integration
-- API Access
-- Voice Interaction Support
-
-### 🛡️ Reliability Infrastructure
-- Error recovery systems
-- Health monitoring
-- Self-healing workflows
-- Logging and diagnostics
+<div align="center">
+  <img src="https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python" />
+  <img src="https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/LangGraph-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white" alt="LangGraph" />
+  <img src="https://img.shields.io/badge/ChromaDB-FF6F00?style=for-the-badge&logo=database&logoColor=white" alt="ChromaDB" />
+  <img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" />
+</div>
 
 ---
 
-## Technology Stack
+## 👋 What is this?
 
-**Backend:**
-- Python
-- FastAPI
-- AsyncIO
+I built **JARVIS** because I wanted a single, unified AI assistant that does more than just chat. I wanted an AI that can actually browse the web, write and run code, remember what I told it last week, and automatically fall back to my local GPU when the Wi-Fi drops.
 
-**Artificial Intelligence:**
-- OpenAI
-- Gemini
-- Groq
-- Ollama
-
-**Data & Memory:**
-- ChromaDB
-- Vector Search
-- Local Knowledge Storage
-
-**Frontend:**
-- React
-- Tailwind CSS
-- Modern UI Components
-
-**Infrastructure:**
-- Docker
-- GitHub
-- REST APIs
+Under the hood, it's a complex multi-agent system powered by **LangGraph**. When you ask JARVIS a question, it doesn't just generate text—it routes your request to specialized worker agents (like a Browser agent, Researcher, or Coding agent) that collaborate to solve the problem.
 
 ---
 
-## System Architecture
+## ✨ Why it's cool (Features)
 
-```text
-User Request
-      ↓
-Interface Layer (Web / Telegram / Voice)
-      ↓
-Intent Analysis
-      ↓
-Multi-Agent Coordinator
-      ↓
-Reasoning & Planning Layer
-      ↓
-Memory + RAG Retrieval
-      ↓
-Model Router
-      ↓
-LLM Processing
-      ↓
-Response Generation
-      ↓
-User Interface
+* **Multi-Agent Routing:** It uses a master node to figure out exactly what you need, then spins up specialized agents to handle the heavy lifting.
+* **Smart Model Fallbacks:** It runs on fast cloud models (Groq, OpenAI) by default. If those go down (or if I want complete privacy), it instantly falls back to my local **Ollama** instance. 
+* **Long-Term Memory:** I integrated **ChromaDB** so JARVIS actually remembers context across different sessions. It's not just a goldfish with a context window.
+* **Agentic Web Browsing:** It uses Playwright to autonomously navigate websites, scrape data, and synthesize answers in real-time.
+* **Code Execution:** It doesn't just write Python; it can actually execute it safely to solve math or logic problems on the fly.
+
+---
+
+## 🏗️ How it works
+
+I'm a big fan of visual architecture, so here's exactly how the data flows when you send a prompt:
+
+```mermaid
+graph TD
+    A[User Request] --> B[Intent Analysis Node]
+    B --> C[Multi-Agent Coordinator]
+    
+    subgraph The Neural Grid
+        C --> D[Reasoning & Planning]
+        D <--> E[(ChromaDB Memory / RAG)]
+        D --> F{Model Router}
+        
+        F -->|Fast/Cloud| G[Groq / OpenAI]
+        F -->|Secure/Local| H[Local Ollama]
+        
+        G --> I[Worker Agents <br/> Browser, Coder, Researcher]
+        H --> I
+    end
+    
+    I --> J[Synthesize Final Response]
+    J --> K[User Interface]
 ```
 
 ---
 
-## Key Highlights
-- Multi-agent reasoning framework
-- Persistent memory architecture
-- Advanced RAG implementation
-- Multimodal AI workflows
-- Automation and orchestration capabilities
-- Production-oriented architecture
-- Extensible plugin ecosystem
+## 💻 Tech Stack
 
-## Vision
-To build a personal AI operating system capable of assisting with research, learning, productivity, communication, automation, and intelligent decision support while maintaining a seamless user experience across multiple platforms.
+I kept the stack modern and Python-heavy:
+* **Core Logic:** Python, LangChain, LangGraph
+* **LLMs:** Groq, OpenAI, Gemini, Ollama (Local)
+* **Databases:** ChromaDB (Vector), SQLite (Relational)
+* **Backend:** FastAPI, Flask
+* **Automation:** Playwright (Async)
 
-## Status
-**Version: v16.0**
-Actively evolving with continuous improvements in reasoning, memory, multimodal understanding, automation, and user experience.
+---
+
+## 🛠️ Running it locally
+
+Want to spin it up on your own machine? Here's how I set it up.
+
+### Prerequisites
+* Python 3.10+
+* (Optional) A local [Ollama](https://ollama.com/) instance running in the background if you want local inference.
+* API keys for Groq/OpenAI in a `.env` file.
+
+### Installation
+
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/hackwithayush/jarvis-ai-core.git
+   cd jarvis-ai-core
+   ```
+2. **Install the dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Run the health check**
+   I wrote a diagnostic script to make sure your API keys and LangGraph are playing nicely together before you start:
+   ```bash
+   python -m core.diagnostics
+   ```
+4. **Boot it up**
+   ```bash
+   ./Start_Jarvis_Systems.bat
+   ```
+
+---
+
+## 🚀 What's next?
+
+I'm currently treating this as version `16.0` of my personal setup. The next big things on my roadmap are improving the multimodal vision capabilities and tightening up the agent-to-agent communication loops. 
+
+Feel free to fork it, break it, and build your own JARVIS!

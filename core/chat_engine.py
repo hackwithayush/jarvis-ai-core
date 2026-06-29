@@ -17,7 +17,27 @@ from models import db, User, Conversation
 logger = logging.getLogger(__name__)
 
 # LangGraph & Multi-Agent Imports (Global Engine)
-LANGGRAPH_AVAILABLE = False 
+GRAPH_STATUS = {
+    "enabled": False,
+    "reason": None,
+}
+
+try:
+    from langgraph.graph import StateGraph, END
+    from langchain_core.messages import HumanMessage
+    from langchain_groq import ChatGroq
+
+    from core.workers.research_worker import ResearchWorker
+    from core.workers.browser_worker import BrowserWorker
+    from core.workers.technical_worker import TechnicalWorker
+    from core.workers.office_worker import OfficeWorker
+
+    LANGGRAPH_AVAILABLE = True
+    GRAPH_STATUS["enabled"] = True
+except ImportError as e:
+    LANGGRAPH_AVAILABLE = False
+    GRAPH_STATUS["reason"] = str(e)
+    logger.warning(f"LangGraph unavailable: {e}")
 
 SUPABASE_AVAILABLE = False
 try:

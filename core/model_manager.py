@@ -55,6 +55,24 @@ class ModelManager:
         if genai and config.GEMINI_API_KEY:
             self.gemini_client = genai.Client(api_key=config.GEMINI_API_KEY)
             logger.info("Intelligence Hub: Gemini Flash Node Link Active (FREE Flagship).")
+
+        # Initialize OpenRouter Brain
+        self.openrouter_client = None
+        if OpenAI and config.OPENROUTER_API_KEY:
+            self.openrouter_client = OpenAI(
+                base_url="https://openrouter.ai/api/v1",
+                api_key=config.OPENROUTER_API_KEY,
+            )
+            logger.info("Intelligence Hub: OpenRouter API Node Link Active.")
+
+        # Initialize Together AI Brain
+        self.together_client = None
+        if OpenAI and config.TOGETHER_API_KEY:
+            self.together_client = OpenAI(
+                base_url="https://api.together.xyz/v1",
+                api_key=config.TOGETHER_API_KEY,
+            )
+            logger.info("Intelligence Hub: Together AI Node Link Active.")
             
         # Launch Proactive Health Monitoring
         threading.Thread(target=self._health_monitor_loop, daemon=True).start()
@@ -383,6 +401,14 @@ class ModelManager:
                 if self._is_gemini_model(primary_model) and self.gemini_client:
                     yield from self._generate_gemini_stream(messages, system_prompt, model=primary_model)
                     return
+                # Handle OpenRouter/Together models directly 
+                elif "z-ai/" in primary_model or "deepseek/" in primary_model or "qwen/" in primary_model:
+                    if self.openrouter_client and ("z-ai/" in primary_model or "deepseek/" in primary_model):
+                        yield from self._generate_openrouter_stream(messages, system_prompt, model=primary_model)
+                        return
+                    elif self.together_client:
+                        yield from self._generate_together_stream(messages, system_prompt, model=primary_model)
+                        return
                 elif config.GROQ_API_KEY:
                     yield from self._generate_groq_stream(messages, system_prompt, model=primary_model)
                     return
@@ -533,6 +559,44 @@ class ModelManager:
         except Exception as e:
             logger.error(f"OpenAI link breakdown: {e}")
             yield f"⚠️ Neural Link Breakdown (OpenAI): {str(e)}"
+
+    def _generate_openrouter_stream(self, messages: list, system_prompt: str, model: str = None) -> Generator[str, None, None]:
+        """OpenRouter streaming implementation."""
+        logger.info(f"Routing to OpenRouter Node ({model})...")
+        try:
+            payload = [{"role": "system", "content": system_prompt}] + messages
+            kwargs = {
+                "model": model or config.ROUTING_CONFIG.get("flagship", "z-ai/glm-5.2"),
+                "messages": payload,
+                "stream": True,
+                "temperature": config.MODEL_TEMPERATURE
+            }
+            response = self.openrouter_client.chat.completions.create(**kwargs)
+            for chunk in response:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        except Exception as e:
+            logger.error(f"OpenRouter breakdown: {e}")
+            yield f"⚠️ Neural Link Breakdown (OpenRouter): {str(e)}"
+
+    def _generate_together_stream(self, messages: list, system_prompt: str, model: str = None) -> Generator[str, None, None]:
+        """Together AI streaming implementation."""
+        logger.info(f"Routing to Together AI Node ({model})...")
+        try:
+            payload = [{"role": "system", "content": system_prompt}] + messages
+            kwargs = {
+                "model": model or config.ROUTING_CONFIG.get("reasoning", "deepseek-ai/DeepSeek-R1"),
+                "messages": payload,
+                "stream": True,
+                "temperature": config.MODEL_TEMPERATURE
+            }
+            response = self.together_client.chat.completions.create(**kwargs)
+            for chunk in response:
+                if chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+        except Exception as e:
+            logger.error(f"Together AI breakdown: {e}")
+            yield f"⚠️ Neural Link Breakdown (Together AI): {str(e)}"
 
     def _generate_groq_stream(self, messages: list, system_prompt: str, model: str = None, tools: Optional[list] = None, response_format: Optional[dict] = None) -> Generator[str, None, None]:
         """Immortal Groq streaming node with auto-healing fallbacks."""
