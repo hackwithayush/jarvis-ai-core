@@ -21,7 +21,7 @@ export const useStore = create((set, get) => ({
   // ─── System State ───
   systemStats: { cpu: '0%', gpu: '0%', ram: '0G', net: '0M' },
   neuralStatus: 'online', // online | degraded | offline
-  activeModel: 'llama3.2',
+  activeModel: 'llama2-uncensored:latest',
   aiMode: 'chat',
   securityState: 'secure',
   internetStatus: 'connected',
@@ -109,6 +109,7 @@ export const useStore = create((set, get) => ({
           image_url: imageMeta?.imageUrl || null,
           image_path: imageMeta?.localPath || null,
           mode: get().aiMode,
+          model: get().activeModel,
         }),
       });
 

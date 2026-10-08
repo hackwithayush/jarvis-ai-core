@@ -20,7 +20,7 @@ OLLAMA_NODES = [
     # "http://192.168.1.50:11434" # Secondary Worker Node example
 ]
 DEFAULT_MODEL = "qwen/qwen3.8-27b"
-FALLBACK_MODELS = ["qwen/qwen3.8-27b", "meta-llama/llama-3.3-70b-instruct", "deepseek/deepseek-chat", "openai/gpt-oss-20b", "gemini-3.8-flash"]
+FALLBACK_MODELS = ["llama2-uncensored:latest", "llama3.2:latest", "qwen/qwen3.8-27b", "meta-llama/llama-3.3-70b-instruct", "deepseek/deepseek-chat", "openai/gpt-oss-20b", "gemini-3.8-flash"]
 CONTEXT_WINDOW = 1000000
 MODEL_TEMPERATURE = 0.4
 MODEL_TOP_P = 0.9
@@ -97,6 +97,10 @@ ROUTING_CONFIG = {
     "security": "openai/gpt-oss-120b",
     # 🌐 Intel Research
     "research": "openai/gpt-oss-120b",
+    # 🔓 Local Uncensored Node (Ollama Workstation)
+    "uncensored": "llama2-uncensored:latest",
+    "local": "llama2-uncensored:latest",
+    "local_fast": "llama3.2:latest",
     # 🔁 Fallback chain (ordered by reliability)
     "backup": ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b", "meta-llama/llama-3.3-70b-instruct", "gemini-2.5-flash"]
 }
@@ -106,6 +110,9 @@ OLLAMA_HOST = OLLAMA_NODES[0]
 def smart_route(prompt: str):
     """🧠 Intelligent Task Routing: Decides best model automatically."""
     prompt = prompt.lower()
+    # Uncensored / raw / local requests → llama2-uncensored
+    if any(x in prompt for x in ["uncensored", "unrestricted", "dark", "raw protocol", "no filter", "offline", "local model"]):
+        return "uncensored"
     # Flagship-class tasks → Gemini
     if any(x in prompt for x in ["complex", "architecture", "mathematics", "advanced", "simulation", "physics", "flagship", "refactor", "research", "analyze", "design"]):
         return "flagship"

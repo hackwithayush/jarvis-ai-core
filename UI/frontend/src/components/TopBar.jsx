@@ -1,15 +1,17 @@
-import { motion } from 'framer-motion';
+import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store';
 import {
   Brain, Shield, Wifi, WifiOff, Cpu,
   PanelLeftOpen, PanelLeftClose,
   PanelRightOpen, PanelRightClose,
-  Zap, Activity
+  Zap, Activity, ChevronDown
 } from 'lucide-react';
 
 export default function TopBar() {
   const neuralStatus = useStore(s => s.neuralStatus);
   const activeModel = useStore(s => s.activeModel);
+  const setActiveModel = useStore(s => s.setActiveModel);
   const securityState = useStore(s => s.securityState);
   const internetStatus = useStore(s => s.internetStatus);
   const sidebarOpen = useStore(s => s.sidebarOpen);
@@ -18,6 +20,28 @@ export default function TopBar() {
   const toggleRightPanel = useStore(s => s.toggleRightPanel);
   const systemStats = useStore(s => s.systemStats);
   const addNotification = useStore(s => s.addNotification);
+
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  const availableModels = [
+    { id: 'llama2-uncensored:latest', label: 'Llama 2 Uncensored', tag: 'LOCAL RAW', color: 'bg-rose-500' },
+    { id: 'llama3.2:latest', label: 'Llama 3.2 Local', tag: 'LOCAL FAST', color: 'bg-purple-500' },
+    { id: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B', tag: 'FLAGSHIP', color: 'bg-cyan-500' },
+    { id: 'qwen/qwen3.8-27b', label: 'Qwen 3.8 27B', tag: 'FAST CODE', color: 'bg-emerald-500' },
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash', tag: 'MULTIMODAL', color: 'bg-sky-500' },
+    { id: 'meta-llama/llama-3.3-70b-instruct', label: 'Llama 3.3 70B', tag: 'PRO REASON', color: 'bg-amber-500' },
+  ];
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setModelDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const statusColor = {
     online: 'bg-omega-green',
@@ -95,14 +119,64 @@ export default function TopBar() {
 
         <div className="h-4 w-px bg-white/10" />
 
-        {/* Active Model */}
-        <div 
-          onClick={() => addNotification(`Active Intelligence Engine: ${activeModel}`, 'info')}
-          className="hidden md:flex items-center gap-1.5 text-[10px] cursor-pointer hover:opacity-80 transition-opacity"
-          title={`Active Model: ${activeModel}`}
-        >
-          <div className="w-1.5 h-1.5 rounded-full bg-omega-cyan animate-pulse" />
-          <span className="font-mono text-text-secondary">{activeModel}</span>
+        {/* Active Model Selector */}
+        <div ref={dropdownRef} className="relative hidden md:block">
+          <button
+            onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-[10px] cursor-pointer transition-all"
+            title="Click to switch intelligence engine"
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-omega-cyan animate-pulse" />
+            <span className="font-mono text-text-primary">
+              {availableModels.find(m => m.id === activeModel)?.label || activeModel}
+            </span>
+            <ChevronDown size={10} className={`text-text-secondary transition-transform ${modelDropdownOpen ? 'rotate-180' : ''}`} />
+          </button>
+
+          <AnimatePresence>
+            {modelDropdownOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                transition={{ duration: 0.15 }}
+                className="absolute right-0 mt-1.5 w-60 rounded-lg glass border border-glass-border bg-[#0a0f1d]/95 backdrop-blur-xl shadow-2xl p-1 z-50 overflow-hidden font-mono text-[10px]"
+              >
+                <div className="px-2 py-1 text-[9px] text-text-muted uppercase tracking-wider font-semibold border-b border-white/5 flex items-center justify-between">
+                  <span>Intelligence Matrix</span>
+                  <span className="text-[8px] text-omega-cyan">OLLAMA / CLOUD</span>
+                </div>
+                <div className="py-1 flex flex-col gap-0.5">
+                  {availableModels.map((m) => {
+                    const isSelected = activeModel === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          setActiveModel(m.id);
+                          setModelDropdownOpen(false);
+                          addNotification(`Active Engine switched to ${m.label}`, 'success');
+                        }}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded text-left transition-colors ${
+                          isSelected ? 'bg-omega-cyan/15 text-omega-cyan font-bold' : 'text-text-secondary hover:bg-white/5 hover:text-text-primary'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          <div className={`w-1.5 h-1.5 rounded-full ${m.color}`} />
+                          <span className="truncate">{m.label}</span>
+                        </div>
+                        <span className={`text-[8px] px-1 py-0.5 rounded font-mono ${
+                          m.tag.includes('LOCAL') ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 'bg-white/5 text-text-muted'
+                        }`}>
+                          {m.tag}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Security */}

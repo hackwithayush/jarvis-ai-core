@@ -400,6 +400,36 @@ class ModelManager:
         if config.UNCENSORED_MODE:
             active_temp = max(active_temp, 0.8)
             active_p = min(active_p, 0.95)
+
+        # 0. Local Ollama Priority Check (Direct offline inference if available)
+        is_local_ollama_req = any(lm in primary_model.lower() for lm in ["llama2-uncensored", "uncensored", "llama3.2", "ollama"])
+        if is_local_ollama_req and self.is_ollama_running():
+            ollama_target = "llama2-uncensored:latest" if ("llama2" in primary_model.lower() or "uncensored" in primary_model.lower()) else ("llama3.2:latest" if "llama3.2" in primary_model.lower() else primary_model)
+            logger.info(f"Ollama Local Priority: Streaming via local node '{ollama_target}'...")
+            payload = {
+                "model": ollama_target,
+                "messages": [{"role": "system", "content": system_prompt}] + messages,
+                "stream": True,
+                "options": {
+                    "temperature": active_temp,
+                    "top_p": active_p,
+                    "num_ctx": 4096,
+                }
+            }
+            try:
+                resp = requests.post(f"{self.host}/api/chat", json=payload, stream=True, timeout=(5, 300))
+                if resp.status_code == 200:
+                    for line in resp.iter_lines():
+                        if line:
+                            data = json.loads(line)
+                            chunk = data.get("message", {}).get("content", "")
+                            if chunk:
+                                yield chunk
+                            if data.get("done"):
+                                return
+                    return
+            except Exception as e:
+                logger.warning(f"Local Ollama stream failed for {ollama_target}: {e}. Proceeding with cloud fallbacks.")
         
         # 1. Server Mode / Cloud Priority Path with Multi-Provider Auto-Failover
         if config.SERVER_MODE:
