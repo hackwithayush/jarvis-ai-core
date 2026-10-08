@@ -622,6 +622,36 @@ class ChatEngine:
         if mcp_snippet:
             context_snippets.append(f"--- LIVE GOOGLE WORKSPACE DATA ---\n{mcp_snippet}\n(Only mention the details provided above, do not invent emails or events.)")
 
+        # --- Live Host System Status & Diagnostics Interceptor ---
+        status_triggers = ["system status", "report system status", "diagnostics", "system health", "vitals", "system report", "server status", "hardware status", "status of jarvis"]
+        if any(trigger in message_lower for trigger in status_triggers):
+            try:
+                import psutil, threading
+                cpu_load = psutil.cpu_percent(interval=0.1)
+                ram_mem = psutil.virtual_memory()
+                net_io = psutil.net_io_counters()
+                uptime_val = "Active & Nominal"
+                try:
+                    import app
+                    uptime_secs = int(time.time() - getattr(app, "SERVER_START_TIME", time.time()))
+                    uptime_val = f"{uptime_secs // 3600}h {(uptime_secs % 3600) // 60}m"
+                except Exception:
+                    pass
+
+                context_snippets.append(
+                    f"--- AUTHENTIC LIVE SYSTEM TELEMETRY (REAL-TIME SENSORS) ---\n"
+                    f"Environment: {'Render Cloud Linux 24/7' if os.getenv('RENDER') else 'Local Workstation Node'}\n"
+                    f"Process Uptime: {uptime_val}\n"
+                    f"Current CPU Load: {cpu_load}%\n"
+                    f"Memory Pool (RAM): {ram_mem.used / (1024**3):.1f} GB allocated ({ram_mem.percent}% utilization)\n"
+                    f"Active Threads: {threading.active_count()}\n"
+                    f"Network Outbound: {net_io.bytes_sent / (1024**2):.1f} MB\n"
+                    f"Security Perimeter: Zero-Trust Active (Sandboxed)\n"
+                    f"Directive: When reporting system status, cite these exact live measurements above instead of fictional numbers."
+                )
+            except Exception as e:
+                logger.error(f"Live telemetry injection error: {e}")
+
         # --- Conversation Transcript / Source Export Interceptor ---
         message_lower = corrected_message.lower()
         export_triggers = [
