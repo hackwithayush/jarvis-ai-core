@@ -83,11 +83,13 @@ export default function RightPanel() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCpuHistory(prev => {
-        const next = [...prev, { value: parseFloat(systemStats.cpu) || Math.random() * 40 + 10 }];
+        const val = parseFloat(systemStats.cpu);
+        const next = [...prev, { value: !isNaN(val) ? val : 0 }];
         return next.slice(-20);
       });
       setGpuHistory(prev => {
-        const next = [...prev, { value: parseFloat(systemStats.gpu) || Math.random() * 30 + 5 }];
+        const val = parseFloat(systemStats.gpu);
+        const next = [...prev, { value: !isNaN(val) ? val : 0 }];
         return next.slice(-20);
       });
     }, 2000);

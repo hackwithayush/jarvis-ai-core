@@ -371,6 +371,45 @@ class ChatEngine:
         context_snippets = []
         message_lower = corrected_message.lower()
 
+        # Command Bar tool prefixes handling
+        if clean_msg.lower().startswith("/image "):
+            image_prompt = clean_msg[7:].strip()
+            if image_prompt:
+                yield f"🎨 **Vision Node**: Synthesizing imagery for *\"{image_prompt}\"*...\n\n"
+                try:
+                    from core.image_engine import ImageGenerator
+                    gen_res = ImageGenerator().generate(image_prompt)
+                    if gen_res.get("status") == "success":
+                        img_url = gen_res.get("url")
+                        yield f"![{image_prompt}]({img_url})\n\n"
+                        yield f"✨ *{image_prompt}* rendered successfully.\n\n"
+                        yield f"**Status**: Ready · **Archive**: `{gen_res.get('filename', 'asset')}`"
+                        return
+                    else:
+                        yield f"⚠ Image synthesis issue: {gen_res.get('message', 'Failed to render')}"
+                        return
+                except Exception as e:
+                    yield f"⚠ Vision Node error: {e}"
+                    return
+
+        if clean_msg.lower().startswith("/code "):
+            clean_msg = clean_msg[6:].strip()
+            message = clean_msg
+            corrected_message = self.correct_typos(message)
+            mode = "code"
+
+        elif clean_msg.lower().startswith("/web "):
+            clean_msg = clean_msg[5:].strip()
+            message = clean_msg
+            corrected_message = self.correct_typos(message)
+            mode = "intel"
+
+        elif clean_msg.lower().startswith("/tools "):
+            clean_msg = clean_msg[7:].strip()
+            message = clean_msg
+            corrected_message = self.correct_typos(message)
+            mode = "security"
+
         # 2. Intelligence Routing & Operational Mode Specialization
         active_model = model
         if active_model in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]:

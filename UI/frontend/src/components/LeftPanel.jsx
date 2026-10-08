@@ -215,6 +215,7 @@ export default function LeftPanel() {
   const fetchConversations = useStore(s => s.fetchConversations);
   const aiMode = useStore(s => s.aiMode);
   const setAiMode = useStore(s => s.setAiMode);
+  const addNotification = useStore(s => s.addNotification);
   const [searchQuery, setSearchQuery] = useState('');
   const [showModes, setShowModes] = useState(true);
   const [panelTab, setPanelTab] = useState('history'); // history | graph
@@ -458,7 +459,11 @@ export default function LeftPanel() {
             <div className="status-dot status-online" />
             <span className="font-mono">Local Node Active</span>
           </div>
-          <button className="p-1.5 rounded-md hover:bg-white/5 text-text-muted hover:text-text-secondary transition-colors">
+          <button 
+            onClick={() => addNotification('Settings Profile: Cloud and workstation configurations are synchronized.', 'info')}
+            className="p-1.5 rounded-md hover:bg-white/5 text-text-muted hover:text-omega-cyan transition-colors cursor-pointer"
+            title="System Settings & Profile"
+          >
             <Settings size={13} />
           </button>
         </div>

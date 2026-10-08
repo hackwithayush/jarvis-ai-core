@@ -16,6 +16,7 @@ export const useStore = create((set, get) => ({
   streamingText: '',
   inputText: '',
   conversationsLoading: false,
+  abortController: null,
 
   // ─── System State ───
   systemStats: { cpu: '0%', gpu: '0%', ram: '0G', net: '0M' },
@@ -39,6 +40,15 @@ export const useStore = create((set, get) => ({
   setInputText: (text) => set({ inputText: text }),
   setAiMode: (mode) => set({ aiMode: mode }),
   setActiveModel: (model) => set({ activeModel: model }),
+
+  abortStream: () => {
+    const ctrl = get().abortController;
+    if (ctrl) {
+      try { ctrl.abort(); } catch (_) {}
+    }
+    set({ isStreaming: false, abortController: null });
+    get().addNotification('Neural stream halted by operator.', 'info');
+  },
 
   addNotification: (message, type = 'info') => {
     const id = Date.now();
@@ -67,11 +77,14 @@ export const useStore = create((set, get) => ({
       timestamp: new Date().toISOString(),
     };
 
+    const controller = new AbortController();
+
     set(s => ({
       messages: [...s.messages, userMsg],
       isStreaming: true,
       streamingText: '',
       inputText: '',
+      abortController: controller,
     }));
 
     const assistantMsg = {
@@ -88,6 +101,7 @@ export const useStore = create((set, get) => ({
       const response = await fetch(`${API_BASE}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
           message: promptText,
           conversation_id: get().currentConvId,
@@ -178,16 +192,21 @@ export const useStore = create((set, get) => ({
         }));
       }
     } catch (e) {
+      if (e.name === 'AbortError') {
+        // Stream aborted gracefully by operator
+        return;
+      }
       set(s => ({
         messages: s.messages.map(m =>
           m.id === assistantMsg.id
-            ? { ...m, content: '⚠ Neural link error. Check that the Flask backend is running on port 5000.', isError: true }
+            ? { ...m, content: '⚠ Neural link error. Check that the backend is running.', isError: true }
             : m
         ),
       }));
     } finally {
       set(s => ({
         isStreaming: false,
+        abortController: null,
         messages: s.messages.map(m =>
           m.id === assistantMsg.id
             ? { ...m, isStreaming: false }

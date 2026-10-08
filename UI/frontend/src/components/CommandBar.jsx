@@ -21,6 +21,7 @@ export default function CommandBar() {
   const isStreaming = useStore(s => s.isStreaming);
   const isVoiceActive = useStore(s => s.isVoiceActive);
   const toggleVoice = useStore(s => s.toggleVoice);
+  const abortStream = useStore(s => s.abortStream);
 
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -424,9 +425,11 @@ export default function CommandBar() {
                   <motion.button
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
+                    onClick={abortStream}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg 
-                               bg-omega-surface text-text-secondary hover:text-text-primary 
-                               hover:bg-omega-surface-light transition-colors text-xs font-medium"
+                               bg-omega-red/10 border border-omega-red/20 text-omega-red hover:bg-omega-red/20 
+                               transition-colors text-xs font-medium cursor-pointer"
+                    title="Stop response generation"
                   >
                     <Square size={10} fill="currentColor" />
                     <span>Stop</span>

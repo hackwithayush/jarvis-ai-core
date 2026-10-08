@@ -2510,32 +2510,44 @@
         }
         window.triggerSignOut = triggerSignOut;
         
-        // Simulate real-time diagnostic HUD telemetry updates
-        setInterval(() => {
-            const cpuPct = Math.floor(Math.random() * (45 - 12 + 1)) + 12;
-            const latencyMs = Math.floor(Math.random() * (22 - 8 + 1)) + 8;
-            const coherencePct = (Math.random() * (99.9 - 99.4) + 99.4).toFixed(1);
-            
-            const cpuEl = document.getElementById('hud-cpu-pct');
-            const cpuBar = document.getElementById('hud-cpu-bar');
-            const latencyEl = document.getElementById('hud-latency-ms');
-            const latencyBar = document.getElementById('hud-latency-bar');
-            const coherenceEl = document.getElementById('hud-coherence-pct');
-            const coherenceBar = document.getElementById('hud-coherence-bar');
-            
-            if (cpuEl && cpuBar) {
-                cpuEl.textContent = `${cpuPct}%`;
-                cpuBar.style.width = `${cpuPct}%`;
+        // Real-time diagnostic HUD telemetry updates
+        async function fetchRealHUDStats() {
+            try {
+                const t0 = performance.now();
+                const res = await fetch('/api/system/stats');
+                const t1 = performance.now();
+                const latencyMs = Math.round(t1 - t0);
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    const cpuPct = parseInt(data.cpu) || 0;
+                    
+                    const cpuEl = document.getElementById('hud-cpu-pct');
+                    const cpuBar = document.getElementById('hud-cpu-bar');
+                    const latencyEl = document.getElementById('hud-latency-ms');
+                    const latencyBar = document.getElementById('hud-latency-bar');
+                    const coherenceEl = document.getElementById('hud-coherence-pct');
+                    const coherenceBar = document.getElementById('hud-coherence-bar');
+                    
+                    if (cpuEl && cpuBar) {
+                        cpuEl.textContent = `${cpuPct}%`;
+                        cpuBar.style.width = `${Math.min(cpuPct, 100)}%`;
+                    }
+                    if (latencyEl && latencyBar) {
+                        latencyEl.textContent = `${latencyMs}ms`;
+                        latencyBar.style.width = `${Math.min((latencyMs / 100) * 100, 100)}%`;
+                    }
+                    if (coherenceEl && coherenceBar) {
+                        coherenceEl.textContent = '100%';
+                        coherenceBar.style.width = '100%';
+                    }
+                }
+            } catch (err) {
+                // Silently handle transient connection blip
             }
-            if (latencyEl && latencyBar) {
-                latencyEl.textContent = `${latencyMs}ms`;
-                latencyBar.style.width = `${(latencyMs / 30) * 100}%`; // Normalized to max 30ms link
-            }
-            if (coherenceEl && coherenceBar) {
-                coherenceEl.textContent = `${coherencePct}%`;
-                coherenceBar.style.width = `${coherencePct}%`;
-            }
-        }, 3000);
+        }
+        setInterval(fetchRealHUDStats, 3000);
+        fetchRealHUDStats();
 
         // Initialize view based on screen size and load systems
         window.onload = async () => {

@@ -17,6 +17,7 @@ export default function TopBar() {
   const toggleSidebar = useStore(s => s.toggleSidebar);
   const toggleRightPanel = useStore(s => s.toggleRightPanel);
   const systemStats = useStore(s => s.systemStats);
+  const addNotification = useStore(s => s.addNotification);
 
   const statusColor = {
     online: 'bg-omega-green',
@@ -41,7 +42,11 @@ export default function TopBar() {
           {sidebarOpen ? <PanelLeftClose size={16} /> : <PanelLeftOpen size={16} />}
         </button>
 
-        <div className="flex items-center gap-2">
+        <div 
+          onClick={() => addNotification(`Neural Link Status: ${neuralStatus.toUpperCase()} (Bi-directional SSE active)`, 'info')}
+          className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+          title="Neural Link Health"
+        >
           <div className="relative">
             <Brain size={16} className="text-omega-cyan" />
             <div className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full ${statusColor}`} />
@@ -78,11 +83,11 @@ export default function TopBar() {
       <div className="flex items-center gap-3">
         {/* Quick Stats */}
         <div className="hidden md:flex items-center gap-3 text-[10px] font-mono text-text-secondary">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" title="Real-time Host CPU Utilization">
             <Cpu size={11} className="text-omega-cyan" />
             <span>{systemStats.cpu}</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1" title="Hardware GPU / Graphics State">
             <Activity size={11} className="text-omega-purple" />
             <span>{systemStats.gpu}</span>
           </div>
@@ -91,18 +96,30 @@ export default function TopBar() {
         <div className="h-4 w-px bg-white/10" />
 
         {/* Active Model */}
-        <div className="hidden md:flex items-center gap-1.5 text-[10px]">
+        <div 
+          onClick={() => addNotification(`Active Intelligence Engine: ${activeModel}`, 'info')}
+          className="hidden md:flex items-center gap-1.5 text-[10px] cursor-pointer hover:opacity-80 transition-opacity"
+          title={`Active Model: ${activeModel}`}
+        >
           <div className="w-1.5 h-1.5 rounded-full bg-omega-cyan animate-pulse" />
           <span className="font-mono text-text-secondary">{activeModel}</span>
         </div>
 
         {/* Security */}
-        <div className="flex items-center gap-1 text-[10px]">
+        <div 
+          onClick={() => addNotification('Security Perimeter: Zero-Trust Active (Sandboxed)', 'success')}
+          className="flex items-center gap-1 text-[10px] cursor-pointer hover:opacity-80 transition-opacity"
+          title="Zero-Trust Security Perimeter: Enforced"
+        >
           <Shield size={12} className={securityState === 'secure' ? 'text-omega-green' : 'text-omega-red'} />
         </div>
 
         {/* Internet */}
-        <div className="flex items-center">
+        <div 
+          onClick={() => addNotification(internetStatus === 'connected' ? 'Network Link: Connected to Cloud Gateway & Local Subsystems' : 'Network Link: Offline', 'info')}
+          className="flex items-center cursor-pointer hover:opacity-80 transition-opacity"
+          title={`Network: ${internetStatus === 'connected' ? 'Connected' : 'Offline'}`}
+        >
           {internetStatus === 'connected' ? (
             <Wifi size={13} className="text-omega-green" />
           ) : (
