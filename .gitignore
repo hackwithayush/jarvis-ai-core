@@ -24,3 +24,7 @@ Unity_Aether_Assets/
 node_modules/
 VOICE/vosk*
 UI/frontend/node_modules/
+
+# Transcripts and local traces
+*.jsonl
+conversation_transcript.md

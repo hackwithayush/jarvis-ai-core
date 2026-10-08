@@ -29,11 +29,34 @@ class OmegaMemory:
         "session_memory": [],
         "long_term_memory": [],
         "conversation_summary": "",
+        "sessions": {},
         "system_state": {
             "last_active": "",
-            "total_conversations": 0
+            "total_conversations": 0,
+            "total_turns": 0
         }
     }
+
+    def _get_session(self, conv_id: Optional[str] = None) -> Dict:
+        """Retrieve or create a session memory container for a specific conversation ID."""
+        if not conv_id:
+            # Fallback to global top-level session for backward compatibility
+            return {
+                "session_memory": self.memory.setdefault("session_memory", []),
+                "conversation_summary": self.memory.get("conversation_summary", "")
+            }
+        
+        sessions = self.memory.setdefault("sessions", {})
+        if conv_id not in sessions:
+            sessions[conv_id] = {
+                "session_memory": [],
+                "conversation_summary": "",
+                "last_active": str(datetime.now())
+            }
+            self.memory.setdefault("system_state", {})
+            self.memory["system_state"]["total_conversations"] = len(sessions)
+            
+        return sessions[conv_id]
 
     def __init__(self):
         os.makedirs("data", exist_ok=True)
@@ -79,15 +102,20 @@ class OmegaMemory:
         ignore = ["hi", "hello", "hey", "yo", "okk", "ok", "hyy", "hmm"]
         return text.lower().strip() in ignore
 
-    def update_session(self, role: str, content: str):
-        """Update the short-term session buffer."""
-        self.memory["session_memory"].append({
+    def update_session(self, role: str, content: str, conv_id: Optional[str] = None):
+        """Update the short-term session buffer for a specific conversation."""
+        session = self._get_session(conv_id)
+        session["session_memory"].append({
             "role": role,
             "content": content,
             "timestamp": str(datetime.now())
         })
-        self.memory["session_memory"] = self.memory["session_memory"][-self.MAX_SHORT_MEMORY:]
-        self._summarize()
+        session["session_memory"] = session["session_memory"][-self.MAX_SHORT_MEMORY:]
+        self._summarize(conv_id=conv_id)
+        
+        # Mirror to top-level if no conv_id for backward compatibility
+        if not conv_id:
+            self.memory["session_memory"] = session["session_memory"]
 
     def update_long_term(self, user_input: str):
         """Process input for potential long-term persistence."""
@@ -148,17 +176,23 @@ class OmegaMemory:
         elif "normal mode" in text or "jarvis mode" in text:
             self.memory["profile"]["assistant_mode"] = "jarvis"
 
-    def _summarize(self):
-        """Build a tactical summary of the most recent exchange."""
-        recent = self.memory["session_memory"][-5:]
+    def _summarize(self, conv_id: Optional[str] = None):
+        """Build a tactical summary of the most recent exchange for a specific conversation."""
+        session = self._get_session(conv_id)
+        recent = session["session_memory"][-5:]
         summary = "\n".join([f"{m['role']}: {m['content']}" for m in recent])
-        self.memory["conversation_summary"] = summary
+        session["conversation_summary"] = summary
+        if not conv_id:
+            self.memory["conversation_summary"] = summary
 
-    def build_context(self, query: str = "") -> str:
-        """Synthesize the full system context prompt with semantic vector memory."""
+    def build_context(self, query: str = "", conv_id: Optional[str] = None) -> str:
+        """Synthesize the full system context prompt with semantic vector memory and session-specific context."""
         p = self.memory["profile"]
         long_memories = "\n".join([f"- {m['content']}" for m in self.memory["long_term_memory"][:5]])
         
+        session = self._get_session(conv_id)
+        session_summary = session.get("conversation_summary", "")
+
         # Semantic Vector Memories (via ChromaDB RAG)
         vector_memories = ""
         if query:
@@ -193,7 +227,7 @@ RELEVANT SEMANTIC MEMORIES (VECTOR STORE):
 """
         context_prompt += f"""
 RECENT CONVERSATIONAL CONTEXT:
-{self.memory['conversation_summary']}
+{session_summary if session_summary else "No recent exchange recorded in this session."}
 
 CORE DIRECTIVES:
 1. Maintain continuity with the profile and long-term memories provided.
@@ -205,15 +239,26 @@ CORE DIRECTIVES:
 """
         return context_prompt
 
-    def process_input(self, user_input: str) -> str:
+    def process_input(self, user_input: str, conv_id: Optional[str] = None) -> str:
         """Main pipeline: Load -> Process -> Save -> Return Context."""
         self.detect_preferences(user_input)
-        self.update_session("user", user_input)
+        self.update_session("user", user_input, conv_id=conv_id)
         self.update_long_term(user_input)
         
-        self.memory["system_state"]["last_active"] = str(datetime.now())
-        self.memory["system_state"]["total_conversations"] += 1
+        now_str = str(datetime.now())
+        self.memory.setdefault("system_state", {})
+        self.memory["system_state"]["last_active"] = now_str
+        self.memory["system_state"]["total_turns"] = self.memory["system_state"].get("total_turns", 0) + 1
+        
+        sessions = self.memory.setdefault("sessions", {})
+        self.memory["system_state"]["total_conversations"] = len(sessions) if sessions else 1
         
         self._save_memory(self.memory)
-        return self.build_context(user_input)
+        return self.build_context(user_input, conv_id=conv_id)
+
+    def start_conversation(self, conv_id: str):
+        """Explicitly register a new conversation session."""
+        self._get_session(conv_id)
+        self._save_memory(self.memory)
+
 

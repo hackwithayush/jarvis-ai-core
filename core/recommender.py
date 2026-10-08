@@ -87,6 +87,10 @@ class EntertainmentRecommender:
     # ─────────────────────────────────────────────
     def get_proactive_suggestion(self, taste_history: List[str]) -> str:
         """Netflix-style 'Because you liked...' system with smart ranking."""
+        # Only trigger proactively 10% of the time to avoid spamming the user
+        if random.random() > 0.10:
+            return ""
+
         if not taste_history:
             return ""
 

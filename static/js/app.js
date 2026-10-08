@@ -257,10 +257,18 @@ function newConversation() {
 async function sendMessage() {
   const input = document.getElementById('user-input');
   const text = input.value.trim();
-  if (!text || state.isStreaming) return;
+  if ((!text && !state.fileContext) || state.isStreaming) return;
 
   hideEmpty();
-  appendMessage('user', text);
+  const fileCtx = state.fileContext;
+  if (fileCtx && fileCtx.isImage && fileCtx.url) {
+    appendMessage('user', text, fileCtx.url);
+  } else if (text) {
+    appendMessage('user', text);
+  } else if (fileCtx) {
+    appendMessage('user', `[Attached: ${fileCtx.name}]`);
+  }
+
   input.value = '';
   input.style.height = 'auto';
   updateCharCount(0);
@@ -277,7 +285,9 @@ async function sendMessage() {
           message: text, 
           conversation_id: state.currentConvId,
           mode: state.personality,
-          file_context: state.fileContext ? state.fileContext.snippet : ""
+          file_context: fileCtx ? fileCtx.content || fileCtx.snippet : "",
+          image_url: fileCtx ? fileCtx.url : null,
+          image_path: fileCtx ? fileCtx.localPath : null
       }),
     });
 
@@ -406,10 +416,17 @@ function createMsgBubble(role) {
   return bubble;
 }
 
-function appendMessage(role, text) {
+function appendMessage(role, text, imageUrl = null) {
   hideEmpty();
   const bubble = createMsgBubble(role);
-  bubble.innerHTML = window.marked ? marked.parse(text) : text;
+  let html = '';
+  if (imageUrl) {
+    html += `<div style="margin-bottom:8px;"><img src="${imageUrl}" alt="Uploaded preview" style="max-width:260px;max-height:200px;border-radius:8px;object-fit:cover;border:1px solid var(--border);cursor:pointer;" onclick="window.open(this.src, '_blank')"></div>`;
+  }
+  if (text) {
+    html += window.marked ? marked.parse(text) : `<p>${text}</p>`;
+  }
+  bubble.innerHTML = html;
   document.getElementById('chat-feed').scrollTop = 9999;
 }
 
@@ -473,6 +490,45 @@ function setupTextareaAutoResize() {
         sendMessage(); 
     }
   });
+
+  const handlePaste = (e) => {
+    const cd = e.clipboardData || window.clipboardData;
+    if (!cd) return;
+    let targetFile = null;
+    if (cd.files && cd.files.length > 0) {
+      for (let i = 0; i < cd.files.length; i++) {
+        const f = cd.files[i];
+        if (f.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)) {
+          targetFile = f;
+          break;
+        }
+      }
+    }
+    if (!targetFile && cd.items && cd.items.length > 0) {
+      for (let i = 0; i < cd.items.length; i++) {
+        const item = cd.items[i];
+        if (item.type.indexOf('image') !== -1 || (item.kind === 'file' && item.type.startsWith('image/'))) {
+          const blob = item.getAsFile();
+          if (blob) {
+            const mime = blob.type || 'image/png';
+            const ext = mime.split('/')[1] || 'png';
+            targetFile = new File([blob], `screenshot_${Date.now()}.${ext}`, { type: mime });
+            break;
+          }
+        }
+      }
+    }
+    if (targetFile) {
+      e.preventDefault();
+      handleFileSelect(targetFile);
+    }
+  };
+  ta.addEventListener('paste', handlePaste);
+  document.addEventListener('paste', (e) => {
+    if (e.target !== ta && !['input', 'textarea'].includes((e.target.tagName || '').toLowerCase())) {
+      handlePaste(e);
+    }
+  });
 }
 
 function updateCharCount(n) {
@@ -488,12 +544,13 @@ function triggerUpload() {
 }
 
 async function handleFileSelect(input) {
-  const file = input.files[0];
+  const file = input.files ? input.files[0] : input;
   if (!file) return;
 
-  addLog(`Ingesting file: ${file.name}`, 'accent');
+  const isImg = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name);
+  addLog(`Ingesting ${isImg ? 'image' : 'file'}: ${file.name}`, 'accent');
   state.isAnalyzing = true;
-  showNeuralStatus("Ingesting file content...");
+  showNeuralStatus(isImg ? "Analyzing image through vision neural network..." : "Ingesting file content...");
 
   const formData = new FormData();
   formData.append('file', file);
@@ -507,11 +564,14 @@ async function handleFileSelect(input) {
     if (data.status === 'success') {
       state.fileContext = {
         name: file.name,
-        url: data.url,
-        snippet: data.content_snippet
+        url: data.image_url || data.url,
+        localPath: data.local_path,
+        isImage: data.is_image || isImg,
+        snippet: data.content_snippet,
+        content: data.content
       };
       renderFilePill();
-      addLog("Neural ingestion complete", 'success');
+      addLog(isImg ? "Visual intelligence analysis complete" : "Neural ingestion complete", 'success');
     } else {
       addLog(`Ingestion failure: ${data.error}`, 'warn');
     }
@@ -520,7 +580,7 @@ async function handleFileSelect(input) {
   } finally {
     state.isAnalyzing = false;
     hideNeuralStatus();
-    input.value = ''; // Reset input
+    if (input.value !== undefined) input.value = ''; // Reset input
   }
 }
 
@@ -533,7 +593,9 @@ function renderFilePill() {
     pill.className = 'upload-pill';
     container.insertBefore(pill, document.getElementById('input-box'));
   }
-  pill.innerHTML = `<span>📄 ${state.fileContext.name}</span><button onclick="removeFile()">×</button>`;
+  const isImg = state.fileContext && state.fileContext.isImage;
+  const icon = isImg ? '🖼️' : '📄';
+  pill.innerHTML = `<span>${icon} ${state.fileContext.name}</span><button onclick="removeFile()">×</button>`;
 }
 
 function removeFile() {

@@ -37,6 +37,7 @@ from core.diagnostics import DiagnosticNode
 from core.bug_analyzer import run_autonomous_scan
 from core.system_guardian import system_guardian
 from core.mcp_engine import mcp_engine
+from core.file_parser import UniversalFileParser
 import edge_tts
 import hashlib
 from concurrent.futures import ThreadPoolExecutor
@@ -74,16 +75,19 @@ app.config["SQLALCHEMY_DATABASE_URI"] = config.SQLALCHEMY_DATABASE_URI
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 CORS(app)
-from flask_wtf.csrf import CSRFProtect
-csrf = CSRFProtect(app)
-# Exempt all /api/* routes from CSRF — the OMEGA React UI uses JSON APIs without CSRF tokens.
-# Legacy template routes (/premium, /legacy) retain CSRF protection via meta tags.
-app.config['WTF_CSRF_CHECK_DEFAULT'] = False
+try:
+    from flask_wtf.csrf import CSRFProtect
+    csrf = CSRFProtect(app)
+    # Exempt all /api/* routes from CSRF — the OMEGA React UI uses JSON APIs without CSRF tokens.
+    # Legacy template routes (/premium, /legacy) retain CSRF protection via meta tags.
+    app.config['WTF_CSRF_CHECK_DEFAULT'] = False
+except ImportError:
+    csrf = None
 
 @app.before_request
 def csrf_protect_non_api():
     """Apply CSRF only to non-API routes (legacy template forms)."""
-    if not request.path.startswith('/api/'):
+    if csrf and not request.path.startswith('/api/'):
         try:
             csrf.protect()
         except Exception:
@@ -110,7 +114,7 @@ def load_user(user_id):
     except Exception:
         pass
         
-    return User.query.get(int(user_id))
+    return db.session.get(User, int(user_id))
 
 @app.before_request
 def auto_login_local_host():
@@ -472,40 +476,58 @@ def serve_assets(atype, filename):
 @app.route("/api/upload", methods=["POST"])
 @login_required
 def upload_file():
-    """Neural Ingestion: Accepting external files for deep analysis."""
+    """Universal Neural Ingestion: Accepting all file types for deep analysis."""
     if 'file' not in request.files:
-        return jsonify({"error": "No file payload detected"}), 400
-    
-    from werkzeug.utils import secure_filename
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'pdf', 'txt', 'md', 'py', 'json', 'csv'}
+        return jsonify({"status": "error", "error": "No file payload detected"}), 400
     
     file = request.files['file']
-    if file.filename == '':
-        return jsonify({"error": "Empty filename detected"}), 400
+    if not file or file.filename == '':
+        return jsonify({"status": "error", "error": "Empty filename detected"}), 400
     
-    def allowed_file(filename):
-        return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-    if file and allowed_file(file.filename):
-        safe_name = secure_filename(file.filename)
-        filename = f"up_{uuid.uuid4().hex[:8]}_{safe_name}"
-        filepath = os.path.join(config.UPLOAD_DIR, filename)
+    from werkzeug.utils import secure_filename
+    original_name = file.filename
+    safe_name = secure_filename(original_name) or f"upload_{uuid.uuid4().hex[:6]}"
+    filename = f"up_{uuid.uuid4().hex[:8]}_{safe_name}"
+    filepath = os.path.join(config.UPLOAD_DIR, filename)
+    
+    try:
+        os.makedirs(config.UPLOAD_DIR, exist_ok=True)
         file.save(filepath)
         
-        # Extract text content for initial analysis (TXT, MD, PY, etc.)
-        content = ""
-        try:
-            with open(filepath, 'r', encoding='utf-8') as f:
-                content = f.read()
-        except Exception:
-            content = "[Binary or unreadable file content]"
-            
+        # Universal deep parsing across all file formats (PDF, DOCX, XLSX, Code, Media, Archives, etc.)
+        parsed = UniversalFileParser.parse_file(filepath, original_filename=original_name)
+        
+        text_content = parsed.get("text_content", "")
+        summary = parsed.get("summary", "")
+        file_type = parsed.get("file_type", "Unknown")
+        size_readable = parsed.get("size_readable", "")
+        
+        formatted_context = (
+            f"FILE ATTACHMENT: {original_name} ({file_type}, {size_readable})\n"
+            f"{text_content}"
+        )
+        
+        logger.info(f"Universal Ingestion: Processed '{original_name}' ({file_type}, {size_readable})")
+        
+        is_image = parsed.get("is_image", False) or file_type.startswith("Image")
+        
         return jsonify({
             "status": "success",
             "filename": filename,
+            "original_filename": original_name,
             "url": f"/api/assets/uploads/{filename}",
-            "content_snippet": content[:2000] # Provide a snippet for immediate context
+            "is_image": is_image,
+            "image_url": f"/api/assets/uploads/{filename}" if is_image else None,
+            "local_path": filepath if is_image else None,
+            "file_type": file_type,
+            "size_readable": size_readable,
+            "content": formatted_context,       # Consumed by premium.html
+            "content_snippet": summary,         # Consumed by app.js
+            "metadata": parsed.get("metadata", {})
         })
+    except Exception as e:
+        logger.error(f"Universal Ingestion error for '{original_name}': {e}", exc_info=True)
+        return jsonify({"status": "error", "error": f"Failed to ingest file: {str(e)}"}), 500
 
 # ─── App Connectors API ───────────────────────────────────────────────────
 @app.route("/api/connectors", methods=["GET"])
@@ -734,6 +756,8 @@ def chat():
         message = data.get("message", "").strip()
         conv_id = data.get("conversation_id")
         file_context = data.get("file_context", "")
+        image_path = data.get("image_path") or data.get("local_path")
+        image_url = data.get("image_url")
         
         # Neural Trace ID for Deep Observability
         trace_id = f"trc_{uuid.uuid4().hex[:6]}"
@@ -745,6 +769,9 @@ def chat():
             user_obj = current_user._get_current_object() if hasattr(current_user, "_get_current_object") else current_user
         
         mode = data.get("mode", "chat")
+        model_req = data.get("model")
+        if model_req in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]:
+            model_req = "gemini-2.5-flash"
 
         @credit_required(cost=1)
         def generate_with_credits(user):
@@ -752,11 +779,21 @@ def chat():
             def generate():
                 with app.app_context():
                     from models import User
-                    active_user = User.query.get(user_id) if user_id else None
+                    active_user = db.session.get(User, user_id) if user_id else None
                     
                     try:
-                        logger.info(f"[{trace_id}] Neural Link [Mode: {mode}]: Initiating sequence.")
-                        for chunk in chat_engine.chat_stream(message, active_user, conv_id, mode=mode, file_context=file_context, trace_id=trace_id):
+                        logger.info(f"[{trace_id}] Neural Link [Mode: {mode}, Model: {model_req}]: Initiating sequence.")
+                        for chunk in chat_engine.chat_stream(
+                            message, 
+                            active_user, 
+                            conv_id, 
+                            mode=mode, 
+                            file_context=file_context, 
+                            trace_id=trace_id, 
+                            model=model_req,
+                            image_path=image_path,
+                            image_url=image_url
+                        ):
                             if chunk:
                                 yield f"data: {json.dumps({'chunk': chunk, 'trace_id': trace_id})}\n\n"
                                 
@@ -872,7 +909,7 @@ def admin_update_user():
     """Override a user's credits or tier."""
     data = request.json
     user_id = data.get("user_id")
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
     
@@ -955,6 +992,22 @@ def delete_conversation(id):
     chat_engine.delete_conversation(id)
     logger.info(f"Neural Purge: Conversation {id} removed by user {current_user.id}")
     return jsonify({"status": "success", "message": f"Thread {id} purged from neural memory."})
+
+@app.route("/api/conversations/<id>/export", methods=["GET"])
+@login_required
+def export_conversation_route(id):
+    """Export conversation transcript in json, jsonl, or markdown format."""
+    fmt = request.args.get("format", "jsonl").lower().strip()
+    as_attachment = request.args.get("download", "true").lower() == "true"
+    try:
+        filepath = chat_engine.export_conversation(id, format=fmt)
+        filename = os.path.basename(filepath)
+        return send_file(filepath, as_attachment=as_attachment, download_name=filename)
+    except ValueError as ve:
+        return jsonify({"error": str(ve)}), 404
+    except Exception as e:
+        logger.error(f"Failed to export conversation {id}: {e}", exc_info=True)
+        return jsonify({"error": f"Export failed: {str(e)}"}), 500
 
 # ─── Ratings / Feedback ─────────────────────────────────────────
 
@@ -1195,6 +1248,12 @@ def serve_video(filename):
 def serve_voice(filename):
     return send_file(os.path.join(config.VOICE_DIR, filename))
 
+@app.route("/health", methods=["GET"])
+@app.route("/healthz", methods=["GET"])
+def health_probe():
+    """Simple 200 OK ping for cloud load balancers and free uptime monitors."""
+    return jsonify({"status": "healthy", "service": "JARVIS AI 24/7", "timestamp": datetime.now(timezone.utc).isoformat()}), 200
+
 @app.route("/api/system/health", methods=["GET"])
 def get_system_health():
     """Health Node: Direct diagnostic readout."""
@@ -1381,7 +1440,7 @@ def create_studio_project():
 def get_studio_project(id):
     """Fetch project details and scenes for review."""
     from models import Project
-    p = Project.query.get(id)
+    p = db.session.get(Project, id)
     if not p or p.user_id != current_user.id:
         return jsonify({"error": "Project not found or unauthorized"}), 404
     
@@ -1409,7 +1468,7 @@ def approve_studio_project():
     """Phase 2: Finalize Synthesis (Rendering)."""
     project_id = request.json.get("project_id")
     from models import Project
-    p = Project.query.get(project_id)
+    p = db.session.get(Project, project_id)
     if not p or p.user_id != current_user.id:
         return jsonify({"error": "Project not found"}), 404
         
@@ -1436,7 +1495,7 @@ def update_studio_scene():
     data = request.json
     scene_id = data.get("scene_id")
     from models import ProjectScene
-    s = ProjectScene.query.get(scene_id)
+    s = db.session.get(ProjectScene, scene_id)
     if not s or s.project.user_id != current_user.id:
         return jsonify({"error": "Scene not found"}), 404
     
@@ -1565,7 +1624,7 @@ def stripe_webhook():
         new_tier = metadata.get('tier', 'free')
         
         with app.app_context():
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
             if user:
                 user.credits += credits_to_add
                 if new_tier != 'free':
@@ -1827,10 +1886,23 @@ def start_heartbeat():
     threading.Thread(target=heartbeat_loop, daemon=True).start()
 
 def start_bot():
-    """Starts the Telegram Bot as a background process."""
+    """Starts the Telegram Bot as a background process if not already running."""
     import subprocess
     import sys
     import os
+    try:
+        import psutil
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmdline = proc.info.get('cmdline') or []
+                if any('telegram_bot.py' in str(arg) for arg in cmdline):
+                    logger.info("Telegram Bot Node is already active. Skipping duplicate launch.")
+                    return
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+    except Exception:
+        pass
+
     try:
         logger.info("Neural Link: Launching Telegram Bot Node...")
         bot_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "telegram_bot.py")

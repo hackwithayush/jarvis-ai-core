@@ -9,10 +9,28 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-BQ-84UyN.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DP54WuZT.css">
+    <script type="module" crossorigin src="/assets/index-DAeDeNk7.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-BMZJqrxz.css">
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // Global shortcut: Cmd+N / Ctrl+N for New Thread
+      window.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+          e.preventDefault();
+          const btns = Array.from(document.querySelectorAll('button'));
+          const newThreadBtn = btns.find(b => b.textContent && b.textContent.includes('New Thread'));
+          if (newThreadBtn) {
+            newThreadBtn.click();
+            console.log('⚡ Keyboard Shortcut: New Thread initiated.');
+          }
+          setTimeout(() => {
+            const ta = document.querySelector('textarea');
+            if (ta) ta.focus();
+          }, 60);
+        }
+      });
+    </script>
   </body>
 </html>

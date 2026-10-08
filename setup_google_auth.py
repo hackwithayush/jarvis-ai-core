@@ -6,7 +6,9 @@ SCOPES = [
     'https://www.googleapis.com/auth/calendar',
     'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/documents.readonly',
-    'https://www.googleapis.com/auth/gmail.readonly'
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/gmail.send',
+    'https://www.googleapis.com/auth/gmail.modify'
 ]
 
 def authenticate():
@@ -21,14 +23,22 @@ def authenticate():
     creds = None
     # The file token.json stores the user's access and refresh tokens
     if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        try:
+            creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+        except Exception:
+            creds = None
     
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             print("Refreshing existing token...")
-            creds.refresh(Request())
-        else:
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f"Token refresh failed ({e}). Re-starting browser OAuth authorization...")
+                creds = None
+        
+        if not creds or not creds.valid:
             if not os.path.exists('credentials.json'):
                 print("Error: credentials.json not found in the current directory.")
                 print("Please download it from the Google Cloud Console and place it here.")

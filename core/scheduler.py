@@ -57,10 +57,20 @@ class UpdateScheduler:
             replace_existing=True,
         )
 
+        # Daily JARVIS Executive Security & Telemetry Report (e.g. 8 AM)
+        report_hour = getattr(config, "DAILY_REPORT_HOUR", 8)
+        self.scheduler.add_job(
+            func=self.daily_security_report,
+            trigger=CronTrigger(hour=report_hour, minute=0),
+            id="daily_security_report",
+            name="Daily JARVIS Executive Security Report",
+            replace_existing=True,
+        )
+
         self.scheduler.start()
         logger.info(
             f"Scheduler started. News updates every {config.NEWS_UPDATE_INTERVAL_HOURS}h, "
-            f"cleanup daily, digest at 9AM."
+            f"cleanup daily, digest at 9AM, security report at {report_hour}AM."
         )
 
         # Initial fetch on start
@@ -242,3 +252,26 @@ class UpdateScheduler:
             replace_existing=True,
         )
         return {"status": "ok", "message": "Manual update triggered"}
+
+    def daily_security_report(self):
+        """Generates and emails the daily JARVIS executive security and system report."""
+        try:
+            logger.info("Generating scheduled daily JARVIS Executive Report...")
+            from core.system_guardian import system_guardian
+            res = system_guardian.send_executive_report_email()
+            logger.info(f"Daily Executive Report dispatch complete: {res.get('method')} (success={res.get('success')})")
+            return res
+        except Exception as e:
+            logger.error(f"Failed to generate scheduled executive report: {e}")
+            return {"status": "error", "message": str(e)}
+
+    def trigger_manual_security_report(self):
+        """Trigger an immediate executive security report dispatch."""
+        self.scheduler.add_job(
+            func=self.daily_security_report,
+            id="manual_security_report",
+            name="Manual Executive Security Report",
+            replace_existing=True,
+        )
+        return {"status": "ok", "message": "Executive security report dispatch initiated"}
+

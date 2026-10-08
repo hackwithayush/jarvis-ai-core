@@ -10,7 +10,7 @@ class BrowserWorker:
     """Specialized Agent: Autonomous Web Browsing & Visual Extraction."""
     
     def __init__(self, llm=None):
-        self.llm = llm or ChatGroq(model_name="llama-3.1-70b-versatile", groq_api_key=os.getenv("GROQ_API_KEY"))
+        self.llm = llm or ChatGroq(model_name="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY"))
 
     async def run(self, state: dict):
         """Navigate a URL and extract specific data."""

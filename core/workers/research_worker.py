@@ -14,7 +14,7 @@ class ResearchWorker:
     
     def __init__(self, llm=None):
         # Default to Groq for fast, smart research if available
-        self.llm = llm or ChatGroq(model_name="llama-3.1-70b-versatile", groq_api_key=os.getenv("GROQ_API_KEY"))
+        self.llm = llm or ChatGroq(model_name="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY"))
         self.search_tool = TavilySearchResults(k=5) if os.getenv("TAVILY_API_KEY") else None
 
     async def run(self, state: dict):

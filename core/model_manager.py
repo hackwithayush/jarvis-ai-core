@@ -75,6 +75,7 @@ class ModelManager:
             logger.info("Intelligence Hub: Together AI Node Link Active.")
             
         # Launch Proactive Health Monitoring
+        self._exhausted_models = {}
         threading.Thread(target=self._health_monitor_loop, daemon=True).start()
 
     @property
@@ -127,8 +128,11 @@ class ModelManager:
 
     def is_healthy(self, model_name: str) -> bool:
         """Query the health cache for a specific node/model."""
+        if self._exhausted_models.get(model_name, 0) > time.time():
+            return False
+
         if config.SERVER_MODE and ("gpt" in model_name or "groq" in model_name or "gemini" in model_name):
-            return True # Always assume cloud is target in server mode
+            return True # Assume healthy unless marked in _exhausted_models
             
         with self._health_lock:
             # Check for generic node health
@@ -397,30 +401,61 @@ class ModelManager:
             active_temp = max(active_temp, 0.8)
             active_p = min(active_p, 0.95)
         
-        # 1. Server Mode / Cloud Priority Path
+        # 1. Server Mode / Cloud Priority Path with Multi-Provider Auto-Failover
         if config.SERVER_MODE:
-            try:
-                # Gemini models route to Gemini API
-                if self._is_gemini_model(primary_model) and self.gemini_client:
-                    yield from self._generate_gemini_stream(messages, system_prompt, model=primary_model)
-                    return
-                # Handle OpenRouter/Together models directly 
-                elif "z-ai/" in primary_model or "deepseek/" in primary_model or "qwen/" in primary_model:
-                    if self.openrouter_client and ("z-ai/" in primary_model or "deepseek/" in primary_model):
-                        yield from self._generate_openrouter_stream(messages, system_prompt, model=primary_model)
+            cloud_candidates = [primary_model] + config.FALLBACK_CHAIN
+            seen = set()
+            unique_cloud_models = [m for m in cloud_candidates if m and not (m in seen or seen.add(m))]
+            last_cloud_error = "No available cloud nodes responded."
+            
+            for m in unique_cloud_models:
+                # Proactively skip exhausted cloud models (e.g. 429 quota exhaustion)
+                if self._exhausted_models.get(m, 0) > time.time():
+                    logger.info(f"Proactive Skip: Cloud node '{m}' is in cooldown/exhausted.")
+                    continue
+                try:
+                    logger.info(f"Cloud Intelligence Grid: Streaming via node '{m}'...")
+                    
+                    # A. Gemini (Google AI Studio) - Flagship priority & Multimodal
+                    if self._is_gemini_model(m) and self.gemini_client:
+                        yield from self._generate_gemini_stream(messages, system_prompt, model=m, response_format=response_format)
                         return
-                    elif self.together_client:
-                        yield from self._generate_together_stream(messages, system_prompt, model=primary_model)
+
+                    # B. Groq Acceleration Grid (Ultra-fast models hosted on Groq)
+                    elif (m in ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b", "allam-2-7b"] or (not ("/" in m) and not self._is_gemini_model(m))) and config.GROQ_API_KEY:
+                        yield from self._generate_groq_stream(messages, system_prompt, model=m, response_format=response_format)
                         return
-                elif config.GROQ_API_KEY:
-                    yield from self._generate_groq_stream(messages, system_prompt, model=primary_model)
-                    return
-                elif config.OPENAI_API_KEY:
-                    yield from self._generate_openai_stream(messages, system_prompt, model=primary_model)
-                    return
-            except Exception as e:
-                logger.error(f"Cloud Priority Node Failure: {e}. Falling back to Local Neural Node.")
-                # Don't return here, fall through to Local Path as a safety net if available
+                    
+                    # C. OpenRouter (Multi-model: Llama 3.3, DeepSeek, etc.)
+                    elif self.openrouter_client and ("/" in m or "llama" in m.lower() or "deepseek" in m.lower()):
+                        yield from self._generate_openrouter_stream(messages, system_prompt, model=m, response_format=response_format)
+                        return
+                        
+                    # D. OpenAI Prime
+                    elif config.OPENAI_API_KEY:
+                        yield from self._generate_openai_stream(messages, system_prompt, model=m)
+                        return
+                        
+                except Exception as e:
+                    err_str = str(e)
+                    last_cloud_error = err_str
+                    if "429" in err_str or "RESOURCE_EXHAUSTED" in err_str:
+                        self._exhausted_models[m] = time.time() + 3600
+                    elif "402" in err_str or "credit" in err_str.lower() or "payment" in err_str.lower():
+                        self._exhausted_models[m] = time.time() + 86400  # 24h cooldown for unpaid/insufficient credit models
+                    elif "503" in err_str or "UNAVAILABLE" in err_str:
+                        self._exhausted_models[m] = time.time() + 180
+                    elif "404" in err_str or "NOT_FOUND" in err_str:
+                        self._exhausted_models[m] = time.time() + 86400
+                    logger.warning(f"Cloud Node '{m}' failed ({e}). Auto-healing over to next provider in fallback chain...")
+                    continue
+
+            # In SERVER_MODE, do not attempt local Ollama if it is unreachable
+            if not self.is_ollama_running():
+                error_msg = f"⚠️ All Cloud Intelligence Nodes failed. Traceback: {last_cloud_error}"
+                logger.error(error_msg)
+                yield error_msg
+                return
 
         # 2. Local-First Path (Default) with fallback loop
         models_to_try = [primary_model] + config.FALLBACK_CHAIN
@@ -563,39 +598,60 @@ class ModelManager:
             logger.error(f"OpenAI link breakdown: {e}")
             yield f"⚠️ Neural Link Breakdown (OpenAI): {str(e)}"
 
-    def _generate_openrouter_stream(self, messages: list, system_prompt: str, model: str = None) -> Generator[str, None, None]:
-        """OpenRouter streaming implementation."""
+    def _generate_openrouter_stream(self, messages: list, system_prompt: str, model: str = None, response_format: Optional[dict] = None) -> Generator[str, None, None]:
+        """OpenRouter streaming implementation with message sanitization and credit guard."""
         logger.info(f"Routing to OpenRouter Node ({model})...")
         try:
-            payload = [{"role": "system", "content": system_prompt}] + messages
+            # Sanitize messages: discard empty content and error banners
+            sanitized = []
+            for msg in messages:
+                c = (msg.get("content") or "").strip()
+                if c and not c.startswith("⚠️"):
+                    sanitized.append({"role": msg.get("role", "user"), "content": c})
+            if not sanitized:
+                sanitized = [{"role": "user", "content": "Hello"}]
+
+            payload = [{"role": "system", "content": system_prompt}] + sanitized
             kwargs = {
                 "model": model or config.ROUTING_CONFIG.get("flagship", "z-ai/glm-5.2"),
                 "messages": payload,
                 "stream": True,
-                "temperature": config.MODEL_TEMPERATURE
+                "temperature": config.MODEL_TEMPERATURE,
+                "max_tokens": 2048, # Safe token cap to prevent 402 insufficient credit errors
             }
+            if response_format:
+                kwargs["response_format"] = response_format
             response = self.openrouter_client.chat.completions.create(**kwargs)
             for chunk in response:
-                if chunk.choices[0].delta.content:
+                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
         except Exception as e:
-            logger.error(f"OpenRouter breakdown: {e}")
-            yield f"⚠️ Neural Link Breakdown (OpenRouter): {str(e)}"
+            logger.error(f"OpenRouter breakdown ({model}): {e}")
+            raise
 
     def _generate_together_stream(self, messages: list, system_prompt: str, model: str = None) -> Generator[str, None, None]:
         """Together AI streaming implementation."""
         logger.info(f"Routing to Together AI Node ({model})...")
         try:
-            payload = [{"role": "system", "content": system_prompt}] + messages
+            sanitized = []
+            for msg in messages:
+                c = (msg.get("content") or "").strip()
+                if c and not c.startswith("⚠️"):
+                    sanitized.append({"role": msg.get("role", "user"), "content": c})
+            if not sanitized:
+                sanitized = [{"role": "user", "content": "Hello"}]
+
+            payload = [{"role": "system", "content": system_prompt}] + sanitized
             kwargs = {
                 "model": model or config.ROUTING_CONFIG.get("reasoning", "deepseek-ai/DeepSeek-R1"),
                 "messages": payload,
                 "stream": True,
-                "temperature": config.MODEL_TEMPERATURE
+                "temperature": config.MODEL_TEMPERATURE,
+                "max_tokens": 2048,
             }
             response = self.together_client.chat.completions.create(**kwargs)
             for chunk in response:
-                if chunk.choices[0].delta.content:
+                if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
         except Exception as e:
             logger.error(f"Together AI breakdown: {e}")
@@ -603,22 +659,47 @@ class ModelManager:
 
     def _generate_groq_stream(self, messages: list, system_prompt: str, model: str = None, tools: Optional[list] = None, response_format: Optional[dict] = None) -> Generator[str, None, None]:
         """Immortal Groq streaming node with auto-healing fallbacks."""
-        # --- PRO LIST OF STABLE MODELS ---
+        # --- PRO LIST OF STABLE MODELS CURRENTLY ACTIVE ON GROQ ---
         SAFE_MODELS = [
             model, # Try requested first
-            config.ROUTING_CONFIG.get("chat"),
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768"
+            "openai/gpt-oss-120b", # Flagship 120B on Groq: huge context headroom & rich output
+            "qwen/qwen3.8-27b",
+            "openai/gpt-oss-20b",
         ]
         
-        # Clean unique list (remove None/empty)
+        # Clean unique list (remove None/empty and models known not to be on Groq)
         FALLBACKS = []
         for m in SAFE_MODELS:
-            if m and m not in FALLBACKS:
+            if m and m not in FALLBACKS and not any(k in m for k in ["gemini", "z-ai", "deepseek-ai"]):
                 FALLBACKS.append(m)
 
-        payload = [{"role": "system", "content": system_prompt}] + messages
+        # Sanitize messages
+        sanitized = []
+        for msg in messages:
+            c = (msg.get("content") or "").strip()
+            if c and not c.startswith("⚠️"):
+                sanitized.append({"role": msg.get("role", "user"), "content": c})
+        if not sanitized:
+            sanitized = [{"role": "user", "content": "Hello"}]
+
+        # Groq Context Guard: Bound system prompt and history to fit Groq context windows
+        # Truncate overly long system_prompt (e.g. huge file contexts or excessive transcripts)
+        safe_sys = system_prompt
+        if len(safe_sys) > 16000:
+            safe_sys = safe_sys[:16000] + "\n[System prompt trimmed for token budget]"
+
+        # Ensure sanitized messages don't exceed model limits (keep latest user input intact)
+        trimmed_messages = []
+        for idx, m in enumerate(sanitized):
+            content = m["content"]
+            # If an individual history message is excessively huge, truncate it
+            if len(content) > 12000 and idx < len(sanitized) - 1:
+                content = content[:12000] + "\n...[truncated prior message context]"
+            elif len(content) > 24000: # Final turn safety cap
+                content = content[:24000] + "\n...[truncated input to fit token budget]"
+            trimmed_messages.append({"role": m["role"], "content": content})
+
+        payload = [{"role": "system", "content": safe_sys}] + trimmed_messages
         last_error = ""
 
         # Attempt the Immortal Loop
@@ -626,11 +707,14 @@ class ModelManager:
             try:
                 # Map decommissioned or local names to safe cloud IDs
                 mapping = {
-                    "phi3:mini": "llama-3.1-8b-instant",
-                    "llama3.1:8b": "llama-3.1-8b-instant",
-                    "deepseek-v3": "llama-3.3-70b-versatile",
-                    "deepseek-coder:6.7b": "llama-3.3-70b-versatile",
-                    "llama-3.1-70b-versatile": "llama-3.3-70b-versatile"
+                    "phi3:mini": "openai/gpt-oss-20b",
+                    "llama3.1:8b": "openai/gpt-oss-20b",
+                    "llama-3.1-8b-instant": "openai/gpt-oss-20b",
+                    "llama-3.1-70b-versatile": "openai/gpt-oss-120b",
+                    "llama-3.3-70b-versatile": "openai/gpt-oss-120b",
+                    "deepseek-v3": "openai/gpt-oss-120b",
+                    "deepseek-coder:6.7b": "qwen/qwen3.8-27b",
+                    "mixtral-8x7b-32768": "openai/gpt-oss-120b",
                 }
                 mapped_model = mapping.get(current_node, current_node)
                 
@@ -639,11 +723,33 @@ class ModelManager:
                 from openai import OpenAI
                 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=config.GROQ_API_KEY)
                 
+                # Model-Specific Payload Guard: Qwen 3.8 on Groq has a strict 7000 ITPM limit
+                model_payload = list(payload)
+                if "qwen" in mapped_model.lower():
+                    total_chars = sum(len(m.get("content", "")) for m in model_payload)
+                    if total_chars > 16000:
+                        sys_content = model_payload[0]["content"]
+                        if len(sys_content) > 6000:
+                            sys_content = sys_content[:6000] + "\n[System prompt compressed for Qwen ITPM ceiling]"
+                        recent_msgs = model_payload[1:][-4:]
+                        model_payload = [{"role": "system", "content": sys_content}] + recent_msgs
+
+                # Estimate total characters in payload to avoid context boundary overrun
+                approx_chars = sum(len(m.get("content", "")) for m in model_payload)
+                # Adaptive max_tokens: Allow full 4096 tokens for 120B to avoid truncation on large lists
+                if "qwen" in mapped_model.lower():
+                    calc_max_tokens = 1500
+                elif "oss-20b" in mapped_model.lower():
+                    calc_max_tokens = 2048
+                else:
+                    calc_max_tokens = 4096
+                
                 kwargs = {
                     "model": mapped_model,
-                    "messages": payload,
+                    "messages": model_payload,
                     "stream": True,
-                    "temperature": config.MODEL_TEMPERATURE
+                    "temperature": config.MODEL_TEMPERATURE,
+                    "max_tokens": calc_max_tokens,
                 }
                 if response_format:
                     kwargs["response_format"] = response_format
@@ -651,53 +757,116 @@ class ModelManager:
                 response = client.chat.completions.create(**kwargs)
                 
                 for chunk in response:
-                    logger.info(f"GROQ RAW CHUNK: {chunk}")
-                    if chunk.choices[0].delta.content:
+                    if chunk.choices and chunk.choices[0].delta and chunk.choices[0].delta.content:
                         yield chunk.choices[0].delta.content
                 return # Successful completion
 
             except Exception as e:
-                logger.warning(f"Intelligence Node '{current_node}' failed: {e}. Initiating redirection...")
-                last_error = str(e)
+                err_text = str(e)
+                logger.warning(f"Intelligence Node '{current_node}' failed: {err_text}. Initiating redirection...")
+                last_error = err_text
+                
+                # If error is due to message/completion length, try with aggressively trimmed payload on next model
+                if "reduce the length" in err_text.lower() or "too large" in err_text.lower():
+                    if len(payload) > 1 and len(payload[0]["content"]) > 6000:
+                        payload[0]["content"] = payload[0]["content"][:6000] + "\n[Context compressed]"
                 continue
 
-        # Terminal Failsafe: Try Gemini → OpenAI if Groq is totally down
-        if self.gemini_client:
+        # If all Groq models failed, raise to let generate_stream failover to OpenRouter / Cloud
+        raise RuntimeError(f"All Groq models failed: {last_error}")
+
+    def _generate_gemini_stream(self, messages: list, system_prompt: str, model: str = None, response_format: Optional[dict] = None) -> Generator[str, None, None]:
+        """Gemini-specific streaming implementation with multi-turn structure enforcement and model auto-failover."""
+        target_model = model or config.ROUTING_CONFIG.get("flagship", "gemini-2.5-flash")
+        if not self._is_gemini_model(target_model):
+            target_model = "gemini-2.5-flash"
+
+        # Map defunct/retired models to currently active models
+        if target_model in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
+            target_model = "gemini-2.5-flash"
+
+        if not self.gemini_client:
+            raise RuntimeError("Gemini client not initialized. Check GEMINI_API_KEY.")
+
+        # Candidate Gemini models in priority order
+        candidates = [target_model]
+        for alt in ["gemini-2.5-flash", "gemini-3.8-flash"]:
+            if alt not in candidates:
+                candidates.append(alt)
+
+        # Build sanitized, strictly alternating Content array conforming to Gemini API rules
+        contents = []
+        for msg in messages:
+            if msg.get("role") == "system":
+                continue
+            role = "model" if msg.get("role") == "assistant" else "user"
+            raw_text = (msg.get("content") or "").strip()
+            # Omit error banners and empty content
+            if not raw_text or raw_text.startswith("⚠️"):
+                continue
+
+            # Merge consecutive turns with the same role into one Content block
+            if contents and contents[-1].role == role:
+                contents[-1].parts.append(genai_types.Part.from_text(text=raw_text))
+            else:
+                contents.append(genai_types.Content(role=role, parts=[genai_types.Part.from_text(text=raw_text)]))
+
+        # Gemini Rule 1: Contents cannot be empty
+        if not contents:
+            contents = [genai_types.Content(role="user", parts=[genai_types.Part.from_text(text="Hello")])]
+
+        # Gemini Rule 2: First turn must be 'user'
+        while contents and contents[0].role != "user":
+            contents.pop(0)
+
+        if not contents:
+            contents = [genai_types.Content(role="user", parts=[genai_types.Part.from_text(text="Hello")])]
+
+        # Gemini Rule 3: Last turn MUST be 'user' (never 'model')
+        if contents[-1].role != "user":
+            user_text = ""
+            if messages:
+                user_text = (messages[-1].get("content") or "").strip()
+            if not user_text:
+                user_text = "Please continue."
+            contents.append(genai_types.Content(role="user", parts=[genai_types.Part.from_text(text=user_text)]))
+
+        cfg_kwargs = {
+            "system_instruction": system_prompt,
+            "temperature": config.MODEL_TEMPERATURE,
+            "top_p": config.MODEL_TOP_P,
+        }
+        if response_format and response_format.get("type") == "json_object":
+            cfg_kwargs["response_mime_type"] = "application/json"
+
+        last_gemini_err = None
+        for m in candidates:
+            if self._exhausted_models.get(m, 0) > time.time():
+                continue
             try:
-                yield from self._generate_gemini_stream(messages, system_prompt)
-                return
-            except Exception:
-                pass
-        if config.OPENAI_API_KEY:
-            yield from self._generate_openai_stream(messages, system_prompt)
-        else:
-            yield f"⚠️ All Neural Nodes offline. Last breakdown: {last_error}"
+                logger.info(f"Intelligence Grid: Routing to Gemini Node ({m})...")
+                for chunk in self.gemini_client.models.generate_content_stream(
+                    model=m,
+                    contents=contents,
+                    config=genai_types.GenerateContentConfig(**cfg_kwargs)
+                ):
+                    if chunk.text:
+                        yield chunk.text
+                return # Completed stream successfully
+            except Exception as e:
+                err_s = str(e)
+                logger.warning(f"Gemini candidate '{m}' failed: {err_s}")
+                last_gemini_err = e
+                if "429" in err_s or "RESOURCE_EXHAUSTED" in err_s:
+                    self._exhausted_models[m] = time.time() + 3600
+                elif "503" in err_s or "UNAVAILABLE" in err_s:
+                    self._exhausted_models[m] = time.time() + 60
+                elif "404" in err_s or "NOT_FOUND" in err_s:
+                    self._exhausted_models[m] = time.time() + 86400
+                continue
 
-    def _generate_gemini_stream(self, messages: list, system_prompt: str, model: str = None) -> Generator[str, None, None]:
-        """Gemini-specific streaming implementation (FREE flagship tier)."""
-        model = model or config.ROUTING_CONFIG.get("flagship", "gemini-2.5-flash")
-        logger.info(f"Intelligence Grid: Routing to Gemini Node ({model})...")
-        try:
-            if not self.gemini_client:
-                raise RuntimeError("Gemini client not initialized. Check GEMINI_API_KEY.")
-
-            # Build content from messages
-            user_content = messages[-1]["content"] if messages else ""
-
-            for chunk in self.gemini_client.models.generate_content_stream(
-                model=model,
-                contents=user_content,
-                config=genai_types.GenerateContentConfig(
-                    system_instruction=system_prompt,
-                    temperature=config.MODEL_TEMPERATURE,
-                    top_p=config.MODEL_TOP_P,
-                )
-            ):
-                if chunk.text:
-                    yield chunk.text
-        except Exception as e:
-            logger.error(f"Gemini Node Failure: {e}")
-            yield f"⚠️ Gemini Neural Link Breakdown: {str(e)}"
+        if last_gemini_err:
+            raise last_gemini_err
 
     @retry_sync(retries=2, delay=0.5)
     def generate(

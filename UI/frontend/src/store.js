@@ -51,14 +51,19 @@ export const useStore = create((set, get) => ({
   },
 
   // ─── Chat Actions ───
-  sendMessage: async (text, fileContext = '') => {
+  sendMessage: async (text, fileContext = '', imageMeta = null) => {
     if (get().isStreaming) return;
-    if (!text.trim() && !fileContext) return;
+    const hasImage = Boolean(imageMeta && (imageMeta.imageUrl || imageMeta.localPath));
+    if (!text.trim() && !fileContext && !hasImage) return;
+
+    const promptText = text.trim() || (hasImage ? "Analyze this image thoroughly: identify all subjects, layout, transcribed text/code/errors (OCR), and provide key insights." : "");
 
     const userMsg = {
       id: Date.now(),
       role: 'user',
-      content: text,
+      content: promptText,
+      imageUrl: imageMeta?.previewUrl || imageMeta?.imageUrl || null,
+      fileName: imageMeta?.fileName || null,
       timestamp: new Date().toISOString(),
     };
 
@@ -84,9 +89,11 @@ export const useStore = create((set, get) => ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: text,
+          message: promptText,
           conversation_id: get().currentConvId,
           file_context: fileContext,
+          image_url: imageMeta?.imageUrl || null,
+          image_path: imageMeta?.localPath || null,
           mode: get().aiMode,
         }),
       });

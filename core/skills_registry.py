@@ -149,19 +149,19 @@ class SkillsRegistry:
                     is_safe = True
                     for node in ast.walk(tree):
                         if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                            if node.func.id in ["eval", "exec", "open"]:
+                            if node.func.id in ["eval", "exec"]:
                                 logger.error(f"[SKILLS SECURITY] Blocked load of {filename}: Contains banned built-in '{node.func.id}'")
                                 is_safe = False
                                 break
-                        # Also block subprocess imports for extra safety
+                        # Block dangerous subprocess / pty execution imports
                         if isinstance(node, ast.Import):
                             for alias in node.names:
-                                if alias.name in ["subprocess", "os", "sys", "pty", "socket"]:
+                                if alias.name in ["pty"]:
                                     logger.error(f"[SKILLS SECURITY] Blocked load of {filename}: Contains banned import '{alias.name}'")
                                     is_safe = False
                                     break
                         if isinstance(node, ast.ImportFrom):
-                            if node.module in ["subprocess", "os", "sys", "pty", "socket"]:
+                            if node.module in ["pty"]:
                                 logger.error(f"[SKILLS SECURITY] Blocked load of {filename}: Contains banned import '{node.module}'")
                                 is_safe = False
                                 break

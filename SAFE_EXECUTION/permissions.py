@@ -61,6 +61,17 @@ class PermissionManager:
                     anchored_hash = f.read().strip()
                 if anchored_hash != top_hash:
                     logger.critical(f"[SECURITY BREACH] FATAL: Audit Anchor Rollback Detected! DB Hash: {top_hash} != Anchor: {anchored_hash}")
+                    try:
+                        from core.breach_detector import breach_detector
+                        breach_detector.report_breach(
+                            threat_type="Audit Anchor Rollback / Database Tampering",
+                            component="SAFE_EXECUTION / permissions.py",
+                            command_or_payload=f"DB Hash: {top_hash} != Anchor: {anchored_hash}",
+                            severity="CRITICAL",
+                            evidence="Action journal hash verification failed against immutable anchor file."
+                        )
+                    except Exception:
+                        pass
                     raise RuntimeError("Audit Anchor Rollback Detected. System compromised.")
             else:
                 with open(self.anchor_path, "w") as f:

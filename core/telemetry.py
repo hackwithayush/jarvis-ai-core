@@ -33,8 +33,14 @@ class TelemetryManager:
             {"time": datetime.now().strftime("%H:%M:%S"), "event": "JARVIS System Boot Sequence Completed"}
         ]
         self.active_trace_id = "trc_init"
+        self.active_mode = "chat"
         self.api_latency_cache: Dict[str, str] = {}
         logger.info("[TELEMETRY] Telemetry Core Initialized.")
+
+    def set_active_mode(self, mode: str):
+        """Update active operational mode for HUD telemetry."""
+        with self.lock:
+            self.active_mode = mode or "chat"
 
     def add_trace(self, log_msg: str):
         """Register a reasoning or planning log entry."""
@@ -187,19 +193,25 @@ class TelemetryManager:
         """Compiles real active agent modules and status from configurations."""
         try:
             import config
-            active_model = config.ROUTING_CONFIG.get("chat", "llama-3.3-70b-versatile")
-            coder_model = config.ROUTING_CONFIG.get("coding", "llama-3.3-70b-versatile")
-            vision_model = config.ROUTING_CONFIG.get("vision", "llama-3.2-11b-vision-preview")
+            active_model = config.ROUTING_CONFIG.get("chat", "qwen/qwen3.8-27b")
+            coder_model = config.ROUTING_CONFIG.get("coding", "qwen/qwen3.8-27b")
+            creative_model = config.ROUTING_CONFIG.get("creative", "meta-llama/llama-3.3-70b-instruct")
+            security_model = config.ROUTING_CONFIG.get("security", "deepseek/deepseek-chat")
+            intel_model = config.ROUTING_CONFIG.get("research", "deepseek/deepseek-chat")
         except Exception:
-            active_model = "llama-3.3-70b-versatile"
-            coder_model = "llama-3.3-70b-versatile"
-            vision_model = "llama-3.2-11b-vision-preview"
+            active_model = "qwen/qwen3.8-27b"
+            coder_model = "qwen/qwen3.8-27b"
+            creative_model = "meta-llama/llama-3.3-70b-instruct"
+            security_model = "deepseek/deepseek-chat"
+            intel_model = "deepseek/deepseek-chat"
 
+        mode = getattr(self, "active_mode", "chat")
         return [
-            { "name": "Neural Core", "status": "active" if len(self.traces) > 0 else "idle", "model": active_model, "tasks": 1 if len(self.traces) > 0 else 0 },
-            { "name": "Code Forge", "status": "idle", "model": coder_model, "tasks": len([x for x in self.tool_logs if x.get("tool") == "run_code"]) },
-            { "name": "Vision Node", "status": "active" if "vision" in active_model else "idle", "model": vision_model, "tasks": 0 },
-            { "name": "Intel Agent", "status": "active" if len(self.tool_logs) > 0 else "idle", "model": "llama-3.1-8b-instant", "tasks": len(self.tool_logs) }
+            { "name": "Neural Core", "status": "active" if mode == "chat" else "idle", "model": active_model, "tasks": 1 if mode == "chat" else 0 },
+            { "name": "Code Forge", "status": "active" if mode == "code" else "idle", "model": coder_model, "tasks": len([x for x in self.tool_logs if x.get("tool") in ["code_sandbox", "run_code"]]) },
+            { "name": "Creative Core", "status": "active" if mode == "creative" else "idle", "model": creative_model, "tasks": len([x for x in self.tool_logs if x.get("tool") == "image_gen"]) },
+            { "name": "Security Scan", "status": "active" if mode == "security" else "idle", "model": security_model, "tasks": len([x for x in self.tool_logs if "security" in x.get("tool", "")]) },
+            { "name": "Intel Agent", "status": "active" if mode == "research" else "idle", "model": intel_model, "tasks": len([x for x in self.tool_logs if "search" in x.get("tool", "")]) }
         ]
 
     def get_telemetry_payload(self) -> Dict[str, Any]:

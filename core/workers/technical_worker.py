@@ -22,7 +22,7 @@ class TechnicalWorker:
             # The master agent should have extracted the code or we do it here
             from langchain_groq import ChatGroq
             import os
-            llm = ChatGroq(model_name="llama-3.1-70b-versatile", groq_api_key=os.getenv("GROQ_API_KEY"))
+            llm = ChatGroq(model_name="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY"))
             
             code_prompt = f"Extract or write the Python code needed to solve this: {query}. Respond ONLY with the code."
             code_res = await llm.ainvoke(code_prompt)

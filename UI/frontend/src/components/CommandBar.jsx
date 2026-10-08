@@ -1,10 +1,10 @@
-import { useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { useRef, useState, useEffect, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store';
 import {
   Send, Mic, MicOff, Paperclip, Square,
   Sparkles, Code2, Globe, Image, Wrench,
-  ChevronUp
+  ChevronUp, X, Loader2, FileText, CheckCircle2
 } from 'lucide-react';
 
 const TOOLS = [
@@ -21,12 +21,14 @@ export default function CommandBar() {
   const isStreaming = useStore(s => s.isStreaming);
   const isVoiceActive = useStore(s => s.isVoiceActive);
   const toggleVoice = useStore(s => s.toggleVoice);
+
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const [showTools, setShowTools] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState(null);
+  const [attachment, setAttachment] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const recognitionRef = useRef(null);
-  
+
   // Setup Speech Recognition
   useRef(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -42,13 +44,13 @@ export default function CommandBar() {
           }
         }
         if (finalTranscript) {
-           setInputText((prev) => (prev ? prev + ' ' : '') + finalTranscript.trim());
+          setInputText((prev) => (prev ? prev + ' ' : '') + finalTranscript.trim());
         }
       };
       recognition.onend = () => {
-         if (useStore.getState().isVoiceActive) {
-            useStore.getState().toggleVoice(); // Auto turn-off when mic stops
-         }
+        if (useStore.getState().isVoiceActive) {
+          useStore.getState().toggleVoice();
+        }
       };
       recognitionRef.current = recognition;
     }
@@ -67,21 +69,141 @@ export default function CommandBar() {
     }
   }, [isVoiceActive]);
 
-  const handleSend = () => {
-    if (!inputText.trim() && !uploadedFile) return;
+  // Upload handler for pasted/selected/dropped files
+  const uploadFile = async (file) => {
+    if (!file) return;
+    const isImg = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(file.name);
+    const previewUrl = isImg ? URL.createObjectURL(file) : null;
 
-    if (uploadedFile) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const fileContent = e.target.result;
-        sendMessage(inputText, `[Attached File: ${uploadedFile.name}]\n\n${fileContent}`);
-        setUploadedFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = '';
-      };
-      reader.readAsText(uploadedFile);
-    } else {
-      sendMessage(inputText);
+    setAttachment({
+      file,
+      previewUrl,
+      isImage: isImg,
+      isUploading: true,
+      imageUrl: null,
+      localPath: null,
+      fileName: file.name,
+      content: '',
+      error: null,
+    });
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.status === 'success') {
+        setAttachment(prev => prev ? ({
+          ...prev,
+          isUploading: false,
+          imageUrl: data.image_url || data.url,
+          localPath: data.local_path,
+          fileName: data.original_filename || file.name,
+          content: data.content || '',
+        }) : null);
+      } else {
+        throw new Error(data.error || 'Upload failed');
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+      setAttachment(prev => prev ? ({
+        ...prev,
+        isUploading: false,
+        error: err.message || 'Upload failed',
+      }) : null);
     }
+  };
+
+  // Robust Clipboard Image Paste Handler (Ctrl+V / Screenshot / Browser Copy)
+  const handlePaste = useCallback((e) => {
+    const clipboardData = e.clipboardData || (e.originalEvent && e.originalEvent.clipboardData) || window.clipboardData;
+    if (!clipboardData) return;
+
+    let targetFile = null;
+
+    // 1. Check clipboard files (File Explorer Ctrl+C or file paste)
+    if (clipboardData.files && clipboardData.files.length > 0) {
+      for (let i = 0; i < clipboardData.files.length; i++) {
+        const f = clipboardData.files[i];
+        if (f.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)) {
+          targetFile = f;
+          break;
+        }
+      }
+    }
+
+    // 2. Check clipboard items (Snipping Tool, Win+Shift+S, Browser image copy)
+    if (!targetFile && clipboardData.items && clipboardData.items.length > 0) {
+      for (let i = 0; i < clipboardData.items.length; i++) {
+        const item = clipboardData.items[i];
+        if (item.type.indexOf('image') !== -1 || (item.kind === 'file' && item.type.startsWith('image/'))) {
+          const blob = item.getAsFile();
+          if (blob) {
+            const mime = blob.type || 'image/png';
+            const ext = mime.split('/')[1] || 'png';
+            targetFile = new File([blob], `screenshot_${Date.now()}.${ext}`, { type: mime });
+            break;
+          }
+        }
+      }
+    }
+
+    if (targetFile) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('📸 Pasted image detected:', targetFile.name, targetFile.size);
+      uploadFile(targetFile);
+    }
+  }, []);
+
+  // Global paste listener: catches paste whether textarea is focused or document is focused
+  useEffect(() => {
+    const globalPasteListener = (e) => {
+      // If user is typing in another input element, don't hijack unless it's an image
+      const clipboardData = e.clipboardData || window.clipboardData;
+      if (!clipboardData) return;
+      
+      const hasImage = Array.from(clipboardData.items || []).some(
+        it => it.type.indexOf('image') !== -1 || (it.kind === 'file' && it.type.startsWith('image/'))
+      ) || Array.from(clipboardData.files || []).some(
+        f => f.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)
+      );
+
+      if (hasImage) {
+        handlePaste(e);
+      }
+    };
+
+    window.addEventListener('paste', globalPasteListener);
+    return () => window.removeEventListener('paste', globalPasteListener);
+  }, [handlePaste]);
+
+  const clearAttachment = () => {
+    if (attachment?.previewUrl) {
+      try { URL.revokeObjectURL(attachment.previewUrl); } catch (e) {}
+    }
+    setAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleSend = () => {
+    if (!inputText.trim() && !attachment) return;
+    if (attachment?.isUploading) return;
+
+    const text = inputText;
+    const fileContext = attachment?.content || '';
+    const imageMeta = attachment ? {
+      imageUrl: attachment.imageUrl,
+      localPath: attachment.localPath,
+      previewUrl: attachment.previewUrl,
+      fileName: attachment.fileName,
+    } : null;
+
+    sendMessage(text, fileContext, imageMeta);
+    clearAttachment();
 
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -97,20 +219,37 @@ export default function CommandBar() {
 
   const handleInput = (e) => {
     setInputText(e.target.value);
-    // Auto-resize
     const el = e.target;
     el.style.height = 'auto';
     el.style.height = Math.min(el.scrollHeight, 160) + 'px';
   };
 
-  const handleFile = (e) => {
-    const file = e.target.files[0];
+  const handleFileInput = (e) => {
+    const file = e.target.files?.[0];
     if (file) {
-      setUploadedFile(file);
+      uploadFile(file);
     }
   };
 
-  const hasContent = inputText.trim().length > 0 || uploadedFile;
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      uploadFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const hasContent = inputText.trim().length > 0 || (attachment && !attachment.isUploading);
 
   return (
     <div className="flex-shrink-0 relative z-40">
@@ -149,35 +288,85 @@ export default function CommandBar() {
       {/* Command Bar */}
       <div className="px-4 pb-4 pt-2">
         <div className="max-w-3xl mx-auto">
-          {/* File Preview */}
-          {uploadedFile && (
-            <div className="flex items-center gap-2 bg-omega-surface border border-glass-border rounded-t-xl px-4 py-2 mb-[-1px]">
-              <Paperclip size={12} className="text-omega-cyan" />
-              <span className="text-xs font-mono text-text-secondary truncate">{uploadedFile.name}</span>
-              <button
-                onClick={() => { setUploadedFile(null); fileInputRef.current.value = ''; }}
-                className="text-text-muted hover:text-omega-red transition-colors text-xs ml-auto"
+          {/* Attachment Preview Card */}
+          <AnimatePresence>
+            {attachment && (
+              <motion.div
+                initial={{ opacity: 0, y: 8, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                exit={{ opacity: 0, y: 8, height: 0 }}
+                className="flex items-center gap-3 bg-omega-surface/95 backdrop-blur-md border border-glass-border border-b-0 rounded-t-xl px-4 py-2.5 mb-[-1px] relative z-20 shadow-lg"
               >
-                ✕
-              </button>
-            </div>
-          )}
+                {attachment.isImage && attachment.previewUrl ? (
+                  <img
+                    src={attachment.previewUrl}
+                    alt="Pasted/Uploaded Preview"
+                    className="w-11 h-11 rounded-lg object-cover border border-omega-cyan/40 shadow-sm flex-shrink-0"
+                  />
+                ) : (
+                  <div className="w-11 h-11 rounded-lg bg-white/5 border border-glass-border flex items-center justify-center flex-shrink-0 text-omega-cyan">
+                    <FileText size={20} />
+                  </div>
+                )}
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-mono font-medium text-text-primary truncate max-w-[220px]">
+                      {attachment.fileName}
+                    </span>
+                    {attachment.isUploading ? (
+                      <span className="inline-flex items-center gap-1.5 text-[11px] text-omega-cyan font-mono animate-pulse">
+                        <Loader2 size={12} className="animate-spin text-omega-cyan" /> Ingesting visual data...
+                      </span>
+                    ) : attachment.error ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-omega-red font-mono">
+                        ⚠ {attachment.error}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-omega-green font-mono">
+                        <CheckCircle2 size={12} /> Ready for vision analysis
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[10px] text-text-muted font-mono mt-0.5">
+                    {attachment.isImage ? 'Visual Intelligence Node attached · Paste anywhere to replace' : 'Document context ready'}
+                  </p>
+                </div>
+
+                <button
+                  onClick={clearAttachment}
+                  className="p-1.5 rounded-lg text-text-muted hover:text-omega-red hover:bg-white/5 transition-colors ml-auto"
+                  title="Remove attachment"
+                >
+                  <X size={15} />
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Input Container */}
-          <div className={`
-            relative glass rounded-2xl border transition-all duration-300 flex flex-col p-2
-            ${hasContent
-              ? 'border-omega-cyan/30 shadow-[0_0_25px_rgba(0,245,255,0.08)]'
-              : 'border-glass-border hover:border-glass-border-light'
-            }
-          `}>
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`
+              relative glass rounded-2xl border transition-all duration-300 flex flex-col p-2
+              ${isDragging
+                ? 'border-omega-cyan shadow-[0_0_30px_rgba(0,245,255,0.2)] bg-omega-cyan/5'
+                : hasContent
+                ? 'border-omega-cyan/30 shadow-[0_0_25px_rgba(0,245,255,0.08)]'
+                : 'border-glass-border hover:border-glass-border-light'
+              }
+            `}
+          >
             <textarea
               ref={textareaRef}
               value={inputText}
               onChange={handleInput}
               onKeyDown={handleKeyDown}
+              onPaste={handlePaste}
               rows={1}
-              placeholder="Message JARVIS..."
+              placeholder={attachment ? "Ask a question about this image, or press Enter to analyze..." : "Message JARVIS... (or paste image Ctrl+V)"}
               className="w-full bg-transparent border-none outline-none text-text-primary font-sans text-sm
                          placeholder:text-text-muted resize-none py-2.5 px-3 max-h-40"
               autoFocus
@@ -186,17 +375,23 @@ export default function CommandBar() {
             {/* Bottom Controls */}
             <div className="flex items-center justify-between px-1 pb-0.5 pt-1">
               <div className="flex items-center gap-0.5">
-                {/* File Upload */}
-                <input type="file" ref={fileInputRef} className="hidden" onChange={handleFile} />
+                {/* File Upload Button */}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  className="hidden"
+                  onChange={handleFileInput}
+                  accept="image/*,.pdf,.txt,.py,.js,.html,.json,.csv,.xlsx,.docx"
+                />
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="p-2 rounded-lg text-text-muted hover:text-omega-cyan hover:bg-white/5 transition-colors"
-                  title="Attach file"
+                  title="Attach image or file"
                 >
                   <Paperclip size={15} />
                 </button>
 
-                {/* Voice */}
+                {/* Voice Input */}
                 <button
                   onClick={toggleVoice}
                   className={`p-2 rounded-lg transition-all ${
@@ -243,9 +438,9 @@ export default function CommandBar() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.92 }}
                   onClick={handleSend}
-                  disabled={isStreaming || !hasContent}
+                  disabled={isStreaming || !hasContent || attachment?.isUploading}
                   className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-300
-                    ${hasContent && !isStreaming
+                    ${hasContent && !isStreaming && !attachment?.isUploading
                       ? 'bg-gradient-to-r from-omega-cyan to-omega-cyan-dim text-omega-bg shadow-[0_0_15px_rgba(0,245,255,0.3)]'
                       : 'bg-white/5 text-text-muted cursor-not-allowed'
                     }

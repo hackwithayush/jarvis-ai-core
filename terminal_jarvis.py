@@ -109,168 +109,7 @@ def send_unity_pulse(emotion_state):
     except Exception:
         pass
 
-class AetherCompanion:
-    def __init__(self):
-        self.x = 0
-        self.direction = 1
-        self.state = "idle" 
-        self.last_update = time.time()
-        self.idle_since = time.time()
-        self.bubble_text = ""
-        self.bubble_expiry = 0
-        self.energy = 100
-        self.bond_level = 0.0
-        self.head_turn = 0 
-        self.last_head_turn = time.time()
-        self.paw_state = 0
-        
-    def update(self, emotion="idle"):
-        now = time.time()
-        dt = now - self.last_update
-        self.last_update = now
-        hour = datetime.now().hour
-        is_night = hour >= 23 or hour <= 5
-        
-        if emotion != "idle":
-            if self.state != emotion: send_unity_pulse(emotion)
-            self.state = emotion
-            self.idle_since = now
-            self.energy = max(0, self.energy - 0.5)
-            self.bond_level += 0.05 
-        else:
-            idle_time = now - self.idle_since
-            new_state = self.state
-            if is_night and idle_time > 15: new_state = "sleep"
-            elif is_night and emotion == "idle": new_state = "concerned"
-            elif idle_time > 45: 
-                new_state = "sleep"
-                self.energy = min(100, self.energy + dt * 2)
-            elif idle_time > 20: new_state = "lonely"
-            elif self.state not in ["idle", "walking", "concerned", "lonely"]:
-                if random.random() < 0.05: new_state = "idle"
-                
-            if new_state != self.state: send_unity_pulse(new_state)
-            self.state = new_state
-            
-            if self.state in ["idle", "walking"]:
-                if random.random() < 0.005: self.state = "walking" if self.state == "idle" else "idle"
-                if random.random() < 0.02: self.direction *= -1
-                    
-            if random.random() < 0.003 and now > self.bubble_expiry:
-                quotes = ["Systems nominal.", "Monitoring...", f"Bond: {int(self.bond_level)}%", "Quiet night." if is_night else "Ready."]
-                if self.state == "sleep": quotes = ["Zzz...", "Dreaming of the grid..."]
-                self.bubble_text = random.choice(quotes)
-                self.bubble_expiry = now + 4
 
-        if self.state == "walking":
-            self.x += self.direction * dt * 3
-            if abs(self.x) > 6: self.direction *= -1
-
-        if now - self.last_head_turn > 2.0:
-            if random.random() < 0.3:
-                self.head_turn = random.choice([-1, 0, 1])
-                self.last_head_turn = now
-            elif random.random() < 0.4:
-                self.paw_state = 1 - self.paw_state
-                self.last_head_turn = now
-
-    def get_frame(self, t):
-        breathing = math.sin(t * 2.5) * 0.12 
-        blinking = random.random() < 0.03 
-        ear_twitch = random.random() < 0.05 
-        flicker = random.random() < 0.02 
-        
-        eye_color = "[aether_core]"
-        body_color = "[aether_cyan]" if not flicker else "[aether_dim]"
-        chest_color = "[aether_glow]" if math.sin(t * 4) > 0 else "[aether_cyan]" 
-        smoke_char = "░" if int(t * 4) % 2 == 0 else "▒"
-        
-        ears_str = " /|   |\\ "
-        eyes_str = "  ◉   ◉  "
-        mouth_str = "   ▼   "
-        
-        if self.head_turn == -1: 
-            ears_str = "/|   |\\  "
-            eyes_str = " ◉   ◉   "
-            mouth_str = "  ▼    "
-        elif self.head_turn == 1: 
-            ears_str = "  /|   |\\"
-            eyes_str = "   ◉   ◉ "
-            mouth_str = "    ▼  "
-            
-        if ear_twitch: ears_str = ears_str.replace("/|", "_/").replace("|\\", "\\_")
-            
-        if self.state == "sleep":
-            ears_str = "         "
-            body_top = "  ╭───╮  "
-            eyes_str = "  - v -  "
-            mouth_str= "  ╰───╯  "
-            breathing = math.sin(t * 1.0) * 0.08
-            eye_color = body_color = chest_color = "[aether_dim]"
-        elif self.state == "curious":
-            ears_str = " /|   _/ "
-            eyes_str = "  ◉   ◉  " if not blinking else "  -   -  "
-            mouth_str = "   ~   "
-            breathing = math.sin(t * 4) * 0.2
-            self.head_turn = 0 
-            body_top = "  █████  "
-        elif self.state in ["combat", "alert"]:
-            ears_str = " ⚡   ⚡ "
-            eyes_str = "  >   <  "
-            mouth_str = "   w   "
-            eye_color = chest_color = "[aether_alert]"
-            body_color = "[bold white]"
-            smoke_char = "▓"
-            body_top = "  █████  "
-        elif self.state == "error":
-            ears_str = " /|   |\\ "
-            eyes_str = "  O   O  "
-            mouth_str = "   =   "
-            eye_color = chest_color = "[aether_error]"
-            body_top = "  █████  "
-        elif self.state == "lonely":
-            ears_str = " \\_   _/ "
-            eyes_str = "  •   •  "
-            mouth_str = "   -   "
-            eye_color = "[aether_dim]"
-            breathing = math.sin(t * 1.5) * 0.1
-            body_top = "  █████  "
-        elif self.state == "concerned":
-            ears_str = " /_   _\\ "
-            eyes_str = "  o   o  "
-            mouth_str = "   ~   "
-            eye_color = "[warning]"
-            body_top = "  █████  "
-        else: 
-            body_top = "  █████  "
-
-        if blinking and self.state not in ["sleep", "combat"]: eyes_str = "  -   -  "
-
-        smoke_l = f"[aether_smoke]{smoke_char}[/aether_smoke]"
-        smoke_r = f"[aether_smoke]{smoke_char}[/aether_smoke]"
-        paws = "░▒▓▒░" if self.paw_state == 0 else "▒░▓░▒"
-        
-        model = [
-            f"   {body_color}{ears_str}[/]   ",
-            f"  {smoke_l}{body_color}{body_top}[/]{smoke_r}  ",
-            f" {smoke_l}{body_color}█[/]{eye_color}{eyes_str}[/]{body_color}█[/]{smoke_l} ",
-            f"  {smoke_l}{chest_color}██[/][aether_core]{mouth_str}[/]{chest_color}██[/]{smoke_r}  ",
-            f"   {smoke_l}{body_color}{paws}[/]{smoke_r}   "
-        ]
-        
-        if self.state == "sleep": model[0] += f" [zzz]{'z' * (int(t)%3 + 1)}[/zzz]"
-        elif self.state == "happy": model[4] += " [aether_cyan]~[/]" if int(t*6)%2==0 else " [aether_cyan]>[/]"
-        elif self.state == "walking": model[4] += " [aether_dim].[/]" if int(t*4)%2==0 else " "
-            
-        bubble = f"[bubble]⟨ {self.bubble_text} ⟩[/bubble]\n" if time.time() < self.bubble_expiry else ""
-        v_pad = [""] * int(1 + breathing)
-        x_pad = " " * int(7 + self.x)
-        
-        final_text = Text.from_markup(bubble)
-        final_text.append(Text.from_markup("\n".join(v_pad + [x_pad + line for line in model])))
-        return final_text
-
-aether = AetherCompanion()
 
 def detect_aether_emotion(text):
     if not cognitive_graph: return "idle"
@@ -362,7 +201,6 @@ def get_senior_3d_core(t):
 
 def print_banner():
     os.system('cls' if os.name == 'nt' else 'clear')
-    aether.update()
     banner_main = Text(JARVIS_BANNER, style="bold #00ffff")
     console.print(Align.center(banner_main))
     console.print(Rule(style="#00afaf"))
@@ -396,15 +234,10 @@ async def render_loop():
         while True:
             t = time.time() - start_t
             
-            aether.update(emotion="curious" if ui_state.thinking_mode else ui_state.emotion)
-            aether_anim = aether.get_frame(t)
             core_anim = get_senior_3d_core(t)
             telemetry_panel = get_telemetry_panel(t)
             
-            aether_status = f"{aether.state.upper()} [⚡{int(aether.energy)}%] [♥{int(aether.bond_level)}]"
-            if aether.state in ["combat", "alert"]: aether_status = f"[aether_alert]THREAT DETECTED[/]"
-            elif aether.state == "error": aether_status = f"[aether_error]SYSTEM ANOMALY[/]"
-            elif aether.state == "concerned": aether_status = f"[warning]CONCERNED (NIGHT MODE)[/]"
+            aether_status = "LINKED"
             
             response_content = Text()
             if active_goal and active_goal.goal_type != "idle":
@@ -434,7 +267,7 @@ async def render_loop():
             prompt_panel = Panel(prompt_content, border_style="dim #5f87ff")
             
             main_group = Group(response_panel, prompt_panel)
-            side_car = Columns([aether_anim, Text("\n" + core_anim, style="cyan"), telemetry_panel], expand=False)
+            side_car = Columns([Text("\n" + core_anim, style="cyan"), telemetry_panel], expand=False)
             
             live.update(Columns([side_car, main_group], expand=False))
             await asyncio.sleep(1/15)
@@ -505,12 +338,14 @@ async def orchestration_loop():
             
         try:
             ui_state.emotion = detect_aether_emotion(user_input)
+            send_unity_pulse(ui_state.emotion)
         except Exception:
             ui_state.emotion = "idle"
+            send_unity_pulse("idle")
             
         if input_duration < 3.0 and ui_state.emotion == "idle":
             ui_state.emotion = "curious"
-            aether.energy = min(100, aether.energy + 5)
+            send_unity_pulse("curious")
             
         ui_state.is_answering = True
         ui_state.full_response = ""
@@ -521,13 +356,16 @@ async def orchestration_loop():
         # Instead, we will wrap the generator iteration.
         def iterate_stream():
             with app.app_context():
+                send_unity_pulse("speaking")
                 for chunk in chat_engine.chat_stream(user_input, user):
                     if chunk.startswith("__STATUS__"): continue
                     if "<thinking>" in chunk:
                         ui_state.thinking_mode = True
+                        send_unity_pulse("curious")
                         continue
                     if "</thinking>" in chunk:
                         ui_state.thinking_mode = False
+                        send_unity_pulse("speaking")
                         continue
                     ui_state.full_response += chunk
                     time.sleep(0.01) # Give UI time to render

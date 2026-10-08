@@ -18,7 +18,9 @@ def get_credentials():
         'https://www.googleapis.com/auth/calendar',
         'https://www.googleapis.com/auth/drive.readonly',
         'https://www.googleapis.com/auth/documents.readonly',
-        'https://www.googleapis.com/auth/gmail.readonly'
+        'https://www.googleapis.com/auth/gmail.readonly',
+        'https://www.googleapis.com/auth/gmail.send',
+        'https://www.googleapis.com/auth/gmail.modify'
     ]
     return Credentials.from_authorized_user_file(token_path, SCOPES)
 
@@ -159,6 +161,55 @@ def read_unread_emails(max_results: int = 5) -> str:
         return output
     except Exception as e:
         return f"Error fetching emails: {str(e)}"
+
+@mcp.tool()
+def send_email_message(to_email: str, subject: str, message_body: str) -> str:
+    """Send an email message via JARVIS unified email engine (Gmail OAuth or TLS SMTP)."""
+    try:
+        from core.gmail_manager import gmail_manager
+        res = gmail_manager.send_email(
+            recipient=to_email,
+            subject=subject,
+            body_text=message_body
+        )
+        if res.get("success"):
+            return f"Email successfully dispatched to {to_email} via {res.get('method')}."
+        elif res.get("queued"):
+            return f"Email queued locally in security dispatch cache. Notice: {res.get('message')}"
+        else:
+            return f"Failed to send email: {res.get('error')}"
+    except Exception as e:
+        return f"Error in send_email_message: {str(e)}"
+
+@mcp.tool()
+def dispatch_security_breach_alert(threat_type: str, component: str, blocked_command: str, severity: str = "CRITICAL") -> str:
+    """Trigger a high-priority security breach alert and dispatch immediately to Gmail."""
+    try:
+        from core.breach_detector import breach_detector
+        inc = breach_detector.report_breach(
+            threat_type=threat_type,
+            component=component,
+            command_or_payload=blocked_command,
+            severity=severity
+        )
+        return f"Breach alert logged and dispatched! Incident ID: {inc.get('incident_id')} (Status: {inc.get('status')})"
+    except Exception as e:
+        return f"Error triggering breach alert: {str(e)}"
+
+@mcp.tool()
+def send_executive_system_report() -> str:
+    """Generate and dispatch the premier JARVIS Executive System Health & Security Report to Gmail."""
+    try:
+        from core.system_guardian import system_guardian
+        res = system_guardian.send_executive_report_email()
+        if res.get("success"):
+            return f"Executive Report dispatched to {res.get('recipient')} via {res.get('method')}."
+        elif res.get("queued"):
+            return f"Executive Report saved and queued locally in dispatch cache."
+        else:
+            return f"Report dispatch failed: {res.get('error')}"
+    except Exception as e:
+        return f"Error generating executive report: {str(e)}"
 
 if __name__ == "__main__":
     # Start the FastMCP stdio server

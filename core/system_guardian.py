@@ -209,6 +209,26 @@ class SystemGuardian:
 
         if report["warnings"]:
             report["status"] = "THREATS_FOUND" if (report["suspicious_startup_keys"] or report["suspicious_processes"]) else "DEGRADED"
+            
+            # If critical threat artifacts exist, dispatch immediate security breach alert
+            if report["suspicious_processes"] or report["suspicious_startup_keys"]:
+                try:
+                    from core.breach_detector import breach_detector
+                    threat_desc = []
+                    if report["suspicious_processes"]:
+                        threat_desc.append(f"Processes: {', '.join(p['name'] for p in report['suspicious_processes'])}")
+                    if report["suspicious_startup_keys"]:
+                        threat_desc.append(f"Startup Keys: {', '.join(k['name'] for k in report['suspicious_startup_keys'])}")
+                    
+                    breach_detector.report_breach(
+                        threat_type="Malicious Host Process / Persistence Injected",
+                        component="SystemGuardian / audit_security_status",
+                        command_or_payload="; ".join(threat_desc),
+                        severity="CRITICAL",
+                        evidence="Unauthorized process or suspicious registry persistence detected during host security audit."
+                    )
+                except Exception as b_err:
+                    logger.debug(f"[GUARDIAN] Breach alert dispatch failed: {b_err}")
 
         return report
 
@@ -706,5 +726,65 @@ class SystemGuardian:
             "telemetry": report_data
         }
 
+    def generate_executive_report_data(self) -> dict:
+        """Collects consolidated hardware, defensive posture, and incident telemetry for executive briefing."""
+        sec = self.audit_security_status()
+        bugs = self.audit_system_bugs()
+        health_score = round(self.compute_health_score(sec, bugs) * 10.0, 1)
+
+        ram = psutil.virtual_memory()
+        cpu_pct = psutil.cpu_percent(interval=0.2)
+        try:
+            disk = psutil.disk_usage("C:\\" if self.is_windows else "/")
+            disk_str = f"{disk.percent}% ({round(disk.free / (1024**3), 1)}GB free)"
+        except Exception:
+            disk_str = "N/A"
+
+        # Fetch recent incidents
+        recent_incs = []
+        try:
+            from core.breach_detector import breach_detector
+            all_incs = breach_detector.get_all_incidents()
+            for inc in all_incs[:5]:
+                recent_incs.append({
+                    "id": inc.get("incident_id", "INCIDENT"),
+                    "event": inc.get("threat_type", "Security Event"),
+                    "status": inc.get("status", "CONTAINED")
+                })
+        except Exception:
+            pass
+
+        recs = [
+            "Zero-Trust sandbox boundaries enforced for all autonomous actions.",
+            f"Windows Defender is {'Operational' if sec.get('defender_active') else 'Warning: Check Protection'}.",
+            f"Host Firewall profiles are {'Enforced' if sec.get('firewall_active') else 'Warning: Inactive'}."
+        ]
+        if bugs.get("bloat_size_mb", 0) > 500:
+            recs.append(f"Storage Optimization: {bugs.get('bloat_size_mb')}MB temp bloat eligible for autonomous purge.")
+        if bugs.get("broken_env_paths"):
+            recs.append(f"Environment Hygiene: {len(bugs.get('broken_env_paths'))} missing directories detected in PATH.")
+
+        return {
+            "health_score": health_score,
+            "status": "OPTIMAL" if health_score >= 85.0 else ("DEGRADED" if health_score >= 60.0 else "CRITICAL"),
+            "cpu_usage": f"{cpu_pct}%",
+            "ram_usage": f"{ram.percent}% ({round(ram.used / (1024**3), 1)}GB / {round(ram.total / (1024**3), 1)}GB)",
+            "disk_usage": disk_str,
+            "active_processes": len(psutil.pids()),
+            "defender_active": sec.get("defender_active", False),
+            "firewall_active": sec.get("firewall_active", False),
+            "sandbox_isolation": "ACTIVE (Zero-Trust Sandbox)",
+            "total_breaches_blocked": len(recent_incs),
+            "recent_incidents": recent_incs,
+            "recommendations": recs
+        }
+
+    def send_executive_report_email(self) -> dict:
+        """Generates real-time report telemetry and dispatches to Gmail."""
+        from core.gmail_manager import gmail_manager
+        report_data = self.generate_executive_report_data()
+        return gmail_manager.send_system_report(report_data)
+
 # Global Instance
 system_guardian = SystemGuardian()
+

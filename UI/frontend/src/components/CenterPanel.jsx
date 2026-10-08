@@ -1,10 +1,11 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useStore } from '../store';
-import { Bot, User, Copy, Check, RotateCcw, Cpu, Sparkles, Server, Code2 } from 'lucide-react';
+import { Bot, User, Copy, Check, RotateCcw, Cpu, Sparkles, Server, Code2, Paperclip, ExternalLink } from 'lucide-react';
 import VoiceOrb from './VoiceOrb';
 import { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 // ─── Typing Indicator ───
 function TypingIndicator() {
@@ -121,6 +122,56 @@ const markdownComponents = {
       </blockquote>
     );
   },
+  img({ src, alt }) {
+    return (
+      <div className="my-4 inline-block max-w-full">
+        <div className="relative group/media overflow-hidden rounded-2xl border border-glass-border shadow-xl bg-omega-surface">
+          <img
+            src={src}
+            alt={alt || "Photographic Record"}
+            loading="lazy"
+            className="max-w-xs sm:max-w-sm md:max-w-md max-h-96 w-auto object-cover rounded-2xl transition-all duration-300 group-hover/media:scale-[1.02] cursor-pointer"
+            onClick={() => window.open(src, '_blank')}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover/media:opacity-100 transition-opacity duration-200 flex items-end p-3 pointer-events-none">
+            <span className="text-[11px] font-mono text-omega-cyan flex items-center gap-1.5">
+              <ExternalLink size={12} /> Click to view full original resolution
+            </span>
+          </div>
+        </div>
+        {alt && (
+          <p className="text-[11px] font-mono text-text-muted mt-1.5 px-1 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-omega-cyan"></span>
+            {alt}
+          </p>
+        )}
+      </div>
+    );
+  },
+  table({ children }) {
+    return (
+      <div className="my-4 overflow-x-auto rounded-xl border border-glass-border bg-omega-surface/40 shadow-lg">
+        <table className="w-full border-collapse text-left text-xs text-text-primary">
+          {children}
+        </table>
+      </div>
+    );
+  },
+  thead({ children }) {
+    return <thead className="bg-white/5 border-b border-glass-border text-omega-cyan uppercase font-mono tracking-wider text-[11px]">{children}</thead>;
+  },
+  tbody({ children }) {
+    return <tbody className="divide-y divide-glass-border/30">{children}</tbody>;
+  },
+  tr({ children }) {
+    return <tr className="hover:bg-white/[0.03] transition-colors">{children}</tr>;
+  },
+  th({ children }) {
+    return <th className="px-4 py-2.5 font-semibold text-omega-cyan">{children}</th>;
+  },
+  td({ children }) {
+    return <td className="px-4 py-2 leading-relaxed text-[#CCD6F6]">{children}</td>;
+  },
 };
 
 // ─── Message Bubble ───
@@ -177,8 +228,29 @@ function MessageBubble({ msg }) {
         </div>
 
         {isUser ? (
-          <div className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
-            {msg.content}
+          <div>
+            {msg.imageUrl && (
+              <div className="mb-2.5 relative group/img inline-block">
+                <img
+                  src={msg.imageUrl}
+                  alt={msg.fileName || "Uploaded screenshot"}
+                  className="max-w-xs md:max-w-md max-h-72 rounded-xl border border-omega-cyan/30 object-cover shadow-lg hover:brightness-105 transition-all cursor-pointer"
+                  onClick={() => window.open(msg.imageUrl, '_blank')}
+                />
+                <div className="absolute top-2 right-2 opacity-0 group-hover/img:opacity-100 transition-opacity bg-black/70 backdrop-blur-md rounded-md p-1.5 text-white/80 pointer-events-none">
+                  <ExternalLink size={12} />
+                </div>
+              </div>
+            )}
+            {msg.fileName && !msg.imageUrl && (
+              <div className="mb-2 inline-flex items-center gap-2 bg-white/5 border border-glass-border px-3 py-1.5 rounded-lg text-xs font-mono text-text-secondary">
+                <Paperclip size={12} className="text-omega-cyan" />
+                <span>{msg.fileName}</span>
+              </div>
+            )}
+            <div className="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">
+              {msg.content}
+            </div>
           </div>
         ) : (
           <div className="text-sm">
@@ -200,7 +272,7 @@ function MessageBubble({ msg }) {
               </div>
             ) : msg.content ? (
               <div className="prose-omega">
-                <ReactMarkdown components={markdownComponents}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                   {msg.content}
                 </ReactMarkdown>
               </div>

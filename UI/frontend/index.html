@@ -13,5 +13,23 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Global shortcut: Cmd+N / Ctrl+N for New Thread
+      window.addEventListener('keydown', function(e) {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
+          e.preventDefault();
+          const btns = Array.from(document.querySelectorAll('button'));
+          const newThreadBtn = btns.find(b => b.textContent && b.textContent.includes('New Thread'));
+          if (newThreadBtn) {
+            newThreadBtn.click();
+            console.log('⚡ Keyboard Shortcut: New Thread initiated.');
+          }
+          setTimeout(() => {
+            const ta = document.querySelector('textarea');
+            if (ta) ta.focus();
+          }, 60);
+        }
+      });
+    </script>
   </body>
 </html>

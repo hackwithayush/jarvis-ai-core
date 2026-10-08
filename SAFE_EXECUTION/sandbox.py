@@ -15,7 +15,11 @@ class SafeSandbox:
         # Master block list for autonomous execution
         self.banned_commands = [
             "del", "rm", "format", "shutdown", "reboot", 
-            "regedit", "wget", "curl", "format C:", "rmdir", "mkfs"
+            "regedit", "wget", "curl", "format C:", "rmdir", "mkfs",
+            "powershell -enc", "certutil", "bitsadmin", "vssadmin",
+            "net user", "net localgroup", "whoami /priv", "schtasks",
+            "reg add", "reg delete", "taskkill", "invoke-expression",
+            "downloadstring", "chmod 777", "dd if="
         ]
         self.sandbox_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "sandbox_workspace"))
         os.makedirs(self.sandbox_dir, exist_ok=True)
@@ -30,6 +34,17 @@ class SafeSandbox:
             # Check if the target is physically inside the sandbox using commonpath
             if os.path.commonpath([resolved_target, resolved_sandbox]) != resolved_sandbox:
                 logger.warning(f"[SANDBOX BLOCK] Directory traversal/Symlink escape prevented: '{target_path}' resolves to '{resolved_target}'")
+                try:
+                    from core.breach_detector import breach_detector
+                    breach_detector.report_breach(
+                        threat_type="Filesystem Sandbox Traversal / Symlink Escape",
+                        component="SAFE_EXECUTION / is_path_safe",
+                        command_or_payload=target_path,
+                        severity="HIGH",
+                        evidence=f"Directory traversal/Symlink escape prevented: '{target_path}' resolves outside sandbox."
+                    )
+                except Exception as b_err:
+                    logger.debug(f"[SANDBOX] Breach report failed: {b_err}")
                 return False
             return True
         except Exception as e:
@@ -56,7 +71,33 @@ class SafeSandbox:
     def execute_command(self, command: str, timeout: int = 10) -> str:
         """ Runs a shell command inside the sandbox workspace securely. """
         if not self.is_safe_to_execute(command):
-            return "ERROR: Shell command blocked by Safety Protocol. Cannot execute."
+            incident_id = "JARVIS-SEC-BLOCKED"
+            try:
+                from core.breach_detector import breach_detector
+                incident = breach_detector.report_breach(
+                    threat_type="Unapproved Host-Level Command Execution",
+                    component="SAFE_EXECUTION / execute_command",
+                    command_or_payload=command,
+                    severity="CRITICAL",
+                    evidence="Autonomous execution request attempted unapproved host command violating zero-trust sandbox perimeter.",
+                    custom_actions=[
+                        "Execution blocked by SafeSandbox perimeter",
+                        "Session isolated within data/sandbox_workspace",
+                        "Host process tree forensics captured",
+                        "Incident logged in permanent repository",
+                        "Real-time Gmail breach alert dispatched to Administrator"
+                    ],
+                    recommendations=[
+                        "Review the execution request and host process tree",
+                        "Confirm caller agent authorization and clearance level",
+                        "Ensure sandbox boundary rules remain enforced"
+                    ]
+                )
+                incident_id = incident.get("incident_id", incident_id)
+            except Exception as b_err:
+                logger.error(f"[SANDBOX] Failed to trigger breach incident report: {b_err}")
+
+            return f"ERROR: Shell command blocked by Safety Protocol. Security Incident logged: [{incident_id}]. Host session isolated."
             
         try:
             print(f"[SANDBOX RUN] Shell Command: {command}")
@@ -92,13 +133,43 @@ class SafeSandbox:
                 for node in ast.walk(tree):
                     if isinstance(node, ast.Call):
                         if isinstance(node.func, ast.Name) and node.func.id in ["eval", "exec", "compile"]:
+                            try:
+                                from core.breach_detector import breach_detector
+                                breach_detector.report_breach(
+                                    threat_type="AST Firewall Block: Obfuscated eval/exec Payload",
+                                    component="SAFE_EXECUTION / execute_python",
+                                    command_or_payload=code[:250],
+                                    severity="HIGH"
+                                )
+                            except Exception:
+                                pass
                             return "ERROR: AST Firewall blocked obfuscated eval/exec payload."
                     elif isinstance(node, ast.Import) or isinstance(node, ast.ImportFrom):
                         module_name = getattr(node, 'module', None)
                         if module_name in ["os", "sys", "subprocess", "socket", "ctypes", "builtins", "shutil"]:
-                             return f"ERROR: AST Firewall blocked dangerous import from: {module_name}"
+                            try:
+                                from core.breach_detector import breach_detector
+                                breach_detector.report_breach(
+                                    threat_type=f"AST Firewall Block: Dangerous Import '{module_name}'",
+                                    component="SAFE_EXECUTION / execute_python",
+                                    command_or_payload=code[:250],
+                                    severity="HIGH"
+                                )
+                            except Exception:
+                                pass
+                            return f"ERROR: AST Firewall blocked dangerous import from: {module_name}"
                         for alias in node.names:
                             if alias.name in ["os", "sys", "subprocess", "socket", "ctypes", "builtins", "shutil"]:
+                                try:
+                                    from core.breach_detector import breach_detector
+                                    breach_detector.report_breach(
+                                        threat_type=f"AST Firewall Block: Dangerous Import '{alias.name}'",
+                                        component="SAFE_EXECUTION / execute_python",
+                                        command_or_payload=code[:250],
+                                        severity="HIGH"
+                                    )
+                                except Exception:
+                                    pass
                                 return f"ERROR: AST Firewall blocked dangerous import: {alias.name}"
             except SyntaxError:
                 return "ERROR: AST Parse failed. Invalid Python syntax."

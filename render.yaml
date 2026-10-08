@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: jarvis-ai-core
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python jarvis_guardian.py
+    healthCheckPath: /health
+    envVars:
+      - key: SERVER_MODE
+        value: "true"
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: EMAIL_ALERTS_ENABLED
+        value: "true"

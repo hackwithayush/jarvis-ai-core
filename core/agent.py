@@ -31,7 +31,8 @@ Available tools you can use:
 10. "os_control" — Manage Windows system (health, launch apps, list processes).
 11. "file_mastery" — Organize folders, search for files, or summarize document content. Use for "clean my desktop", "find file", or "whats in this file".
 12. "system_guardian" — Audit and secure the user's host laptop system. Find security threats (viruses/persistence items), analyze Windows Event log bugs, resource hogs, temp bloat, and perform automated fixes (clean temp directories, flush DNS, terminate resource hogs, trigger Windows Defender malware scan). Use for "scan my laptop", "find viruses", "security audit", "fix system bugs", "solve system threats", "malware scan".
-13. "none" — No tool needed.
+13. "run_skill" — Run or list modular dynamic skills (e.g. optimize_system, secure_workstation, build_plugin). Use when user asks to "run skill", "execute skill", "optimize system skill", "list skills".
+14. "none" — No tool needed.
 """
 
 # ─── Intent Patterns ────────────────────────────────────────────
@@ -40,6 +41,9 @@ INTENT_PATTERNS = {
         "search", "look up", "find", "google", "latest", "current",
         "who is", "what is", "where is", "when did", "how to",
         "trending", "tell me about", "explain",
+        "usd to inr", "dollar to rupee", "exchange rate", "forex", "currency",
+        "usd inr", "inr to usd", "stock price", "crypto", "bitcoin",
+        "gold rate", "silver rate", "market price", "rate today",
     ],
     "news_feed": [
         "news", "headlines", "breaking", "updates",
@@ -93,6 +97,10 @@ INTENT_PATTERNS = {
         "scan my laptop", "system guardian", "find viruses", "security audit",
         "fix system bugs", "solve system threats", "malware scan", "clean temp files",
         "laptop scan", "laptop audit", "defender scan", "system scan", "scan laptop"
+    ],
+    "run_skill": [
+        "run skill", "execute skill", "trigger skill", "list skills", "show skills",
+        "optimize system skill", "secure workstation skill"
     ]
 }
 
@@ -303,6 +311,9 @@ class AgentPipeline:
 
             elif tool == "system_guardian":
                 res = self._exec_system_guardian(message)
+
+            elif tool == "run_skill":
+                res = self._exec_run_skill(message)
 
             duration_ms = (time.time() - start_t) * 1000.0
             telemetry_manager.add_tool_log(tool, query, "success", duration_ms)
@@ -796,6 +807,55 @@ class AgentPipeline:
         except Exception as e:
             logger.error(f"SystemGuardian Executor Failure: {e}")
             return f"Error executing system guardian: {e}"
+
+    def _exec_run_skill(self, message: str) -> str:
+        """Execute or list skills dynamically via the SkillsRegistry."""
+        try:
+            from core.skills_registry import skills_registry
+            skills_registry.discover_and_load_skills()
+            msg = message.lower()
+
+            # 1. Listing skills
+            if any(kw in msg for kw in ["list skills", "show skills", "available skills", "what skills"]):
+                if not skills_registry.skills:
+                    return "No modular skills currently registered."
+                out = "--- REGISTERED JARVIS SKILLS ---\n"
+                for s_id, s_info in sorted(skills_registry.skills.items()):
+                    m = s_info.get("manifest", {})
+                    out += f"• [{s_id}] {m.get('name', s_id)}: {m.get('description', '')}\n"
+                return out
+
+            # 2. Match a specific skill
+            target_skill = None
+            for s_id in skills_registry.skills.keys():
+                if s_id.lower() in msg or s_id.replace("_", " ") in msg:
+                    target_skill = s_id
+                    break
+
+            if not target_skill:
+                # Default heuristics
+                if "optimize" in msg or "clean" in msg:
+                    target_skill = "optimize_system"
+                elif "secure" in msg or "workstation" in msg or "firewall" in msg:
+                    target_skill = "secure_workstation"
+                elif "plugin" in msg:
+                    target_skill = "build_plugin"
+
+            if not target_skill or target_skill not in skills_registry.skills:
+                available = ", ".join(skills_registry.skills.keys())
+                return f"Could not determine target skill. Available skills: {available}"
+
+            # Execute the skill
+            res = skills_registry.execute_skill(target_skill, {"clearance_level": "HIGH", "args": {}})
+            if res.get("success"):
+                import json
+                return f"Skill '{target_skill}' completed successfully:\n" + json.dumps(res.get("result", {}), indent=2)
+            else:
+                return f"Skill '{target_skill}' execution failed: {res.get('error')}"
+
+        except Exception as e:
+            logger.error(f"Skill execution failure: {e}")
+            return f"Error executing skill: {e}"
 
     # ─── HELPER METHODS ─────────────────────────────────────────────
 

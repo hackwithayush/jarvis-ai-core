@@ -96,6 +96,22 @@
         }
         .prose ul, .prose ol { margin-bottom: 1.25rem; padding-left: 1.5rem; color: var(--text-muted); }
         .prose li { margin-bottom: 0.5rem; }
+        .prose img, .chat-content img {
+            max-width: 100%;
+            max-height: 420px;
+            border-radius: 0.75rem;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6);
+            margin: 1.25rem 0;
+            object-fit: cover;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .prose img:hover, .chat-content img:hover {
+            border-color: var(--accent);
+            transform: scale(1.015);
+            box-shadow: 0 0 25px rgba(0, 240, 255, 0.2);
+        }
 
         /* Code Copy Button */
         .code-header {
@@ -109,6 +125,33 @@
             transition: color 0.2s; display: flex; align-items: center; gap: 0.5rem; font-family: 'DM Sans', sans-serif;
         }
         .copy-btn:hover { color: var(--text-main); }
+
+        /* Table Premium Styling */
+        .prose table, .chat-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.85rem;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .prose th, .chat-content th {
+            background: rgba(255, 255, 255, 0.06);
+            color: var(--accent);
+            padding: 0.5rem 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .prose td, .chat-content td {
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            color: #d1d5db;
+        }
+        .prose tr:hover, .chat-content tr:hover {
+            background: rgba(255, 255, 255, 0.02);
+        }
 
         /* Media Card Premium Styling */
         .media-card {
@@ -333,10 +376,11 @@
             <!-- Input Area -->
             <div class="w-full relative mt-auto">
                 <!-- Upload Preview -->
-                <div id="upload-preview" class="hidden items-center gap-2 bg-[#1A1A1A] border border-[#27272A] border-b-0 rounded-t-lg px-3 py-1.5 w-fit mb-[-1px] relative z-10">
-                    <i class="fas fa-file-alt text-[#717171] text-xs"></i>
+                <div id="upload-preview" class="hidden items-center gap-2.5 bg-[#1A1A1A] border border-[#27272A] border-b-0 rounded-t-lg px-3 py-1.5 w-fit mb-[-1px] relative z-10 shadow-md">
+                    <img id="preview-img" class="hidden w-7 h-7 rounded object-cover border border-[#3F3F46]" src="" alt="Preview">
+                    <i id="preview-icon" class="fas fa-file-alt text-[#717171] text-xs"></i>
                     <span id="preview-filename" class="text-xs text-[#A1A1AA] font-mono truncate max-w-[150px]">file.py</span>
-                    <button onclick="clearUpload()" class="text-[#52525B] hover:text-[#FAFAFA] ml-2 text-xs"><i class="fas fa-times"></i></button>
+                    <button onclick="clearUpload()" class="text-[#52525B] hover:text-[#FAFAFA] ml-2 text-xs transition-colors"><i class="fas fa-times"></i></button>
                 </div>
 
                 <div class="relative bg-[#111111] rounded-xl border border-[#27272A] focus-within:border-[#52525B] transition-colors flex flex-col p-1 z-20 shadow-lg shadow-black/50">
@@ -357,23 +401,23 @@
                             <!-- Dynamic Model Selector -->
                             <div class="relative inline-block text-left ml-1">
                                 <button onclick="toggleModelDropdown()" id="model-select-btn" class="flex items-center gap-1.5 px-2 py-1 text-[9px] font-mono font-semibold rounded-md bg-[#101722] border border-[#1a2636] text-[#00f0ff] hover:bg-[#121b28] transition-colors shadow-[0_0_10px_rgba(0,240,255,0.05)]">
-                                    <i id="model-status-dot" class="fas fa-circle text-[6px] text-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.5)]"></i> <span id="model-select-text">GEMINI 2.5 FLASH</span> <i class="fas fa-chevron-down text-[8px] text-[#475569]"></i>
+                                    <i id="model-status-dot" class="fas fa-circle text-[6px] text-emerald-400 shadow-[0_0_4px_rgba(52,211,153,0.5)]"></i> <span id="model-select-text">QWEN 3.8 27B (GROQ)</span> <i class="fas fa-chevron-down text-[8px] text-[#475569]"></i>
                                 </button>
-                                <div id="model-dropdown" class="hidden absolute bottom-8 left-0 z-50 w-52 rounded-md border border-[#1a2636] bg-[#090e15] box-glow font-mono text-[10px] shadow-2xl overflow-hidden py-1">
-                                    <button class="w-full text-left px-3 py-1.5 text-[#FAFAFA] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2 border-b border-[#1a2636]/40" onclick="selectModel('Gemini 2.5 Flash', 'gemini-2.5-flash', 'emerald-400')">
-                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-400"></div> Gemini 2.5 Flash <span class="ml-auto text-[8px] text-emerald-400/60">FREE</span>
+                                <div id="model-dropdown" class="hidden absolute bottom-8 left-0 z-50 w-56 rounded-md border border-[#1a2636] bg-[#090e15] box-glow font-mono text-[10px] shadow-2xl overflow-hidden py-1">
+                                    <button class="w-full text-left px-3 py-1.5 text-[#FAFAFA] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2 border-b border-[#1a2636]/40" onclick="selectModel('Qwen 3.8 27B (Groq)', 'qwen/qwen3.8-27b', 'emerald-400')">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-emerald-400"></div> Qwen 3.8 27B (Groq) <span class="ml-auto text-[8px] text-emerald-400/60">FASTEST</span>
                                     </button>
-                                    <button class="w-full text-left px-3 py-1.5 text-[#94a3b8] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2 border-b border-[#1a2636]/40" onclick="selectModel('Ling 1T MoE', 'inclusion-ai/ling-2-6-1t', 'amber-400')">
-                                        <div class="w-1.5 h-1.5 rounded-full bg-amber-400"></div> Ling 1T MoE <span class="ml-auto text-[8px] text-amber-400/60">FREE</span>
+                                    <button class="w-full text-left px-3 py-1.5 text-[#94a3b8] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2 border-b border-[#1a2636]/40" onclick="selectModel('Llama 3.3 70B (OpenRouter)', 'meta-llama/llama-3.3-70b-instruct', 'cyan-400')">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-cyan-400"></div> Llama 3.3 70B <span class="ml-auto text-[8px] text-cyan-400/60">PRO</span>
                                     </button>
-                                    <button class="w-full text-left px-3 py-1.5 text-[#94a3b8] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2 border-b border-[#1a2636]/40" onclick="selectModel('Llama 3.3 Groq', 'llama-3.3-70b-versatile', 'cyan-400')">
-                                        <div class="w-1.5 h-1.5 rounded-full bg-cyan-400"></div> Llama 3.3 Groq <span class="ml-auto text-[8px] text-cyan-400/60">FREE</span>
+                                    <button class="w-full text-left px-3 py-1.5 text-[#94a3b8] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2 border-b border-[#1a2636]/40" onclick="selectModel('DeepSeek Chat (OpenRouter)', 'deepseek/deepseek-chat', 'amber-400')">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-amber-400"></div> DeepSeek Chat <span class="ml-auto text-[8px] text-amber-400/60">REASONING</span>
                                     </button>
-                                    <button class="w-full text-left px-3 py-1.5 text-[#94a3b8] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2 border-b border-[#1a2636]/40" onclick="selectModel('Llama 3.1 Fast', 'llama-3.1-8b-instant', 'sky-400')">
-                                        <div class="w-1.5 h-1.5 rounded-full bg-sky-400"></div> Llama 3.1 Fast <span class="ml-auto text-[8px] text-sky-400/60">FREE</span>
+                                    <button class="w-full text-left px-3 py-1.5 text-[#94a3b8] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2 border-b border-[#1a2636]/40" onclick="selectModel('Gemini 3.8 Flash', 'gemini-3.8-flash', 'sky-400')">
+                                        <div class="w-1.5 h-1.5 rounded-full bg-sky-400"></div> Gemini 3.8 Flash <span class="ml-auto text-[8px] text-sky-400/60">CLOUD</span>
                                     </button>
                                     <button class="w-full text-left px-3 py-1.5 text-[#94a3b8] hover:bg-[#101722] hover:text-[#00f0ff] flex items-center gap-2" onclick="selectModel('Ollama Local', 'llama3.1:8b', 'purple-400')">
-                                        <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div> Ollama Local <span class="ml-auto text-[8px] text-purple-400/60">LOCAL</span>
+                                        <div class="w-1.5 h-1.5 rounded-full bg-purple-400"></div> Ollama Local <span class="ml-auto text-[8px] text-purple-400/60">OFFLINE</span>
                                     </button>
                                 </div>
                             </div>
@@ -840,8 +884,11 @@
             isVoiceActive: false, 
             abortController: null,
             lastUploadedContent: null,
+            lastUploadedImage: null,
+            lastUploadedLocalPath: null,
+            lastUploadedName: null,
             ratings: { message: {}, image: {}, video: {}, intel: {}, system: {}, marketing: {} },
-            model: 'gemini-2.5-flash'
+            model: 'qwen/qwen3.8-27b'
         };
 
         const chatInput = document.getElementById('chat-input');
@@ -1092,14 +1139,22 @@
             chatInput.focus();
         }
 
-        function addLog(message, type = 'jarvis') {
+        function addLog(message, type = 'jarvis', imageUrl = null) {
             const p = document.createElement('div');
             p.className = 'w-full mb-6 flex gap-4';
             
             if (type === 'user') {
+                let imgHtml = '';
+                if (imageUrl) {
+                    imgHtml = `<div class="mb-2"><img src="${imageUrl}" alt="Uploaded image" class="max-w-[280px] max-h-[220px] rounded-lg object-cover border border-[#3F3F46] shadow-md hover:scale-[1.02] transition-transform cursor-pointer" onclick="window.open(this.src, '_blank')"></div>`;
+                }
+                const msgTextHtml = message ? `<div class="whitespace-pre-wrap">${message}</div>` : '';
                 p.innerHTML = `
                     <div class="flex-1 flex justify-end">
-                        <div class="bg-[#1A1A1A] text-[#FAFAFA] rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%] text-[0.95rem] whitespace-pre-wrap border border-[#27272A]">${message}</div>
+                        <div class="bg-[#1A1A1A] text-[#FAFAFA] rounded-2xl rounded-tr-sm px-4 py-2.5 max-w-[85%] text-[0.95rem] border border-[#27272A] shadow-sm">
+                            ${imgHtml}
+                            ${msgTextHtml}
+                        </div>
                     </div>
                 `;
             } else {
@@ -1131,30 +1186,56 @@
         }
 
         async function handleFileUpload(event) {
-            const file = event.target.files[0];
+            const file = event.target ? event.target.files[0] : event;
             if (!file) return;
 
             const preview = document.getElementById('upload-preview');
             const filenameSpan = document.getElementById('preview-filename');
+            const previewImg = document.getElementById('preview-img');
+            const previewIcon = document.getElementById('preview-icon');
             
             filenameSpan.innerText = file.name;
+            const isImgFile = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name);
+            
+            if (isImgFile) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    if (previewImg) {
+                        previewImg.src = e.target.result;
+                        previewImg.classList.remove('hidden');
+                    }
+                    if (previewIcon) previewIcon.classList.add('hidden');
+                };
+                reader.readAsDataURL(file);
+            } else {
+                if (previewImg) previewImg.classList.add('hidden');
+                if (previewIcon) previewIcon.classList.remove('hidden');
+            }
+
             preview.classList.remove('hidden');
             preview.classList.add('flex');
+            filenameSpan.innerHTML = `<i class="fas fa-spinner fa-spin mr-1 text-[#00f0ff]"></i> ${file.name}`;
 
             const formData = new FormData();
             formData.append('file', file);
 
             try {
-                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfToken = csrfMeta ? csrfMeta.content : '';
+                const headers = csrfToken ? { 'X-CSRFToken': csrfToken } : {};
                 const response = await fetch('/api/upload', {
                     method: 'POST',
-                    headers: { 'X-CSRFToken': csrfToken },
+                    headers: headers,
                     body: formData
                 });
 
                 const data = await response.json();
                 if (data.status === 'success') {
+                    filenameSpan.innerText = data.original_filename || file.name;
                     state.lastUploadedContent = data.content;
+                    state.lastUploadedImage = data.image_url || (isImgFile ? data.url : null);
+                    state.lastUploadedLocalPath = data.local_path || null;
+                    state.lastUploadedName = data.original_filename || file.name;
                 } else {
                     throw new Error(data.error || 'Ingestion failed');
                 }
@@ -1165,21 +1246,42 @@
         }
 
         function clearUpload() {
-            document.getElementById('upload-preview').classList.add('hidden');
-            document.getElementById('upload-preview').classList.remove('flex');
-            document.getElementById('file-input').value = '';
+            const preview = document.getElementById('upload-preview');
+            preview.classList.add('hidden');
+            preview.classList.remove('flex');
+            const previewImg = document.getElementById('preview-img');
+            if (previewImg) {
+                previewImg.src = '';
+                previewImg.classList.add('hidden');
+            }
+            const previewIcon = document.getElementById('preview-icon');
+            if (previewIcon) previewIcon.classList.remove('hidden');
+            const fileInput = document.getElementById('file-input');
+            if (fileInput) fileInput.value = '';
             state.lastUploadedContent = null;
+            state.lastUploadedImage = null;
+            state.lastUploadedLocalPath = null;
+            state.lastUploadedName = null;
         }
 
         async function sendMessage() {
             const message = chatInput.value.trim();
-            if (!message && !state.lastUploadedContent) return;
+            if (!message && !state.lastUploadedContent && !state.lastUploadedImage) return;
             if (state.isStreaming) return;
 
             document.body.classList.add('chat-active');
             
-            if (message) addLog(message, 'user');
-            if (state.lastUploadedContent && !message) addLog('[File Attachment Included]', 'user');
+            const uploadedImgUrl = state.lastUploadedImage;
+            const uploadedLocalPath = state.lastUploadedLocalPath;
+            const uploadedContent = state.lastUploadedContent;
+
+            if (uploadedImgUrl) {
+                addLog(message, 'user', uploadedImgUrl);
+            } else if (message) {
+                addLog(message, 'user');
+            } else if (uploadedContent && !message) {
+                addLog('[File Attachment Included]', 'user');
+            }
 
             chatInput.value = '';
             chatInput.style.height = 'auto';
@@ -1196,14 +1298,20 @@
             state.abortController = new AbortController();
 
             try {
-                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+                const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+                const csrfToken = csrfMeta ? csrfMeta.content : '';
+                const headers = { 'Content-Type': 'application/json' };
+                if (csrfToken) headers['X-CSRFToken'] = csrfToken;
+
                 const response = await fetch('/api/chat', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+                    headers: headers,
                     body: JSON.stringify({ 
                         message, 
                         conversation_id: state.currentConvId,
-                        file_context: state.lastUploadedContent || "",
+                        file_context: uploadedContent || "",
+                        image_url: uploadedImgUrl,
+                        image_path: uploadedLocalPath,
                         model: state.model
                     }),
                     signal: state.abortController.signal
@@ -1300,12 +1408,92 @@
             }
         });
 
-        // Global keyboard shortcut: Ctrl+Shift+S (New Thread)
+        // Robust Clipboard Image Paste Support (Ctrl+V / Screenshot Paste)
+        function handlePastedItem(e) {
+            const clipboardData = e.clipboardData || (e.originalEvent && e.originalEvent.clipboardData) || window.clipboardData;
+            if (!clipboardData) return;
+
+            let imageFile = null;
+
+            // 1. Check clipboard files first (File Explorer copy or file paste)
+            if (clipboardData.files && clipboardData.files.length > 0) {
+                for (let i = 0; i < clipboardData.files.length; i++) {
+                    const f = clipboardData.files[i];
+                    if (f.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(f.name)) {
+                        imageFile = f;
+                        break;
+                    }
+                }
+            }
+
+            // 2. Check clipboard items (Screenshots / Snipping Tool / Browser Image Copy)
+            if (!imageFile && clipboardData.items && clipboardData.items.length > 0) {
+                for (let i = 0; i < clipboardData.items.length; i++) {
+                    const item = clipboardData.items[i];
+                    if (item.type.indexOf('image') !== -1 || (item.kind === 'file' && item.type.startsWith('image/'))) {
+                        const blob = item.getAsFile();
+                        if (blob) {
+                            const mime = blob.type || 'image/png';
+                            const ext = mime.split('/')[1] || 'png';
+                            imageFile = new File([blob], `screenshot_${Date.now()}.${ext}`, { type: mime });
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (imageFile) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log("📸 Image detected in clipboard:", imageFile.name, imageFile.type, imageFile.size);
+                handleFileUpload(imageFile);
+            }
+        }
+
+        // Attach to chat input, document, and window so paste is NEVER missed
+        chatInput.addEventListener('paste', handlePastedItem);
+        document.addEventListener('paste', (e) => {
+            // If user pastes anywhere outside a text input, or inside chatInput
+            const tag = (e.target.tagName || '').toLowerCase();
+            if (e.target === chatInput || (tag !== 'input' && tag !== 'textarea')) {
+                handlePastedItem(e);
+            }
+        });
+
+        // Drag & Drop Image / File Support onto Chat Input Area and Full Page
+        const dropZone = chatInput.closest('.relative') || chatInput;
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropZone.classList.add('border-[#00f0ff]', 'bg-[#151515]');
+            }, false);
+            window.addEventListener(eventName, (e) => e.preventDefault(), false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('border-[#00f0ff]', 'bg-[#151515]');
+            }, false);
+            window.addEventListener(eventName, (e) => e.preventDefault(), false);
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            const dt = e.dataTransfer;
+            if (dt && dt.files && dt.files.length > 0) {
+                handleFileUpload(dt.files[0]);
+            }
+        });
+
+        // Global keyboard shortcut: Cmd+N / Ctrl+N (New Thread)
         window.addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {
                 e.preventDefault();
                 newConversation();
                 console.log("⌨️ Stark Shortcut: Started new conversation.");
+                setTimeout(() => {
+                    const ci = document.getElementById('chat-input');
+                    if (ci) ci.focus();
+                }, 50);
             }
         });
 
