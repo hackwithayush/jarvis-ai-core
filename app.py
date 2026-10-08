@@ -1397,7 +1397,7 @@ def get_system_stats():
                 "tasks": 1
             },
             {
-                "name": "Cloud 24/7 Gateway",
+                "name": "Cloud Gateway",
                 "status": "active",
                 "model": "Render Linux Cluster" if os.getenv("RENDER") else "Local Host Gateway",
                 "tasks": 1
@@ -1409,7 +1409,7 @@ def get_system_stats():
                 "tasks": 1 if has_telegram else 0
             },
             {
-                "name": "Zero-Trust Sentinel",
+                "name": "Sentinel Sandbox",
                 "status": "active",
                 "model": "Process Sandbox",
                 "tasks": 0
@@ -1429,10 +1429,10 @@ def get_system_stats():
             "nodes": [
                 { "id": "user", "label": "Operator (Ayush)", "group": "user" },
                 { "id": "jarvis", "label": "JARVIS OS", "group": "system" },
-                { "id": "cloud", "label": "Cloud 24/7", "group": "cloud" },
+                { "id": "cloud", "label": "Cloud Gateway", "group": "cloud" },
                 { "id": "telegram", "label": "Telegram Node", "group": "agent" },
                 { "id": "sqlite", "label": "Neural Memory", "group": "data" },
-                { "id": "sentinel", "label": "Zero-Trust", "group": "security" }
+                { "id": "sentinel", "label": "Sandbox", "group": "security" }
             ],
             "edges": [
                 { "from": "user", "to": "jarvis" },
@@ -1448,7 +1448,7 @@ def get_system_stats():
             f"Process PID: {os.getpid()} · Active Threads: {threading.active_count()}",
             f"Process RSS: {psutil.Process().memory_info().rss / (1024**2):.1f} MB",
             f"Net Outbound: {psutil.net_io_counters().bytes_sent / (1024**2):.1f} MB",
-            f"Environment: {'Render Cloud Linux 24/7' if os.getenv('RENDER') else 'Local Workstation Node'}"
+            f"Environment: {'Render Cloud Linux' if os.getenv('RENDER') else 'Local Workstation Node'}"
         ]
 
         # Real runtime info

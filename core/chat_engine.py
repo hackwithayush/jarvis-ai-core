@@ -627,10 +627,11 @@ class ChatEngine:
         if any(trigger in message_lower for trigger in status_triggers):
             try:
                 import psutil, threading
+                from datetime import datetime, timezone
                 cpu_load = psutil.cpu_percent(interval=0.1)
                 ram_mem = psutil.virtual_memory()
                 net_io = psutil.net_io_counters()
-                uptime_val = "Active & Nominal"
+                uptime_val = "Active"
                 try:
                     import app
                     uptime_secs = int(time.time() - getattr(app, "SERVER_START_TIME", time.time()))
@@ -638,16 +639,20 @@ class ChatEngine:
                 except Exception:
                     pass
 
+                current_time_str = datetime.now(timezone.utc).strftime("%H:%M:%S UTC")
+
                 context_snippets.append(
                     f"--- AUTHENTIC LIVE SYSTEM TELEMETRY (REAL-TIME SENSORS) ---\n"
-                    f"Environment: {'Render Cloud Linux 24/7' if os.getenv('RENDER') else 'Local Workstation Node'}\n"
-                    f"Process Uptime: {uptime_val}\n"
+                    f"Timestamp: {current_time_str}\n"
+                    f"Environment: {'Render Cloud Linux' if os.getenv('RENDER') else 'Local Workstation Node'}\n"
+                    f"Current Process Uptime: {uptime_val}\n"
+                    f"Historical Availability: NOT MEASURED (Subject to standard host lifecycles)\n"
                     f"Current CPU Load: {cpu_load}%\n"
-                    f"Memory Pool (RAM): {ram_mem.used / (1024**3):.1f} GB allocated ({ram_mem.percent}% utilization)\n"
-                    f"Active Threads: {threading.active_count()}\n"
+                    f"Memory Pool (RAM): {ram_mem.used / (1024**3):.1f} GB allocated / {ram_mem.total / (1024**3):.1f} GB ({ram_mem.percent}% utilization)\n"
+                    f"Active Python Threads: {threading.active_count()}\n"
                     f"Network Outbound: {net_io.bytes_sent / (1024**2):.1f} MB\n"
-                    f"Security Perimeter: Zero-Trust Active (Sandboxed)\n"
-                    f"Directive: When reporting system status, cite these exact live measurements above instead of fictional numbers."
+                    f"Security Perimeter: Command execution isolation: NOT ESTABLISHED | Prompt-injection guard: DESIGNED\n"
+                    f"Directive: You must cite the exact measurements and timestamp above (e.g., 'According to runtime telemetry collected at {current_time_str}, current CPU is {cpu_load}%...'). Do NOT invent fictional percentages, and do not make unverified claims about 24/7 perpetual uptime or zero-trust sandboxing."
                 )
             except Exception as e:
                 logger.error(f"Live telemetry injection error: {e}")
