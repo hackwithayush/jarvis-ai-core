@@ -571,7 +571,16 @@ class ModelManager:
                         last_error = str(e)
                         continue
 
-                # --- A: Handle Cloud Models in Local Mode (OpenAI compatible) ---
+                # --- A: Handle Cloud Models in Local Mode (OpenAI / Groq) ---
+                if config.GROQ_API_KEY and (any(g in model.lower() for g in ["qwen", "oss-", "gpt-oss", "groq", "allam"]) or not self.has_model(model)):
+                    try:
+                        logger.info(f"Intelligence Grid: Routing '{model}' to Groq Cloud Acceleration...")
+                        yield from self._generate_groq_stream(messages, system_prompt, model=model, response_format=response_format)
+                        return
+                    except Exception as ge:
+                        logger.warning(f"Groq Acceleration failed for '{model}': {ge}")
+                        last_error = str(ge)
+
                 if any(m in model.lower() for m in ["gpt", "deepseek", "ling"]):
                     if self.openai_client:
                         try:
@@ -599,6 +608,10 @@ class ModelManager:
                             continue
 
                 # --- B: Handle Local Models (Ollama) ---
+                if not self.has_model(model):
+                    logger.info(f"Ollama Node: Model '{model}' not pulled locally. Skipping local inference.")
+                    continue
+
                 payload = {
                     "model": model,
                     "messages": messages,
@@ -809,16 +822,21 @@ class ModelManager:
                 from openai import OpenAI
                 client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=config.GROQ_API_KEY)
                 
-                # Model-Specific Payload Guard: Qwen 3.8 on Groq has a strict 7000 ITPM limit
+                # Model-Specific Payload Guard: Groq TPM limits
                 model_payload = list(payload)
-                if "qwen" in mapped_model.lower():
-                    total_chars = sum(len(m.get("content", "")) for m in model_payload)
-                    if total_chars > 16000:
-                        sys_content = model_payload[0]["content"]
-                        if len(sys_content) > 6000:
-                            sys_content = sys_content[:6000] + "\n[System prompt compressed for Qwen ITPM ceiling]"
-                        recent_msgs = model_payload[1:][-4:]
-                        model_payload = [{"role": "system", "content": sys_content}] + recent_msgs
+                total_chars = sum(len(m.get("content", "")) for m in model_payload)
+                if "120b" in mapped_model.lower() and total_chars > 12000:
+                    sys_content = model_payload[0]["content"]
+                    if len(sys_content) > 4000:
+                        sys_content = sys_content[:4000] + "\n[System prompt compressed for 120B TPM ceiling]"
+                    recent_msgs = model_payload[1:][-3:]
+                    model_payload = [{"role": "system", "content": sys_content}] + recent_msgs
+                elif "qwen" in mapped_model.lower() and total_chars > 16000:
+                    sys_content = model_payload[0]["content"]
+                    if len(sys_content) > 6000:
+                        sys_content = sys_content[:6000] + "\n[System prompt compressed for Qwen ITPM ceiling]"
+                    recent_msgs = model_payload[1:][-4:]
+                    model_payload = [{"role": "system", "content": sys_content}] + recent_msgs
 
                 # Estimate total characters in payload to avoid context boundary overrun
                 approx_chars = sum(len(m.get("content", "")) for m in model_payload)
@@ -863,20 +881,20 @@ class ModelManager:
 
     def _generate_gemini_stream(self, messages: list, system_prompt: str, model: str = None, response_format: Optional[dict] = None) -> Generator[str, None, None]:
         """Gemini-specific streaming implementation with multi-turn structure enforcement and model auto-failover."""
-        target_model = model or config.ROUTING_CONFIG.get("flagship", "gemini-2.5-flash")
+        target_model = model or config.ROUTING_CONFIG.get("flagship", "gemini-3.8-flash")
         if not self._is_gemini_model(target_model):
-            target_model = "gemini-2.5-flash"
+            target_model = "gemini-3.8-flash"
 
         # Map defunct/retired models to currently active models
-        if target_model in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"]:
-            target_model = "gemini-2.5-flash"
+        if target_model in ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-2.5-flash"]:
+            target_model = "gemini-3.8-flash"
 
         if not self.gemini_client:
             raise RuntimeError("Gemini client not initialized. Check GEMINI_API_KEY.")
 
         # Candidate Gemini models in priority order
         candidates = [target_model]
-        for alt in ["gemini-2.5-flash", "gemini-3.8-flash"]:
+        for alt in ["gemini-3.8-flash", "gemini-2.5-flash"]:
             if alt not in candidates:
                 candidates.append(alt)
 

@@ -30,15 +30,31 @@ class AdversarialReviewEngine:
         self.web_search = web_search or WebSearchEngine()
 
     def _query_agent(self, system_prompt: str, prompt: str, model: Optional[str] = None) -> str:
-        """Execute a non-streaming query to an agent node with dedicated system directives."""
+        """Execute a non-streaming query to an agent node with dedicated system directives and auto-failover."""
         messages = [{"role": "user", "content": prompt}]
-        target_model = model or ("gemini-2.5-flash" if getattr(self.model, "gemini_client", None) else None)
-        try:
-            res = self.model.generate(messages=messages, system_prompt=system_prompt, model=target_model)
-            return (res or "").strip()
-        except Exception as e:
-            logger.error(f"Adversarial Review Agent invocation failed: {e}")
-            return f"[Agent reasoning error: {e}]"
+        candidates = []
+        if model:
+            candidates.append(model)
+        candidates.extend(["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "gemini-3.8-flash", "openai/gpt-oss-20b"])
+        
+        seen = set()
+        unique_candidates = [m for m in candidates if m and not (m in seen or seen.add(m))]
+        
+        last_err = ""
+        for target in unique_candidates:
+            try:
+                res = self.model.generate(messages=messages, system_prompt=system_prompt, model=target)
+                cleaned = (res or "").strip()
+                if cleaned and not cleaned.startswith("Error: I'm currently unable") and not cleaned.startswith("⚠️"):
+                    return cleaned
+                last_err = cleaned
+                logger.warning(f"Adversarial Review Agent on '{target}' gave unusable response: {cleaned[:100]}")
+            except Exception as e:
+                logger.warning(f"Adversarial Review Agent invocation failed on '{target}': {e}")
+                last_err = str(e)
+                continue
+                
+        return f"[Agent reasoning error: {last_err or 'No response from intelligence grid'}]"
 
     def stream_review(self, topic: str, ground_intel: Optional[str] = None) -> Generator[str, None, None]:
         """

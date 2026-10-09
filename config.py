@@ -102,7 +102,7 @@ ROUTING_CONFIG = {
     "local": "llama2-uncensored:latest",
     "local_fast": "llama3.2:latest",
     # 🔁 Fallback chain (ordered by reliability)
-    "backup": ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b", "meta-llama/llama-3.3-70b-instruct", "gemini-2.5-flash"]
+    "backup": ["openai/gpt-oss-120b", "gemini-3.8-flash", "qwen/qwen3.8-27b", "openai/gpt-oss-20b", "meta-llama/llama-3.3-70b-instruct", "gemini-2.5-flash"]
 }
 
 OLLAMA_HOST = OLLAMA_NODES[0]
@@ -137,7 +137,7 @@ def smart_route(prompt: str):
     return "chat"
 
 # ─── Resilience & Cost Logic ────────────────────────────────────
-FALLBACK_CHAIN = ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b", "meta-llama/llama-3.3-70b-instruct", "gemini-2.5-flash"]
+FALLBACK_CHAIN = ["openai/gpt-oss-120b", "gemini-3.8-flash", "qwen/qwen3.8-27b", "openai/gpt-oss-20b", "meta-llama/llama-3.3-70b-instruct", "gemini-2.5-flash"]
 COST_MODE = "smart"  # options: "smart", "performance", "local_only"
 
 # ─── Executive Voice Node (Iron Man Mode) ───────────────────────

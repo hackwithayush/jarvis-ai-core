@@ -536,6 +536,17 @@ class ChatEngine:
                 review_topic = re.sub(r"^[\(\[\{\"\']+|[\)\]\}\"\']+$", "", review_topic).strip()
                 
             review_topic = review_topic or clean_msg
+            if not review_topic or review_topic.lower() in ["run adversarial review", "adversarial review", "adversarial debate", "make adversarial review", "debate", "review"]:
+                yield (
+                    "🏛️ **Autonomous Adversarial Review Court**\n\n"
+                    "Please specify the target inquiry or dilemma you would like the 3 agents to debate.\n\n"
+                    "**Usage Examples:**\n"
+                    "- `/review Should early-stage startups choose a Modular Monolith over Microservices?`\n"
+                    "- `/review Is Rust better than C++ for high-frequency trading?`\n"
+                    "- `adversarial review on Monorepo vs Polyrepo for microservices`\n\n"
+                    "*Nodes standing by: 🏛️ The Proponent (Thesis) · ⚔️ The Adversary (Antithesis) · ⚖️ The Arbiter (Synthesis).*"
+                )
+                return
 
             try:
                 from core.adversarial_review import adversarial_review_engine
