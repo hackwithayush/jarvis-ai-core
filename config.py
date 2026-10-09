@@ -44,7 +44,7 @@ STARK_RAW_PROTOCOL = """
 
 # ─── External Brain (SaaS / Cloud) ─────────────────────────────
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")  # FREE flagship via Google AI Studio
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")  # FREE flagship via Google AI Studio
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")      # FREE fast inference via Groq Cloud
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 TOGETHER_API_KEY = os.environ.get("TOGETHER_API_KEY", "")

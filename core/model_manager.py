@@ -302,78 +302,119 @@ class ModelManager:
 
     @retry_sync(retries=2, delay=1.0)
     def generate_vision(self, prompt: str, image_path: str) -> str:
-        """Analyze an image using a multimodal model (Cloud or Local)."""
+        """Analyze an image using a multimodal model (Cloud with multi-provider failover, or Local)."""
         import base64
+        import mimetypes
         try:
             with open(image_path, "rb") as image_file:
                 image_bytes = image_file.read()
                 base64_image = base64.b64encode(image_bytes).decode("utf-8")
 
-            # --- Choice A: Gemini (FREE multimodal) ---
+            mime_type = mimetypes.guess_type(image_path)[0] or "image/jpeg"
+
+            # --- Choice A: Google Gemini (FREE flagship with model-level failover) ---
             if self.gemini_client:
-                model = config.ROUTING_CONFIG.get("vision", "gemini-2.5-flash")
-                logger.info(f"Vision Node Active: Analyzing image with {model} (Gemini FREE)")
-                try:
-                    import mimetypes
-                    mime_type = mimetypes.guess_type(image_path)[0] or "image/jpeg"
-                    response = self.gemini_client.models.generate_content(
-                        model=model,
-                        contents=[
-                            genai_types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
-                            prompt
-                        ],
-                        config=genai_types.GenerateContentConfig(
-                            system_instruction=config.SYSTEM_PROMPT.format(current_date="today"),
-                            temperature=self.temperature,
-                        )
-                    )
-                    return response.text
-                except Exception as e:
-                    logger.warning(f"Gemini Vision failed: {e}. Falling back...")
-
-            # --- Choice B: OpenAI Prime (Cloud) ---
-            if self.openai_client:
-                model = config.ROUTING_CONFIG.get("vision", "gpt-4o")
-                logger.info(f"Vision Node Active: Analyzing image with {model} (OpenAI)")
-                response = self.openai_client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": config.SYSTEM_PROMPT.format(current_date="today")},
-                        {
-                            "role": "user",
-                            "content": [
-                                {"type": "text", "text": prompt},
-                                {
-                                    "type": "image_url",
-                                    "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"},
-                                },
+                gemini_models = ["gemini-2.5-flash", "gemini-3.8-flash"]
+                for g_model in gemini_models:
+                    try:
+                        logger.info(f"Vision Node Active: Analyzing image with {g_model} (Gemini)...")
+                        response = self.gemini_client.models.generate_content(
+                            model=g_model,
+                            contents=[
+                                genai_types.Part.from_bytes(data=image_bytes, mime_type=mime_type),
+                                prompt
                             ],
-                        }
-                    ],
-                    max_tokens=500,
-                )
-                return response.choices[0].message.content
+                            config=genai_types.GenerateContentConfig(
+                                system_instruction=config.SYSTEM_PROMPT.format(current_date="today"),
+                                temperature=self.temperature,
+                            )
+                        )
+                        if response and response.text:
+                            return response.text.strip()
+                    except Exception as e:
+                        logger.warning(f"Gemini Vision ({g_model}) failed: {e}. Trying next vision node...")
 
-            # --- Choice C: Ollama (Local) ---
-            model = config.ROUTING_CONFIG.get("local_vision", "llava")
-            logger.info(f"Vision Node Active: Analyzing image with {model} (Local)")
-            
-            payload = {
-                "model": model,
-                "prompt": prompt,
-                "system": config.SYSTEM_PROMPT.format(current_date="today"),
-                "images": [base64_image],
-                "stream": False
-            }
-            
-            resp = requests.post(f"{self.host}/api/generate", json=payload, timeout=120)
-            if resp.status_code == 200:
-                return resp.json().get("response", "Vision processing complete, but no text response returned.")
-            elif resp.status_code == 404:
-                self.ensure_model(model)
-                return f"Vision model '{model}' is being downloaded. Please wait a few minutes and try again."
-            else:
-                return f"Vision Node failure: HTTP {resp.status_code}"
+            # --- Choice B: OpenRouter Multimodal Failover ---
+            if self.openrouter_client:
+                try:
+                    logger.info("Vision Node Active: Analyzing image via OpenRouter Multimodal Link...")
+                    resp = self.openrouter_client.chat.completions.create(
+                        model="google/gemini-2.5-flash",
+                        messages=[
+                            {"role": "system", "content": config.SYSTEM_PROMPT.format(current_date="today")},
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": prompt},
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {"url": f"data:{mime_type};base64,{base64_image}"},
+                                    },
+                                ],
+                            }
+                        ],
+                        max_tokens=200,
+                        timeout=30
+                    )
+                    if resp and resp.choices and resp.choices[0].message.content:
+                        return resp.choices[0].message.content.strip()
+                except Exception as e:
+                    logger.warning(f"OpenRouter Vision failed: {e}. Trying next vision node...")
+
+            # --- Choice C: OpenAI Prime (Cloud) ---
+            if self.openai_client:
+                try:
+                    model = config.ROUTING_CONFIG.get("vision", "gpt-4o")
+                    logger.info(f"Vision Node Active: Analyzing image with {model} (OpenAI)")
+                    response = self.openai_client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {"role": "system", "content": config.SYSTEM_PROMPT.format(current_date="today")},
+                            {
+                                "role": "user",
+                                "content": [
+                                    {"type": "text", "text": prompt},
+                                    {
+                                        "type": "image_url",
+                                        "image_url": {"url": f"data:{mime_type};base64,{base64_image}"},
+                                    },
+                                ],
+                            }
+                        ],
+                        max_tokens=500,
+                        timeout=30
+                    )
+                    if response and response.choices and response.choices[0].message.content:
+                        return response.choices[0].message.content.strip()
+                except Exception as e:
+                    logger.warning(f"OpenAI Vision failed: {e}. Trying next vision node...")
+
+            # --- Choice D: Ollama (Local Node — only if server is running and model exists) ---
+            if not config.SERVER_MODE and self.is_ollama_running():
+                model = config.ROUTING_CONFIG.get("local_vision", "llava")
+                if self.has_model(model):
+                    logger.info(f"Vision Node Active: Analyzing image with {model} (Local Ollama)")
+                    payload = {
+                        "model": model,
+                        "prompt": prompt,
+                        "system": config.SYSTEM_PROMPT.format(current_date="today"),
+                        "images": [base64_image],
+                        "stream": False
+                    }
+                    try:
+                        resp = requests.post(f"{self.host}/api/generate", json=payload, timeout=60)
+                        if resp.status_code == 200:
+                            return resp.json().get("response", "Vision processing complete, but no text response returned.")
+                    except Exception as loc_e:
+                        logger.warning(f"Local Ollama vision failed: {loc_e}")
+
+            # Safe and clean failure message if no multimodal nodes responded
+            return (
+                "⚠️ Vision Processing Notice: Unable to analyze image.\n"
+                "Cloud vision engines (Gemini / OpenRouter) did not return a response, "
+                "and no local multimodal model is running. If running in the cloud, "
+                "please ensure GEMINI_API_KEY or OPENROUTER_API_KEY is configured in your environment."
+            )
 
         except Exception as e:
             logger.error(f"Vision Error: {e}")
