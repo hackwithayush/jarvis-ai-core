@@ -1197,7 +1197,43 @@ def mcp_sync():
         return jsonify({"error": str(e)}), 500
 
 
-# ─── Multimedia ──────────────────────────────────────────────────
+# ─── Autonomous Adversarial Review API ────────────────────────────
+
+@app.route("/api/adversarial-review", methods=["POST"])
+def adversarial_review_route():
+    """Execute autonomous 3-agent adversarial review (Proponent, Adversary, Arbiter)."""
+    try:
+        data = request.get_json() if request.is_json else {}
+        topic = (data.get("topic") or data.get("query") or "").strip()
+        if not topic:
+            return jsonify({"error": "Topic required for adversarial review"}), 400
+
+        intel = data.get("intel") or data.get("context") or ""
+        stream = data.get("stream", True)
+        from core.adversarial_review import adversarial_review_engine
+
+        if not stream:
+            report = adversarial_review_engine.review(topic, ground_intel=intel)
+            return jsonify({"topic": topic, "report": report})
+
+        def sse_stream():
+            for chunk in adversarial_review_engine.stream_review(topic, ground_intel=intel):
+                yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+            yield f"data: {json.dumps({'done': True})}\n\n"
+
+        return Response(
+            sse_stream(),
+            mimetype="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "X-Accel-Buffering": "no",
+                "Connection": "keep-alive"
+            }
+        )
+    except Exception as e:
+        logger.error(f"Adversarial Review Route Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 # ─── Multimedia ──────────────────────────────────────────────────
 

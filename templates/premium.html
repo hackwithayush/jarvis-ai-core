@@ -386,7 +386,7 @@
                 <div class="relative bg-[#111111] rounded-xl border border-[#27272A] focus-within:border-[#52525B] transition-colors flex flex-col p-1 z-20 shadow-lg shadow-black/50">
                     <textarea id="chat-input" rows="1" 
                         class="w-full bg-transparent border-none text-[#FAFAFA] font-sans placeholder-[#52525B] resize-none py-3 px-4 max-h-[30vh] custom-scrollbar" 
-                        placeholder="Message JARVIS..." autofocus></textarea>
+                        placeholder="Message JARVIS, /review <topic>, or /image <prompt>..." autofocus></textarea>
                     
                     <div class="flex items-center justify-between px-2 pb-2">
                         <div class="flex gap-1 items-center">
@@ -1144,7 +1144,23 @@
                         </div>
                     </div>
                 `;
-            });
+            // Adversarial Review Styling Enhancements
+            processed = processed.replace(
+                /### 🏛️ \[AGENT 1: THE PROPONENT · THESIS ARCHITECT\]/g,
+                `<div class="mt-4 mb-2 p-3 rounded-xl bg-sky-950/40 border border-sky-800/60 shadow-[0_0_20px_rgba(14,165,233,0.1)] flex items-center gap-2.5 text-sky-300 font-brand font-bold text-xs"><i class="fas fa-landmark text-sky-400 text-sm"></i> <span>AGENT 1: THE PROPONENT (THESIS ARCHITECT)</span><span class="ml-auto text-[9px] font-mono px-2 py-0.5 rounded bg-sky-900/60 text-sky-200 border border-sky-700/50">PROPOSITION</span></div>`
+            );
+            processed = processed.replace(
+                /### ⚔️ \[AGENT 2: THE ADVERSARY · RED TEAM INQUISITOR\]/g,
+                `<div class="mt-4 mb-2 p-3 rounded-xl bg-rose-950/40 border border-rose-800/60 shadow-[0_0_20px_rgba(244,63,94,0.1)] flex items-center gap-2.5 text-rose-300 font-brand font-bold text-xs"><i class="fas fa-shield-halved text-rose-400 text-sm"></i> <span>AGENT 2: THE ADVERSARY (RED TEAM INQUISITOR)</span><span class="ml-auto text-[9px] font-mono px-2 py-0.5 rounded bg-rose-900/60 text-rose-200 border border-rose-700/50">ANTITHESIS</span></div>`
+            );
+            processed = processed.replace(
+                /### 🛡️ \[ROUND 2: DIRECT REBUTTAL & CONCESSION\]/g,
+                `<div class="mt-4 mb-2 p-3 rounded-xl bg-amber-950/40 border border-amber-800/60 shadow-[0_0_20px_rgba(245,158,11,0.1)] flex items-center gap-2.5 text-amber-300 font-brand font-bold text-xs"><i class="fas fa-fire-flame-curved text-amber-400 text-sm"></i> <span>ROUND 2: DIRECT REBUTTAL & CONCESSION</span><span class="ml-auto text-[9px] font-mono px-2 py-0.5 rounded bg-amber-900/60 text-amber-200 border border-amber-700/50">CROSS-FIRE</span></div>`
+            );
+            processed = processed.replace(
+                /### ⚖️ \[AGENT 3: THE ARBITER · SUPREME TRUTH JUDGE\]/g,
+                `<div class="mt-4 mb-2 p-3 rounded-xl bg-emerald-950/50 border border-emerald-700/70 shadow-[0_0_25px_rgba(16,185,129,0.2)] flex items-center gap-2.5 text-emerald-300 font-brand font-bold text-xs"><i class="fas fa-scale-balanced text-emerald-400 text-sm"></i> <span>AGENT 3: THE ARBITER (SUPREME TRUTH JUDGE)</span><span class="ml-auto text-[9px] font-mono px-2 py-0.5 rounded bg-emerald-900/60 text-emerald-200 border border-emerald-600/60">GROUND TRUTH</span></div>`
+            );
 
             return processed;
         }

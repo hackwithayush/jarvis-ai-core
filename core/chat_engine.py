@@ -354,7 +354,8 @@ class ChatEngine:
         NON_IMAGE_COMMANDS = {
             "code", "web", "tools", "security", "intel", "research", "help", "reset",
             "clear", "export", "status", "vitals", "diag", "diagnostics", "agent",
-            "model", "settings", "config", "quit", "exit"
+            "model", "settings", "config", "quit", "exit", "review", "adversarial",
+            "debate", "truth", "audit"
         }
         if raw.startswith("/"):
             slash_token_match = re.match(r"^/\s*([a-zA-Z0-9_-]+)(?:\s+(.*))?$", raw, re.DOTALL)
@@ -509,6 +510,50 @@ class ChatEngine:
             message = clean_msg
             corrected_message = self.correct_typos(message)
             mode = "security"
+
+        # ─── Autonomous Adversarial Review Interceptor (3 Agents Argue to Find Truth) ───
+        adversarial_match = re.match(r"^/(?:review|adversarial|debate|truth|audit)[:\s]*(.*)$", clean_msg, re.IGNORECASE | re.DOTALL)
+        is_adversarial_nl = any(trigger in message_lower for trigger in [
+            "adversarial review", "adversarial debate", "3 agent debate", "3 agents debate",
+            "three agents debate", "three agent debate", "agents argue to find the truth",
+            "agents that argue to find the truth", "argue to find the truth", "debate between 3 agents",
+            "debate to find the truth", "3 agents that argue"
+        ])
+
+        if adversarial_match or is_adversarial_nl:
+            review_topic = ""
+            if adversarial_match:
+                review_topic = adversarial_match.group(1).strip()
+            if not review_topic and is_adversarial_nl:
+                # Strip conversational fluff to isolate target inquiry
+                review_topic = re.sub(
+                    r"^(?:please\s+)?(?:run|do|make|perform|give\s+me\s+(?:an?)?)?\s*(?:adversarial\s+review\s+(?:of|on|for)?|3\s+agents?\s+(?:that\s+)?argue\s+to\s+find\s+(?:the\s+)?truth\s+(?:about|on|of)?|3\s+agents?\s+debate\s+(?:on|about|of)?|debate\s+(?:between\s+3\s+agents\s+)?(?:on|about|of)?|argue\s+to\s+find\s+the\s+truth\s+(?:about|on|of)?)\s*",
+                    "",
+                    clean_msg,
+                    flags=re.IGNORECASE
+                ).strip()
+                # Clean enclosing quotes or parentheses e.g. "(3 agent that argue to find the truth)"
+                review_topic = re.sub(r"^[\(\[\{\"\']+|[\)\]\}\"\']+$", "", review_topic).strip()
+                
+            review_topic = review_topic or clean_msg
+
+            try:
+                from core.adversarial_review import adversarial_review_engine
+                review_chunks = []
+                for chunk in adversarial_review_engine.stream_review(review_topic, ground_intel=clean_file_context):
+                    review_chunks.append(chunk)
+                    yield chunk
+
+                full_review = "".join(review_chunks)
+                now_iso = datetime.now(timezone.utc).isoformat()
+                conv["messages"].append({"role": "user", "content": message, "timestamp": now_iso})
+                conv["messages"].append({"role": "assistant", "content": full_review, "timestamp": now_iso})
+                self._save_conversation(conv_id)
+                return
+            except Exception as e:
+                logger.error(f"Adversarial Review streaming error: {e}")
+                yield f"⚠️ Adversarial Review Engine encountered an issue: {e}"
+                return
 
         # 2. Intelligence Routing & Operational Mode Specialization
         active_model = model

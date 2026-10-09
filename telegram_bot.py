@@ -1331,6 +1331,50 @@ async def run_skill_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await safe_reply(update, f"⚠️ Failed executing skill `{skill_id}`.")
 
 
+async def review_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Execute autonomous 3-agent adversarial review to find objective ground truth."""
+    if not update.message:
+        return
+
+    topic = " ".join(context.args).strip() if context.args else ""
+    if not topic:
+        await safe_reply(
+            update,
+            "🏛️ *Autonomous Adversarial Review Court*\n\n"
+            "Dialectical 3-Agent Matrix (Proponent, Adversary, Arbiter) that debates to find the truth.\n\n"
+            "Usage: `/review <topic>` or `/debate <topic>`\n"
+            "Example: `/review Is Rust better than C++ for high-frequency trading?`",
+            parse_mode=constants.ParseMode.MARKDOWN,
+        )
+        return
+
+    status_msg = await safe_reply(
+        update,
+        f"🏛️ *Adversarial Inquest Initiated*\n"
+        f"Target: _{topic}_\n"
+        f"Convening Proponent (Thesis), Inquisitor (Antithesis), and Arbiter (Synthesis)...",
+        parse_mode=constants.ParseMode.MARKDOWN,
+    )
+
+    try:
+        from core.adversarial_review import adversarial_review_engine
+        loop = asyncio.get_running_loop()
+        full_dossier = await loop.run_in_executor(
+            None,
+            lambda: adversarial_review_engine.review(topic)
+        )
+
+        if len(full_dossier) <= 4000:
+            await safe_reply(update, full_dossier)
+        else:
+            chunks = [full_dossier[i:i+3800] for i in range(0, len(full_dossier), 3800)]
+            for ch in chunks:
+                await safe_reply(update, ch)
+    except Exception as e:
+        logger.error(f"Telegram adversarial review error: {e}")
+        await safe_reply(update, f"⚠️ Adversarial Review encountered an error: {e}")
+
+
 # ---------------------------------------------------------------------------
 # Instagram Creator Hub
 # ---------------------------------------------------------------------------
@@ -1521,7 +1565,8 @@ def is_image_request(text: str) -> bool:
     # 2. General slash with non-system commands e.g. "/ dog set on ground"
     NON_IMAGE_COMMANDS = {
         "start", "help", "menu", "status", "vitals", "mode", "clear", "reset",
-        "chat", "code", "intel", "security", "research", "settings", "tools", "web"
+        "chat", "code", "intel", "security", "research", "settings", "tools", "web",
+        "review", "adversarial", "debate", "truth", "audit"
     }
     if normalized.startswith("/"):
         slash_token_match = re.match(r"^/\s*([a-zA-Z0-9_-]+)", normalized)
@@ -2109,6 +2154,9 @@ def main() -> None:
             CommandHandler("ig_caption", ig_caption_command),
             CommandHandler("skills", skills_command),
             CommandHandler("run_skill", run_skill_command),
+            CommandHandler("review", review_command),
+            CommandHandler("debate", review_command),
+            CommandHandler("adversarial", review_command),
         ]
         for handler in handlers:
             app.add_handler(handler)

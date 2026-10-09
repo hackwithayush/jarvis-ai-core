@@ -77,19 +77,40 @@ class ImageGenerator:
                 }
 
             # Tier 2: Pollinations AI (High-Speed Cloud Generation)
-            logger.info("Vision Node: Falling back to Pollinations AI synthesis.")
+            logger.info("Vision Node: Synthesizing image via Pollinations AI acceleration grid.")
+            import time
+            headers = {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            }
             safe_prompt = requests.utils.quote(prompt)
-            url = f"https://image.pollinations.ai/prompt/{safe_prompt}"
+            url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true"
             
-            response = requests.get(url, stream=True, timeout=60)
-            content_type = response.headers.get("content-type", "")
-            if response.status_code == 200 and "image" in content_type:
+            response = None
+            last_err = None
+            for attempt in range(3):
+                try:
+                    res = requests.get(url, headers=headers, stream=True, timeout=30)
+                    content_type = res.headers.get("content-type", "")
+                    if res.status_code == 200 and "image" in content_type:
+                        response = res
+                        break
+                    elif res.status_code in [402, 429, 502, 503]:
+                        last_err = f"Rate limited (status {res.status_code})"
+                        time.sleep(1.5 * (attempt + 1))
+                    else:
+                        last_err = f"Status {res.status_code}, type {content_type}"
+                        time.sleep(1.0)
+                except Exception as req_e:
+                    last_err = str(req_e)
+                    time.sleep(1.5)
+
+            if response and response.status_code == 200:
                 os.makedirs(os.path.dirname(path), exist_ok=True)
                 with open(path, 'wb') as f:
                     response.raw.decode_content = True
                     shutil.copyfileobj(response.raw, f)
             else:
-                raise Exception(f"Vision Hub returned invalid response: status {response.status_code}, type {content_type}")
+                raise Exception(f"Vision Hub returned invalid response: {last_err or 'Failed after retries'}")
                 
             return {
                 "status": "success", 
