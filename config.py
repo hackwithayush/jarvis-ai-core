@@ -52,7 +52,7 @@ ZAI_API_KEY = os.environ.get("ZAI_API_KEY", "")
 
 # ─── Deployment & Resilience ──────────────────────────────────
 # Set to 'true' in your cloud environment variables to disable local Ollama
-SERVER_MODE = True # Force Groq Acceleration Grid
+SERVER_MODE = os.environ.get("SERVER_MODE", "false").lower() == "true" or bool(os.environ.get("RENDER"))
 
 # ─── Agentic Infrastructure (Chain of Thought) ───────────────────
 AGENT_THINKING_BLOCK = False # Internal reasoning disabled in output to keep responses direct and clean
