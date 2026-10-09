@@ -29,8 +29,8 @@ class AdversarialReviewEngine:
         self.model = model_manager or ModelManager()
         self.web_search = web_search or WebSearchEngine()
 
-    def _query_agent(self, system_prompt: str, prompt: str, model: Optional[str] = None) -> str:
-        """Execute a non-streaming query to an agent node with dedicated system directives and auto-failover."""
+    def _stream_agent(self, system_prompt: str, prompt: str, model: Optional[str] = None) -> Generator[str, None, None]:
+        """Stream an agent turn token-by-token with multi-model failover."""
         messages = [{"role": "user", "content": prompt}]
         candidates = []
         if model:
@@ -41,20 +41,29 @@ class AdversarialReviewEngine:
         unique_candidates = [m for m in candidates if m and not (m in seen or seen.add(m))]
         
         last_err = ""
+        emitted_any = False
         for target in unique_candidates:
             try:
-                res = self.model.generate(messages=messages, system_prompt=system_prompt, model=target)
-                cleaned = (res or "").strip()
-                if cleaned and not cleaned.startswith("Error: I'm currently unable") and not cleaned.startswith("⚠️"):
-                    return cleaned
-                last_err = cleaned
-                logger.warning(f"Adversarial Review Agent on '{target}' gave unusable response: {cleaned[:100]}")
+                for token in self.model.generate_stream(messages=messages, system_prompt=system_prompt, model_override=target):
+                    if token and not token.startswith("⚠️") and not token.startswith("Error:"):
+                        emitted_any = True
+                        yield token
+                if emitted_any:
+                    return
             except Exception as e:
-                logger.warning(f"Adversarial Review Agent invocation failed on '{target}': {e}")
+                logger.warning(f"Adversarial stream on '{target}' failed: {e}")
                 last_err = str(e)
                 continue
                 
-        return f"[Agent reasoning error: {last_err or 'No response from intelligence grid'}]"
+        if not emitted_any:
+            yield f"[Agent reasoning error: {last_err or 'No response from intelligence grid'}]"
+
+    def _query_agent(self, system_prompt: str, prompt: str, model: Optional[str] = None) -> str:
+        """Execute a non-streaming query to an agent node with dedicated system directives and auto-failover."""
+        parts = []
+        for chunk in self._stream_agent(system_prompt, prompt, model=model):
+            parts.append(chunk)
+        return "".join(parts).strip()
 
     def stream_review(self, topic: str, ground_intel: Optional[str] = None) -> Generator[str, None, None]:
         """
@@ -117,9 +126,12 @@ class AdversarialReviewEngine:
             "- **Primary Affirmative Conclusion**"
         )
 
-        thesis_text = self._query_agent(proponent_sys, proponent_user)
-        yield f"{thesis_text}\n\n"
-        yield f"---\n\n"
+        thesis_parts = []
+        for chunk in self._stream_agent(proponent_sys, proponent_user):
+            thesis_parts.append(chunk)
+            yield chunk
+        thesis_text = "".join(thesis_parts).strip()
+        yield f"\n\n---\n\n"
 
         # ─── PHASE 2: AGENT 2 (THE ADVERSARY · ANTITHESIS) ───────────────────
         yield f"### ⚔️ [AGENT 2: THE ADVERSARY · RED TEAM INQUISITOR]\n"
@@ -146,9 +158,12 @@ class AdversarialReviewEngine:
             "- **Falsification Challenge (The Hard Questions the Proponent Must Answer)**"
         )
 
-        antithesis_text = self._query_agent(adversary_sys, adversary_user)
-        yield f"{antithesis_text}\n\n"
-        yield f"---\n\n"
+        antithesis_parts = []
+        for chunk in self._stream_agent(adversary_sys, adversary_user):
+            antithesis_parts.append(chunk)
+            yield chunk
+        antithesis_text = "".join(antithesis_parts).strip()
+        yield f"\n\n---\n\n"
 
         # ─── PHASE 3: ROUND 2 — CROSS-FIRE & REBUTTAL ───────────────────────
         yield f"### 🛡️ [ROUND 2: DIRECT REBUTTAL & CONCESSION]\n"
@@ -173,9 +188,12 @@ class AdversarialReviewEngine:
             "- **3. Hardened, Mitigated Proposition (The Refined Thesis)**"
         )
 
-        rebuttal_text = self._query_agent(rebuttal_sys, rebuttal_user)
-        yield f"{rebuttal_text}\n\n"
-        yield f"---\n\n"
+        rebuttal_parts = []
+        for chunk in self._stream_agent(rebuttal_sys, rebuttal_user):
+            rebuttal_parts.append(chunk)
+            yield chunk
+        rebuttal_text = "".join(rebuttal_parts).strip()
+        yield f"\n\n---\n\n"
 
         # ─── PHASE 4: AGENT 3 (THE ARBITER · THE GROUND TRUTH SYNTHESIS) ─────
         yield f"### ⚖️ [AGENT 3: THE ARBITER · SUPREME TRUTH JUDGE]\n"
@@ -217,9 +235,12 @@ class AdversarialReviewEngine:
             "- 3. [Rule/Action]"
         )
 
-        synthesis_text = self._query_agent(arbiter_sys, arbiter_user)
-        yield f"{synthesis_text}\n\n"
-        yield f"---\n\n"
+        synthesis_parts = []
+        for chunk in self._stream_agent(arbiter_sys, arbiter_user):
+            synthesis_parts.append(chunk)
+            yield chunk
+        synthesis_text = "".join(synthesis_parts).strip()
+        yield f"\n\n---\n\n"
         yield f"✨ **Adversarial Review Completed.** *Epistemic integrity verified by JARVIS Truth Matrix.*"
 
     def review(self, topic: str, ground_intel: Optional[str] = None) -> str:
