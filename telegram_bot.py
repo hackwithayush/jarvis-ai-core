@@ -1551,11 +1551,10 @@ async def generate_images(update: Update, prompt: str) -> None:
     successes = 0
     for index in range(3):
         try:
+            var_prompt = prompt if index == 0 else f"{prompt} variation {index + 1}"
             result = await loop.run_in_executor(
                 None,
-                lambda i=index: generator.generate(
-                    f"{prompt} — variation {i + 1}"
-                ),
+                lambda p=var_prompt: generator.generate(p),
             )
             if result.get("status") != "success":
                 logger.warning("Image generation %d failed: %s", index + 1, result)

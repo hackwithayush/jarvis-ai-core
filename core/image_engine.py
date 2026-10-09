@@ -76,18 +76,20 @@ class ImageGenerator:
                     "info": "Mission manifest via OpenAI DALL-E 3."
                 }
 
-            # Tier 2: Pollinations AI (High-Speed Fallback)
+            # Tier 2: Pollinations AI (High-Speed Cloud Generation)
             logger.info("Vision Node: Falling back to Pollinations AI synthesis.")
             safe_prompt = requests.utils.quote(prompt)
-            url = f"https://pollinations.ai/p/{safe_prompt}?width=1024&height=1024&seed={uuid.uuid4().int % 1000000}&model=flux"
+            url = f"https://image.pollinations.ai/prompt/{safe_prompt}"
             
-            response = requests.get(url, stream=True)
-            if response.status_code == 200:
+            response = requests.get(url, stream=True, timeout=60)
+            content_type = response.headers.get("content-type", "")
+            if response.status_code == 200 and "image" in content_type:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
                 with open(path, 'wb') as f:
                     response.raw.decode_content = True
                     shutil.copyfileobj(response.raw, f)
             else:
-                raise Exception(f"Vision Hub returned status {response.status_code}")
+                raise Exception(f"Vision Hub returned invalid response: status {response.status_code}, type {content_type}")
                 
             return {
                 "status": "success", 
