@@ -372,8 +372,9 @@ class ChatEngine:
         message_lower = corrected_message.lower()
 
         # Command Bar tool prefixes handling
-        if clean_msg.lower().startswith("/image "):
-            image_prompt = clean_msg[7:].strip()
+        image_match = re.match(r"^/image[:\s]*(.*)$", clean_msg, re.IGNORECASE | re.DOTALL)
+        if image_match and image_match.group(1).strip():
+            image_prompt = image_match.group(1).strip()
             if image_prompt:
                 clean_alt = re.sub(r'[\r\n\t]+', ' ', image_prompt).strip()
                 display_prompt = clean_alt[:120] + ("..." if len(clean_alt) > 120 else "")
