@@ -627,7 +627,6 @@ class ChatEngine:
         if any(trigger in message_lower for trigger in status_triggers):
             try:
                 import psutil, threading
-                from datetime import datetime, timezone
                 cpu_load = psutil.cpu_percent(interval=0.1)
                 ram_mem = psutil.virtual_memory()
                 net_io = psutil.net_io_counters()
