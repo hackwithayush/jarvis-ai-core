@@ -375,14 +375,17 @@ class ChatEngine:
         if clean_msg.lower().startswith("/image "):
             image_prompt = clean_msg[7:].strip()
             if image_prompt:
-                yield f"🎨 **Vision Node**: Synthesizing imagery for *\"{image_prompt}\"*...\n\n"
+                clean_alt = re.sub(r'[\r\n\t]+', ' ', image_prompt).strip()
+                display_prompt = clean_alt[:120] + ("..." if len(clean_alt) > 120 else "")
+                yield f"🎨 **Vision Node**: Synthesizing imagery for *\"{display_prompt}\"*...\n\n"
                 try:
                     from core.image_engine import ImageGenerator
                     gen_res = ImageGenerator().generate(image_prompt)
                     if gen_res.get("status") == "success":
                         img_url = gen_res.get("url")
-                        yield f"![{image_prompt}]({img_url})\n\n"
-                        yield f"✨ *{image_prompt}* rendered successfully.\n\n"
+                        yield f"__IMAGE__:{img_url}\n\n"
+                        yield f"![{display_prompt}]({img_url})\n\n"
+                        yield f"✨ *{display_prompt}* rendered successfully.\n\n"
                         yield f"**Status**: Ready · **Archive**: `{gen_res.get('filename', 'asset')}`"
                         return
                     else:
@@ -482,12 +485,14 @@ class ChatEngine:
                     duration_ms = (time.time() - t0) * 1000
                     if gen_res.get("status") == "success":
                         img_url = gen_res.get("url")
-                        telemetry_manager.add_tool_log("image_gen", clean_p[:60], "success", duration_ms)
+                        clean_summary = re.sub(r'[\r\n\t]+', ' ', clean_p).strip()[:100]
+                        telemetry_manager.add_tool_log("image_gen", clean_summary, "success", duration_ms)
                         context_snippets.append(
                             f"--- CREATIVE CORE: LIVE IMAGE SYNTHESIS COMPLETE ---\n"
                             f"Image URL: {img_url}\n"
-                            f"Markdown Embed: ![{clean_p}]({img_url})\n"
-                            f"Directive: Include the markdown image embed at the top of your response and provide a rich cinematic narrative describing the artwork."
+                            f"Visual Card Embed: __IMAGE__:{img_url}\n"
+                            f"Markdown Embed: ![{clean_summary}]({img_url})\n"
+                            f"Directive: Include the Visual Card Embed '__IMAGE__:{img_url}' at the top of your response so the image renders directly in the user's chatbox, followed by a cinematic narrative describing the artwork."
                         )
                 except Exception as e:
                     logger.error(f"Creative Core image generation error: {e}")
