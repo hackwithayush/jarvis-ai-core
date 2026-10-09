@@ -87,6 +87,8 @@ class ModelManager:
 
     def is_ollama_running(self) -> bool:
         """Check if Ollama server is reachable."""
+        if config.SERVER_MODE:
+            return False
         try:
             resp = requests.get(f"{self.host}/api/tags", timeout=2)
             return resp.status_code == 200
@@ -305,6 +307,7 @@ class ModelManager:
         """Analyze an image using a multimodal model (Cloud with multi-provider failover, or Local)."""
         import base64
         import mimetypes
+        errors = []
         try:
             with open(image_path, "rb") as image_file:
                 image_bytes = image_file.read()
@@ -314,7 +317,7 @@ class ModelManager:
 
             # --- Choice A: Google Gemini (FREE flagship with model-level failover) ---
             if self.gemini_client:
-                gemini_models = ["gemini-2.5-flash", "gemini-3.8-flash"]
+                gemini_models = ["gemini-flash-latest", "gemini-3.7-flash", "gemini-2.5-flash", "gemini-3.8-flash"]
                 for g_model in gemini_models:
                     try:
                         logger.info(f"Vision Node Active: Analyzing image with {g_model} (Gemini)...")
@@ -329,10 +332,13 @@ class ModelManager:
                                 temperature=self.temperature,
                             )
                         )
-                        if response and response.text:
+                        if response and getattr(response, "text", None):
                             return response.text.strip()
+                        else:
+                            errors.append(f"Gemini ({g_model}): Received empty response.")
                     except Exception as e:
                         logger.warning(f"Gemini Vision ({g_model}) failed: {e}. Trying next vision node...")
+                        errors.append(f"Gemini ({g_model}): {e}")
 
             # --- Choice B: OpenRouter Multimodal Failover ---
             if self.openrouter_client:
@@ -356,10 +362,13 @@ class ModelManager:
                         max_tokens=200,
                         timeout=30
                     )
-                    if resp and resp.choices and resp.choices[0].message.content:
+                    if resp and resp.choices and resp.choices[0].message and resp.choices[0].message.content:
                         return resp.choices[0].message.content.strip()
+                    else:
+                        errors.append("OpenRouter (google/gemini-2.5-flash): Empty response")
                 except Exception as e:
                     logger.warning(f"OpenRouter Vision failed: {e}. Trying next vision node...")
+                    errors.append(f"OpenRouter: {e}")
 
             # --- Choice C: OpenAI Prime (Cloud) ---
             if self.openai_client:
@@ -384,10 +393,13 @@ class ModelManager:
                         max_tokens=500,
                         timeout=30
                     )
-                    if response and response.choices and response.choices[0].message.content:
+                    if response and response.choices and response.choices[0].message and response.choices[0].message.content:
                         return response.choices[0].message.content.strip()
+                    else:
+                        errors.append(f"OpenAI ({model}): Empty response")
                 except Exception as e:
                     logger.warning(f"OpenAI Vision failed: {e}. Trying next vision node...")
+                    errors.append(f"OpenAI: {e}")
 
             # --- Choice D: Ollama (Local Node — only if server is running and model exists) ---
             if not config.SERVER_MODE and self.is_ollama_running():
@@ -405,15 +417,18 @@ class ModelManager:
                         resp = requests.post(f"{self.host}/api/generate", json=payload, timeout=60)
                         if resp.status_code == 200:
                             return resp.json().get("response", "Vision processing complete, but no text response returned.")
+                        else:
+                            errors.append(f"Local Ollama ({model}): HTTP {resp.status_code}")
                     except Exception as loc_e:
                         logger.warning(f"Local Ollama vision failed: {loc_e}")
+                        errors.append(f"Local Ollama ({model}): {loc_e}")
 
-            # Safe and clean failure message if no multimodal nodes responded
+            # Safe and clean diagnostic message if no multimodal nodes responded
+            diag_lines = "\n".join(f"• {err}" for err in errors) if errors else "• No active multimodal vision providers were reachable."
             return (
-                "⚠️ Vision Processing Notice: Unable to analyze image.\n"
-                "Cloud vision engines (Gemini / OpenRouter) did not return a response, "
-                "and no local multimodal model is running. If running in the cloud, "
-                "please ensure GEMINI_API_KEY or OPENROUTER_API_KEY is configured in your environment."
+                "⚠️ Vision Processing Notice: Unable to analyze image.\n\n"
+                f"Provider Diagnostics:\n{diag_lines}\n\n"
+                "Please verify your GEMINI_API_KEY or OPENROUTER_API_KEY in your cloud environment."
             )
 
         except Exception as e:

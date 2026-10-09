@@ -43,12 +43,12 @@ STARK_RAW_PROTOCOL = """
 """
 
 # ─── External Brain (SaaS / Cloud) ─────────────────────────────
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "") or os.environ.get("GOOGLE_API_KEY", "")  # FREE flagship via Google AI Studio
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")      # FREE fast inference via Groq Cloud
-OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
-TOGETHER_API_KEY = os.environ.get("TOGETHER_API_KEY", "")
-ZAI_API_KEY = os.environ.get("ZAI_API_KEY", "")
+OPENAI_API_KEY = (os.environ.get("OPENAI_API_KEY") or "").strip().strip('"').strip("'")
+GEMINI_API_KEY = (os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_KEY") or "").strip().strip('"').strip("'")  # FREE flagship via Google AI Studio
+GROQ_API_KEY = (os.environ.get("GROQ_API_KEY") or os.environ.get("GROQ_KEY") or "").strip().strip('"').strip("'")      # FREE fast inference via Groq Cloud
+OPENROUTER_API_KEY = (os.environ.get("OPENROUTER_API_KEY") or os.environ.get("OPENROUTER_KEY") or "").strip().strip('"').strip("'")
+TOGETHER_API_KEY = (os.environ.get("TOGETHER_API_KEY") or "").strip().strip('"').strip("'")
+ZAI_API_KEY = (os.environ.get("ZAI_API_KEY") or "").strip().strip('"').strip("'")
 
 # ─── Deployment & Resilience ──────────────────────────────────
 # Set to 'true' in your cloud environment variables to disable local Ollama
@@ -81,7 +81,7 @@ ROUTING_CONFIG = {
     # 🏆 Flagship (Groq GPT-OSS 120B / Qwen 3.8 / Gemini)
     "flagship": "openai/gpt-oss-120b",
     # 👁️ Vision (Multimodal)
-    "vision": "gemini-2.5-flash",
+    "vision": "gemini-flash-latest",
     # 🧠 Reasoning Specialist
     "reasoning": "openai/gpt-oss-120b",
     "agentic": "openai/gpt-oss-120b",
