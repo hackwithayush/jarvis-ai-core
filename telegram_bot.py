@@ -1514,29 +1514,59 @@ def is_image_request(text: str) -> bool:
     if not normalized:
         return False
 
+    # 1. Slash command variations: /image, / image, /img, /imagine, /photo, /picture, /draw, /paint, /render
+    if re.match(r"^/\s*(?:image|img|imagine|photo|picture|pic|draw|paint|render|visualize)\b", normalized):
+        return True
+
+    # 2. General slash with non-system commands e.g. "/ dog set on ground"
+    NON_IMAGE_COMMANDS = {
+        "start", "help", "menu", "status", "vitals", "mode", "clear", "reset",
+        "chat", "code", "intel", "security", "research", "settings", "tools", "web"
+    }
+    if normalized.startswith("/"):
+        slash_token_match = re.match(r"^/\s*([a-zA-Z0-9_-]+)", normalized)
+        if slash_token_match:
+            cmd_token = slash_token_match.group(1).lower()
+            if cmd_token not in NON_IMAGE_COMMANDS:
+                return True
+
     patterns = [
-        r"^(?:please\s+)?(?:create|make|generate|draw|design)\s+(?:an?\s+)?(?:image|picture|photo|art|poster|portrait)\b",
-        r"^(?:please\s+)?(?:create|make|generate|draw|design)\s+(?:an?\s+)?(?:realistic|anime|cyberpunk|3d|cinematic)\b.*\b(?:image|art|portrait|poster)\b",
-        r"^/image\b",
-        r"^generate\s+image\b",
-        r"^create\s+image\b",
-        r"^draw\s+(?:me\s+)?(?:an?\s+)?image\b",
+        r"^(?:please\s+)?(?:create|make|generate|draw|paint|render|design)\s+(?:an?\s+)?(?:image|picture|photo|photograph|art|poster|portrait|wallpaper)\b",
+        r"^(?:please\s+)?(?:create|make|generate|draw|paint|render|design)\s+(?:an?\s+)?(?:realistic|anime|cyberpunk|3d|cinematic)\b.*\b(?:image|art|portrait|poster)\b",
+        r"^(?:please\s+)?(?:draw|paint|sketch)\s+(?:me\s+)?(?:an?\s+)?",
+        r"^(?:photo|photograph|picture|image)\s+of\b",
+        r"^(?:a\s+)?(?:breathtaking|stunning|cinematic|photorealistic|hyperrealistic|realistic|4k|8k|ultra-detailed)\s+(?:photograph|photo|image|portrait|picture)\s+of\b",
     ]
     return any(re.search(pattern, normalized) for pattern in patterns)
 
 
 def extract_image_prompt(text: str) -> str:
     """Remove only the leading image command; never globally delete words."""
-    text = (text or "").strip()
+    raw = (text or "").strip()
 
-    patterns = [
-        r"^/image\s+",
-        r"^(?:please\s+)?(?:generate|create|make|draw|design)\s+(?:an?\s+)?image\s+",
+    # Slash command prefixes
+    slash_match = re.match(r"^/\s*(?:image|img|imagine|photo|picture|pic|draw|paint|render|visualize)[:\s]*(.*)$", raw, re.IGNORECASE | re.DOTALL)
+    if slash_match:
+        p = slash_match.group(1).strip()
+        return p or "a high-quality cinematic image"
+
+    # Other slash command like "/ dog set on ground"
+    if raw.startswith("/"):
+        p = re.sub(r"^/\s*", "", raw).strip()
+        if p:
+            return p
+
+    # Natural language prefix removal
+    nl_prefixes = [
+        r"^(?:please\s+)?(?:generate|create|make|render)\s+(?:an?\s+)?(?:image|picture|photo|photograph|wallpaper|illustration|art)\s+(?:of|showing|depicting|with)?\s*",
+        r"^(?:please\s+)?(?:draw|paint|sketch)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|illustration|painting)?\s*(?:of)?\s*",
+        r"^(?:take|snap)\s+(?:a\s+)?(?:photo|picture)\s+of\s*",
+        r"^(?:photo|photograph|picture|image)\s+of\s*",
     ]
-    for pattern in patterns:
-        text = re.sub(pattern, "", text, count=1, flags=re.IGNORECASE)
+    for pattern in nl_prefixes:
+        raw = re.sub(pattern, "", raw, count=1, flags=re.IGNORECASE)
 
-    return text.strip() or "a high-quality cinematic image"
+    return raw.strip() or "a high-quality cinematic image"
 
 
 async def generate_images(update: Update, prompt: str) -> None:

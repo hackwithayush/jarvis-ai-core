@@ -331,6 +331,90 @@ class ChatEngine:
             logger.error(f"MCP Sync Error in {tool_name}: {e}", exc_info=True)
             return f"[Tool Execution Failed: {e}]"
 
+    def detect_image_intent(self, text: str, conv: Optional[dict] = None) -> Optional[str]:
+        """
+        Detects if user message is an explicit or natural language image generation request,
+        or an affirmative follow-up to an assistant image offer.
+        Returns the sanitized prompt string if image generation is requested, else None.
+        """
+        if not text:
+            return None
+        
+        raw = text.strip()
+        lower = raw.lower()
+        
+        # 1. Expanded Slash commands:
+        # /image, / image, /img, / img, /imagine, /photo, /picture, /pic, /draw, /paint, /render, /visualize
+        slash_match = re.match(r"^/\s*(?:image|img|imagine|photo|picture|pic|draw|paint|render|visualize)[:\s]*(.*)$", raw, re.IGNORECASE | re.DOTALL)
+        if slash_match:
+            p = slash_match.group(1).strip()
+            return p or "a stunning cinematic masterpiece"
+        
+        # 2. General slash with non-system command e.g. "/ dog set on ground"
+        NON_IMAGE_COMMANDS = {
+            "code", "web", "tools", "security", "intel", "research", "help", "reset",
+            "clear", "export", "status", "vitals", "diag", "diagnostics", "agent",
+            "model", "settings", "config", "quit", "exit"
+        }
+        if raw.startswith("/"):
+            slash_token_match = re.match(r"^/\s*([a-zA-Z0-9_-]+)(?:\s+(.*))?$", raw, re.DOTALL)
+            if slash_token_match:
+                cmd_token = slash_token_match.group(1).lower()
+                rest = (slash_token_match.group(2) or "").strip()
+                if cmd_token not in NON_IMAGE_COMMANDS:
+                    full_p = f"{cmd_token} {rest}".strip()
+                    if full_p:
+                        return full_p
+
+        # 3. Conversational affirmative response to previous image prompt offer:
+        AFFIRMATIVES = {
+            "yeah", "yes", "sure", "yep", "yup", "ok", "okay", "make it", "do it",
+            "generate it", "create it", "draw it", "snap it", "go ahead", "please do",
+            "yes please", "do that", "snap a photo", "take a photo", "snap photo"
+        }
+        clean_short = re.sub(r'[^\w\s]', '', lower).strip()
+        if clean_short in AFFIRMATIVES and conv and conv.get("messages"):
+            msgs = conv.get("messages", [])
+            last_assistant_msg = ""
+            prev_user_msg = ""
+            for m in reversed(msgs):
+                if m.get("role") == "assistant" and not last_assistant_msg:
+                    last_assistant_msg = m.get("content", "")
+                elif m.get("role") == "user" and not prev_user_msg:
+                    prev_user_msg = m.get("content", "")
+                if last_assistant_msg and prev_user_msg:
+                    break
+            
+            if any(term in last_assistant_msg.lower() for term in ["snap a photo", "take a photo", "snap a picture", "generate an image", "create an image", "photo of", "picture of"]):
+                cand_match = re.search(r"(?:snap|take|generate|create|make)\s+(?:a\s+)?(?:photo|picture|image)\s+of\s+([^?.!\n]+)", last_assistant_msg, re.IGNORECASE)
+                if cand_match:
+                    found_subject = cand_match.group(1).strip()
+                    if found_subject.lower() in ["it", "that", "this"]:
+                        cleaned_prev = re.sub(r"^/\s*(?:image|img|photo)?\s*", "", prev_user_msg, flags=re.IGNORECASE).strip()
+                        return cleaned_prev or "cinematic photograph"
+                    return f"photograph of {found_subject}"
+                elif prev_user_msg:
+                    cleaned_prev = re.sub(r"^/\s*(?:image|img|photo)?\s*", "", prev_user_msg, flags=re.IGNORECASE).strip()
+                    if cleaned_prev:
+                        return cleaned_prev
+
+        # 4. Natural language generation patterns
+        nl_patterns = [
+            r"^(?:please\s+)?(?:generate|create|make|render)\s+(?:an?\s+)?(?:image|picture|photo|photograph|wallpaper|illustration|art)\s+(?:of|showing|depicting|with)?\s*(.+)$",
+            r"^(?:please\s+)?(?:draw|paint|sketch)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|illustration|painting)?\s*(?:of)?\s*(.+)$",
+            r"^(?:take|snap)\s+(?:a\s+)?(?:photo|picture)\s+of\s+(.+)$",
+            r"^(?:photo|photograph|picture|image)\s+of\s+(.+)$",
+            r"^(?:a\s+)?(?:breathtaking|stunning|cinematic|photorealistic|hyperrealistic|realistic|4k|8k|ultra-detailed)\s+(?:photograph|photo|image|portrait|picture)\s+of\s+(.+)$",
+        ]
+        for pat in nl_patterns:
+            m = re.match(pat, raw, re.IGNORECASE | re.DOTALL)
+            if m:
+                extracted = m.group(1).strip()
+                if extracted and len(extracted) > 1:
+                    return extracted
+
+        return None
+
     def chat_stream(self, message: str, user: User, conv_id: Optional[str] = None, mode: Optional[str] = None, file_context: Optional[str] = None, trace_id: Optional[str] = None, model: Optional[str] = None, **kwargs) -> Generator[str, None, None]:
         """Execute the Multi-Agent graph or Standard fallback and stream the final synthesis."""
         
@@ -371,45 +455,57 @@ class ChatEngine:
         context_snippets = []
         message_lower = corrected_message.lower()
 
-        # Command Bar tool prefixes handling
-        image_match = re.match(r"^/image[:\s]*(.*)$", clean_msg, re.IGNORECASE | re.DOTALL)
-        if image_match and image_match.group(1).strip():
-            image_prompt = image_match.group(1).strip()
-            if image_prompt:
-                clean_alt = re.sub(r'[\r\n\t]+', ' ', image_prompt).strip()
-                display_prompt = clean_alt[:120] + ("..." if len(clean_alt) > 120 else "")
-                yield f"🎨 **Vision Node**: Synthesizing imagery for *\"{display_prompt}\"*...\n\n"
-                try:
-                    from core.image_engine import ImageGenerator
-                    gen_res = ImageGenerator().generate(image_prompt)
-                    if gen_res.get("status") == "success":
-                        img_url = gen_res.get("url")
-                        yield f"__IMAGE__:{img_url}\n\n"
-                        yield f"![{display_prompt}]({img_url})\n\n"
-                        yield f"✨ *{display_prompt}* rendered successfully.\n\n"
-                        yield f"**Status**: Ready · **Archive**: `{gen_res.get('filename', 'asset')}`"
-                        return
-                    else:
-                        yield f"⚠ Image synthesis issue: {gen_res.get('message', 'Failed to render')}"
-                        return
-                except Exception as e:
-                    yield f"⚠ Vision Node error: {e}"
-                    return
+        # Image generation intent interception across all modes and prefixes
+        detected_image_prompt = self.detect_image_intent(clean_msg, conv)
+        if detected_image_prompt:
+            clean_alt = re.sub(r'[\r\n\t]+', ' ', detected_image_prompt).strip()
+            display_prompt = clean_alt[:120] + ("..." if len(clean_alt) > 120 else "")
+            yield f"🎨 **Vision Node**: Synthesizing imagery for *\"{display_prompt}\"*...\n\n"
+            try:
+                from core.image_engine import ImageGenerator
+                gen_res = ImageGenerator().generate(detected_image_prompt)
+                if gen_res.get("status") == "success":
+                    img_url = gen_res.get("url")
+                    filename = gen_res.get("filename", "asset")
+                    yield f"__IMAGE__:{img_url}\n\n"
+                    yield f"![{display_prompt}]({img_url})\n\n"
+                    yield f"✨ *{display_prompt}* rendered successfully.\n\n"
+                    yield f"**Status**: Ready · **Archive**: `{filename}`"
 
-        if clean_msg.lower().startswith("/code "):
-            clean_msg = clean_msg[6:].strip()
+                    # Save to conversation history
+                    assistant_reply = (
+                        f"🎨 **Vision Node**: Synthesizing imagery for *\"{display_prompt}\"*...\n\n"
+                        f"__IMAGE__:{img_url}\n\n"
+                        f"![{display_prompt}]({img_url})\n\n"
+                        f"✨ *{display_prompt}* rendered successfully.\n\n"
+                        f"**Status**: Ready · **Archive**: `{filename}`"
+                    )
+                    now_iso = datetime.now(timezone.utc).isoformat()
+                    conv["messages"].append({"role": "user", "content": message, "timestamp": now_iso})
+                    conv["messages"].append({"role": "assistant", "content": assistant_reply, "timestamp": now_iso})
+                    self._save_conversation(conv_id)
+                    return
+                else:
+                    yield f"⚠ Image synthesis issue: {gen_res.get('message', 'Failed to render')}"
+                    return
+            except Exception as e:
+                yield f"⚠ Vision Node error: {e}"
+                return
+
+        if re.match(r"^/code[:\s]", clean_msg, re.IGNORECASE):
+            clean_msg = re.sub(r"^/code[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
             message = clean_msg
             corrected_message = self.correct_typos(message)
             mode = "code"
 
-        elif clean_msg.lower().startswith("/web "):
-            clean_msg = clean_msg[5:].strip()
+        elif re.match(r"^/web[:\s]", clean_msg, re.IGNORECASE):
+            clean_msg = re.sub(r"^/web[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
             message = clean_msg
             corrected_message = self.correct_typos(message)
             mode = "intel"
 
-        elif clean_msg.lower().startswith("/tools "):
-            clean_msg = clean_msg[7:].strip()
+        elif re.match(r"^/tools[:\s]", clean_msg, re.IGNORECASE):
+            clean_msg = re.sub(r"^/tools[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
             message = clean_msg
             corrected_message = self.correct_typos(message)
             mode = "security"

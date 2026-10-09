@@ -447,18 +447,50 @@ class WebSearchEngine:
     def extract_entity_candidate(message: str) -> Optional[str]:
         """
         Extract the target person/entity from user queries like:
-        - 'who is darke my ai give me full info with there origianl pics and image good quailty'
+        - 'who is drake my ai give me full info with their original pics'
         - 'who is drake'
         - 'tell me about elon musk with original photos'
+        - 'biography of albert einstein'
         - 'show me original pictures of virat kohli'
         """
         if not message:
             return None
 
         t = message.strip()
-        # Normalize common entity typos
+        # Fast bailouts: commands or image generation queries should NEVER trigger entity bio extraction
+        if t.startswith("/"):
+            return None
+
         t_normalized = re.sub(r'\bdarke\b', 'drake', t, flags=re.IGNORECASE)
         t_lower = t_normalized.lower()
+
+        # Image generation triggers should never trigger biographical dossier
+        image_triggers = ["generate image", "create image", "draw", "render", "paint", "wallpaper", "photograph of", "photo of", "picture of"]
+        if any(it in t_lower for it in image_triggers):
+            # Exception: explicit requests like 'who is ... with photos'
+            if not any(k in t_lower for k in ["who is", "who was", "biography", "bio of", "tell me about", "profile of"]):
+                return None
+
+        # Disallowed generic nouns and stop words
+        STOP_ENTITIES = {
+            "ground", "floor", "wall", "sky", "earth", "world", "room", "table", "chair",
+            "bed", "car", "dog", "cat", "bird", "tree", "house", "computer", "phone",
+            "screen", "code", "image", "picture", "photo", "this", "that", "it", "them",
+            "him", "her", "me", "you", "us", "something", "anything", "nothing", "everything",
+            "someone", "anyone", "water", "air", "grass", "mountain", "cloud", "clouds"
+        }
+
+        def clean_candidate(cand: str) -> Optional[str]:
+            if not cand:
+                return None
+            cand = cand.strip().strip(".?,!'\"")
+            # Remove leading articles
+            cand = re.sub(r'^(?:a|an|the|my|our|your|his|her|their)\s+', '', cand, flags=re.IGNORECASE).strip()
+            if len(cand) < 2 or cand.lower() in STOP_ENTITIES:
+                return None
+            if cand.isdigit():
+                return None
+            return cand
 
         # 1. Pattern: 'who is / who was / who are X'
         m1 = re.search(
@@ -466,21 +498,31 @@ class WebSearchEngine:
             t_lower
         )
         if m1:
-            candidate = m1.group(1).strip()
-            if len(candidate) >= 2 and candidate not in ["that", "this", "he", "she", "it", "they"]:
-                return candidate
+            cand = clean_candidate(m1.group(1))
+            if cand:
+                return cand
 
-        # 2. Pattern: 'tell me about X' or 'info on / about X' or 'pics of X'
+        # 2. Pattern: 'tell me about X' or 'info on / about X' or 'biography of X' or 'profile of X'
         m2 = re.search(
-            r'\b(?:about|of|on|for)\s+([a-zA-Z0-9\s\.\'\-]+?)(?:\s+(?:my\s+ai|give\s+me|with\s+|and\s+|full\s+|origianl|original|pics|picture|pictures|image|images|photo|photos|biography|bio|details|good\s+quality)|\?|\.|$)',
+            r'\b(?:tell\s+me\s+about|information\s+(?:about|on)|info\s+(?:about|on)|biography\s+of|bio\s+of|profile\s+of)\s+([a-zA-Z0-9\s\.\'\-]+?)(?:\s+(?:my\s+ai|give\s+me|with\s+|and\s+|full\s+|origianl|original|pics|picture|pictures|image|images|photo|photos|details|good\s+quality)|\?|\.|$)',
             t_lower
         )
         if m2:
-            candidate = m2.group(1).strip()
-            if len(candidate) >= 2 and candidate not in ["that", "this", "him", "her", "them", "the"]:
-                return candidate
+            cand = clean_candidate(m2.group(1))
+            if cand:
+                return cand
 
-        # 3. Direct mention if short e.g. "drake", "drake rapper"
+        # 3. Pattern: 'original pictures / photos of X' (explicit biographical photo search)
+        m3 = re.search(
+            r'\b(?:original|real)\s+(?:photos?|pics?|pictures?|images?)\s+of\s+([a-zA-Z0-9\s\.\'\-]+?)(?:\s+(?:good\s+quality|hd|4k)|\?|\.|$)',
+            t_lower
+        )
+        if m3:
+            cand = clean_candidate(m3.group(1))
+            if cand:
+                return cand
+
+        # 4. Direct mention if short e.g. "drake", "drake rapper"
         words = t_lower.split()
         if len(words) <= 3 and any(w in ["drake", "darke"] for w in words):
             return "drake"
