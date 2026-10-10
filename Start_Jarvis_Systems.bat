@@ -17,7 +17,7 @@ echo - Cognitive Level: GPT-5.5 Equivalent
 echo.
 echo What are your orders, Boss?
 echo.
-echo   [0] Launch 3-Agent Adversarial Review CLI (/review)
+echo   [0] Launch Adversarial Review
 echo   [1] Boot Terminal Interface (Direct Chat)
 echo   [2] Boot Web Interface (Full UI)
 echo   [3] Boot Telegram Agent (Mobile Access)

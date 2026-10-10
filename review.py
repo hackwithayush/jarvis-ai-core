@@ -43,17 +43,19 @@ def enable_windows_ansi():
 
 def run_single_review(topic: str):
     """Stream the 3-agent adversarial debate directly to the console."""
-    clean_topic = topic.strip()
-    if clean_topic.lower().startswith(("/review", "/r", "/debate", "/ar")):
-        parts = clean_topic.split(maxsplit=1)
-        clean_topic = parts[1].strip() if len(parts) > 1 else ""
+    import re
+    clean_topic = re.sub(
+        r"^(?:/\s*(?:adversarial[\s_-]*review|review|adversarial|debate|truth|audit|ar|vs|r|3)|adversarial\s+review)[:\s]*",
+        "",
+        topic.strip(),
+        flags=re.IGNORECASE
+    ).strip()
 
     if not clean_topic:
-        print(f"{RED}⚠️ Please enter a valid topic to review.{RESET}")
-        return
+        clean_topic = "Should early-stage startups choose a Modular Monolith over Microservices for mission-critical systems?"
 
     print(f"\n{CYAN}{BOLD}" + "=" * 72)
-    print(f" 🏛️  JARVIS 3-AGENT ADVERSARIAL REVIEW COURT")
+    print(f" 🏛️  JARVIS ADVERSARIAL REVIEW")
     print(f" 🎯  Topic: {AMBER}{clean_topic}{CYAN}")
     print("=" * 72 + f"{RESET}\n")
 
@@ -87,14 +89,14 @@ def main():
 
     # Interactive mode
     print(f"{CYAN}{BOLD}" + "=" * 72)
-    print(" 🏛️  JARVIS ADVERSARIAL REVIEW CLI (3 Agents Argue to Find Truth)")
+    print(" 🏛️  JARVIS ADVERSARIAL REVIEW")
     print("     Nodes: 🏛️ Proponent (Thesis) · ⚔️ Adversary (Red Team) · ⚖️ Arbiter")
     print("=" * 72 + f"{RESET}")
-    print(f"Type any question, topic, or architecture dilemma below (or {BOLD}'q'{RESET} to exit).\n")
+    print(f"Type any question, topic, or '/Adversarial Review' below (or {BOLD}'q'{RESET} to exit).\n")
 
     while True:
         try:
-            topic = input(f"{AMBER}{BOLD}⚖️  /review > {RESET}").strip()
+            topic = input(f"{AMBER}{BOLD}⚖️  Adversarial Review > {RESET}").strip()
             if not topic:
                 continue
             if topic.lower() in {"q", "quit", "exit", "/quit", "/exit"}:

@@ -264,7 +264,7 @@ async def render_loop():
             )
             
             prompt_content = Text(f" ◉ BOSS [{datetime.now().strftime('%H:%M')}] > {ui_state.current_input}_", style="user_label")
-            prompt_panel = Panel(prompt_content, subtitle="Tip: Type /r <topic> for 3-Agent Adversarial Review", border_style="dim #5f87ff")
+            prompt_panel = Panel(prompt_content, subtitle="Tip: Type /Adversarial Review", border_style="dim #5f87ff")
             
             main_group = Group(response_panel, prompt_panel)
             side_car = Columns([Text("\n" + core_anim, style="cyan"), telemetry_panel], expand=False)
