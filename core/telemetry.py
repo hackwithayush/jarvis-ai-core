@@ -25,7 +25,7 @@ class TelemetryManager:
             return cls._instance
 
     def _init_telemetry(self):
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.start_time = time.time()
         self.traces: List[str] = ["Central Intelligence Brain Node Activated."]
         self.tool_logs: List[Dict[str, Any]] = []

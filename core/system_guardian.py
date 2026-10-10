@@ -19,6 +19,9 @@ logger = logging.getLogger("jarvis.security_guardian")
 
 class SystemGuardian:
     """Windows Security and OS Optimization Engine."""
+    _daemon_started = False
+    _cached_security_report = None
+    _cached_security_ts = 0.0
 
     def __init__(self):
         self.is_windows = platform.system().lower() == "windows"
@@ -28,18 +31,21 @@ class SystemGuardian:
         self.reg_sandbox = RegistrySandbox()
         self.process_executor = RestrictedProcessExecutor(is_dry_run=False)
         
-        # Start proactive remediation loop in a daemon thread
-        import threading
-        t = threading.Thread(target=self._run_proactive_remediation_loop, args=(300,), daemon=True)
-        t.start()
+        # Start proactive remediation loop in a single daemon thread across the process
+        if not SystemGuardian._daemon_started:
+            SystemGuardian._daemon_started = True
+            import threading
+            t = threading.Thread(target=self._run_proactive_remediation_loop, args=(300,), daemon=True)
+            t.start()
 
     def _run_proactive_remediation_loop(self, interval_seconds: int = 300):
         """Runs the background monitoring thread and performs self-healing under 80.0 neural health."""
         logger.info("[GUARDIAN DAEMON] Started proactive system remediation daemon.")
+        time.sleep(25)
         while True:
             try:
                 # 1. Gather baseline scans
-                sec_scan = self.audit_security_status()
+                sec_scan = self.audit_security_status(use_cache=False)
                 bug_scan = self.audit_system_bugs()
                 health = self.compute_health_score(sec_scan, bug_scan) * 10.0 # scaled to 100.0
                 
@@ -93,8 +99,11 @@ class SystemGuardian:
             with winreg.OpenKey(winreg.HKEY_CURRENT_USER, "Environment", 0, winreg.KEY_ALL_ACCESS) as key:
                 winreg.SetValueEx(key, "Path", 0, winreg.REG_SZ, value)
 
-    def audit_security_status(self) -> dict:
+    def audit_security_status(self, use_cache: bool = True, max_age_seconds: int = 180) -> dict:
         """Audits Windows Defender, Firewall, and startup security."""
+        if use_cache and SystemGuardian._cached_security_report and (time.time() - SystemGuardian._cached_security_ts) < max_age_seconds:
+            return SystemGuardian._cached_security_report
+
         report = {
             "defender_active": False,
             "firewall_active": False,
@@ -112,8 +121,8 @@ class SystemGuardian:
 
         # 1. Audit Windows Defender via PowerShell
         try:
-            cmd = "powershell -Command \"Get-MpComputerStatus | Select-Object -Property AntivirusEnabled, AMServiceEnabled, RealTimeProtectionEnabled, BehaviorMonitorEnabled | ConvertTo-Json\""
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+            cmd = "powershell -NoProfile -NonInteractive -Command \"Get-MpComputerStatus | Select-Object -Property AntivirusEnabled, AMServiceEnabled, RealTimeProtectionEnabled, BehaviorMonitorEnabled | ConvertTo-Json\""
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3)
             if res.returncode == 0 and res.stdout.strip():
                 import json
                 data = json.loads(res.stdout.strip())
@@ -136,8 +145,8 @@ class SystemGuardian:
 
         # 2. Audit Windows Firewall Status
         try:
-            cmd = "powershell -Command \"Get-NetFirewallProfile -PolicyStore ActiveStore | Select-Object -Property Name, Enabled | ConvertTo-Json\""
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+            cmd = "powershell -NoProfile -NonInteractive -Command \"Get-NetFirewallProfile -PolicyStore ActiveStore | Select-Object -Property Name, Enabled | ConvertTo-Json\""
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3)
             if res.returncode == 0 and res.stdout.strip():
                 import json
                 data = json.loads(res.stdout.strip())
@@ -230,6 +239,8 @@ class SystemGuardian:
                 except Exception as b_err:
                     logger.debug(f"[GUARDIAN] Breach alert dispatch failed: {b_err}")
 
+        SystemGuardian._cached_security_report = report
+        SystemGuardian._cached_security_ts = time.time()
         return report
 
     def audit_system_bugs(self) -> dict:
@@ -301,7 +312,7 @@ class SystemGuardian:
             except Exception as e:
                 report["warnings"].append(f"Event Log query failure: {e}")
 
-        # 3. Audit Temp Bloat
+        # 3. Audit Temp Bloat (bounded scan to prevent GIL contention)
         try:
             temp_paths = []
             if self.is_windows:
@@ -310,15 +321,21 @@ class SystemGuardian:
                 temp_paths.append("/tmp")
 
             total_bytes = 0
+            scanned_files = 0
             for temp_dir in temp_paths:
                 if temp_dir and os.path.exists(temp_dir):
                     for root, _, files in os.walk(temp_dir):
                         for f in files:
+                            scanned_files += 1
+                            if scanned_files > 400:
+                                break
                             try:
                                 fp = os.path.join(root, f)
                                 total_bytes += os.path.getsize(fp)
                             except OSError:
                                 pass
+                        if scanned_files > 400:
+                            break
             report["bloat_size_mb"] = round(total_bytes / (1024 * 1024), 2)
             if report["bloat_size_mb"] > 1024:
                 report["warnings"].append(f"Large bloat detected: Temp folder exceeds {report['bloat_size_mb']} MB.")

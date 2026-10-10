@@ -363,7 +363,7 @@ class WebSearchEngine:
 
     # ─── Context Building ───────────────────────────────────────────
 
-    def build_search_context(self, message: str) -> str:
+    def build_search_context(self, message: str, force: bool = False, max_results: int = None) -> str:
         """
         Detect intent, search the web, and return a formatted context
         string ready for injection into the LLM system prompt.
@@ -374,7 +374,7 @@ class WebSearchEngine:
         # Check for instant live foreign exchange rate
         fx_quote = self.get_live_fx_quote(message)
 
-        if not self.needs_web_search(message) and not fx_quote:
+        if not force and not self.needs_web_search(message) and not fx_quote:
             return ""
 
         query = self.extract_search_query(message).lower()
@@ -393,10 +393,10 @@ class WebSearchEngine:
         is_news = any(kw in msg_lower for kw in SEARCH_TRIGGERS["news"])
 
         if is_news:
-            results = self.search_news(query)
+            results = self.search_news(query, max_results=max_results)
             label = "LIVE NEWS RESULTS"
         else:
-            results = self.search_text(query)
+            results = self.search_text(query, max_results=max_results)
             label = "LIVE WEB SEARCH RESULTS"
 
         if not results:

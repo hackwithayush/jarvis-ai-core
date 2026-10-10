@@ -684,13 +684,14 @@ class ChatEngine:
             active_temperature = 0.2
             telemetry_manager.add_trace(f"[SECURITY SCAN] Cyber Threat Intelligence & Vulnerability Auditor engaged ({active_model})")
 
-            # Always run live workstation security scan in Security Scan mode when system/network/security is mentioned
-            if any(k in message_lower for k in ["scan", "system", "security", "audit", "pc", "laptop", "firewall", "status", "malware", "health", "port", "network", "defender", "check"]):
+            # Run live workstation security scan when host OS / Defender / Firewall / PC posture is mentioned
+            host_sec_triggers = ["my pc", "my laptop", "my system", "workstation", "firewall", "defender", "malware", "host security", "startup", "processes", "system scan", "security status"]
+            if any(k in message_lower for k in host_sec_triggers):
                 try:
                     t0 = time.time()
                     from core.system_guardian import SystemGuardian
                     guardian = SystemGuardian()
-                    sec_audit = guardian.audit_security_status()
+                    sec_audit = guardian.audit_security_status(use_cache=True)
                     duration_ms = (time.time() - t0) * 1000
                     telemetry_manager.add_tool_log("security_guardian", "audit_security_status", "success", duration_ms)
                     context_snippets.append(
@@ -725,7 +726,7 @@ class ChatEngine:
             # Autonomous Live Web Intelligence Gathering
             try:
                 t0 = time.time()
-                search_res = self.web_search.build_search_context(corrected_message, max_results=6)
+                search_res = self.web_search.build_search_context(corrected_message, force=True, max_results=6)
                 duration_ms = (time.time() - t0) * 1000
                 telemetry_manager.add_tool_log("web_search", corrected_message[:60], "success" if search_res else "empty", duration_ms)
                 if search_res:
