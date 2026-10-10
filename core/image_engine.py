@@ -158,6 +158,9 @@ class ImageGenerator:
 
                 r2 = requests.get(f"{call_url}/{event_id}", headers=self.headers, timeout=35)
                 if r2.status_code != 200 or "event: error" in r2.text:
+                    if "ZeroGPU quota" in r2.text:
+                        logger.info("Vision Node: HF ZeroGPU quota reached, switching to Pollinations grid.")
+                        break
                     continue
 
                 img_url = self._extract_gradio_image_url(base, r2.text)
@@ -170,14 +173,12 @@ class ImageGenerator:
         return None
 
     def _try_pollinations(self, prompt: str, dest_path: str) -> str | None:
-        """Fallback to Pollinations AI with unique random seeds and multi-model rotation to avoid 402 rate limits."""
+        """Fallback to Pollinations AI with proper 3.5s burst-window pacing to eliminate 402 rate limits."""
         safe_prompt = requests.utils.quote(prompt)
-        models = ["flux", "turbo", "flux-realism"]
-        for attempt, model_name in enumerate(models):
-            seed = random.randint(1000, 9999999)
-            url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true&seed={seed}&model={model_name}&width=1024&height=1024"
+        url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true"
+        for attempt in range(4):
             try:
-                res = requests.get(url, headers=self.headers, stream=True, timeout=25)
+                res = requests.get(url, headers=self.headers, stream=True, timeout=30)
                 content_type = res.headers.get("content-type", "")
                 if res.status_code == 200 and "image" in content_type:
                     os.makedirs(os.path.dirname(dest_path), exist_ok=True)
@@ -185,11 +186,14 @@ class ImageGenerator:
                         res.raw.decode_content = True
                         shutil.copyfileobj(res.raw, f)
                     if os.path.exists(dest_path) and os.path.getsize(dest_path) > 1024:
-                        return f"Mission manifest via Pollinations AI ({model_name})."
-                time.sleep(1.0)
+                        return "Mission manifest via Pollinations AI acceleration grid."
+                # Pollinations enforces a ~3.5s per-IP cooldown window (returns 402/429 if faster)
+                wait_sec = 3.5 + (attempt * 1.5)
+                logger.info(f"Pollinations cooldown (status {res.status_code}), waiting {wait_sec:.1f}s...")
+                time.sleep(wait_sec)
             except Exception as e:
-                logger.warning(f"Pollinations ({model_name}) attempt {attempt+1} failed: {e}")
-                time.sleep(1.0)
+                logger.warning(f"Pollinations attempt {attempt+1} failed: {e}")
+                time.sleep(3.0)
         return None
 
     def generate(self, prompt: str):
