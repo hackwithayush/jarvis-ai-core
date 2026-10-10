@@ -457,6 +457,78 @@ class ChatEngine:
         context_snippets = []
         message_lower = corrected_message.lower()
 
+        # ─── Autonomous Adversarial Review Interceptor (3 Agents Argue to Find Truth) ───
+        adv_word = r"(?:adversarial|adviresal|adversial|adverisal|adverserial|advirsarial)"
+        adversarial_match = re.match(
+            rf"^(?:/\s*(?:{adv_word}[\s_-]*review|review|{adv_word}|debate|truth|audit|ar|vs|r|3)|{adv_word}\s+review)(?:[:\s]+(.*))?$",
+            clean_msg,
+            re.IGNORECASE | re.DOTALL
+        )
+        is_review_mode = (mode or "").lower() in ["review", "adversarial", "debate", "adversarial review"]
+        is_adversarial_nl = bool(re.search(
+            rf"(?:{adv_word}\s+(?:review|debate)|3\s+agents?\s+debate|three\s+agents?\s+debate|agents?\s+(?:that\s+)?argue\s+to\s+find\s+(?:the\s+)?truth|debate\s+between\s+3\s+agents|debate\s+to\s+find\s+the\s+truth)",
+            message_lower
+        ))
+
+        if adversarial_match or is_adversarial_nl or is_review_mode:
+            review_topic = ""
+            if adversarial_match:
+                review_topic = (adversarial_match.group(1) or "").strip()
+            if not review_topic and is_adversarial_nl:
+                # Strip conversational fluff from start OR end to isolate target inquiry
+                review_topic = re.sub(
+                    rf"^(?:please\s+)?(?:run|do|make|perform|start|give\s+me\s+(?:an?)?)?\s*(?:{adv_word}\s+review\s*(?:of|on|for)?|3\s+agents?\s+(?:that\s+)?argue\s+to\s+find\s+(?:the\s+)?truth\s*(?:about|on|of)?|3\s+agents?\s+debate\s*(?:on|about|of)?|debate\s+(?:between\s+3\s+agents\s+)?(?:on|about|of)?|argue\s+to\s+find\s+the\s+truth\s*(?:about|on|of)?)\s*",
+                    "",
+                    clean_msg,
+                    flags=re.IGNORECASE
+                ).strip()
+                review_topic = re.sub(
+                    rf"[\s\r\n]*(?:please\s+)?(?:run|do|make|perform|start)?\s*{adv_word}\s+(?:review|debate)\s*$",
+                    "",
+                    review_topic,
+                    flags=re.IGNORECASE
+                ).strip()
+                # Clean enclosing quotes or parentheses
+                review_topic = re.sub(r"^[\(\[\{\"\']+|[\)\]\}\"\']+$", "", review_topic).strip()
+                
+            review_topic = review_topic if adversarial_match else (review_topic or clean_msg)
+            bare_commands = {
+                "run adversarial review", "run adviresal review", "adversarial review",
+                "adviresal review", "adversarial debate", "make adversarial review",
+                "debate", "review", "/adversarial review", "/ adversarial review",
+                "/review", "/r", "/ar", "/debate", "/vs", "/3"
+            }
+            if not review_topic or review_topic.lower().strip() in bare_commands:
+                # Check if there is a recent topic in conversation history to review
+                prior_topic = ""
+                if conv and conv.get("messages"):
+                    for prev_m in reversed(conv.get("messages", [])):
+                        if prev_m.get("role") == "user":
+                            cand = (prev_m.get("content") or "").strip()
+                            if cand and cand.lower() not in bare_commands and not re.match(rf"^/\s*{adv_word}\s*review\s*$", cand, re.IGNORECASE):
+                                prior_topic = re.sub(rf"^/\s*(?:{adv_word}[\s_-]*review|review|r|ar|debate)[:\s]*", "", cand, flags=re.IGNORECASE).strip()
+                                if prior_topic:
+                                    break
+                review_topic = prior_topic or "Should early-stage startups choose a Modular Monolith over Microservices for mission-critical systems?"
+
+            try:
+                from core.adversarial_review import adversarial_review_engine
+                review_chunks = []
+                for chunk in adversarial_review_engine.stream_review(review_topic, ground_intel=clean_file_context):
+                    review_chunks.append(chunk)
+                    yield chunk
+
+                full_review = "".join(review_chunks)
+                now_iso = datetime.now(timezone.utc).isoformat()
+                conv["messages"].append({"role": "user", "content": message, "timestamp": now_iso})
+                conv["messages"].append({"role": "assistant", "content": full_review, "timestamp": now_iso})
+                self._save_conversation(conv_id)
+                return
+            except Exception as e:
+                logger.error(f"Adversarial Review streaming error: {e}")
+                yield f"⚠️ Adversarial Review Engine encountered an issue: {e}"
+                return
+
         # Image generation intent interception across all modes and prefixes
         detected_image_prompt = self.detect_image_intent(clean_msg, conv)
         if detected_image_prompt:
@@ -469,18 +541,17 @@ class ChatEngine:
                 if gen_res.get("status") == "success":
                     img_url = gen_res.get("url")
                     filename = gen_res.get("filename", "asset")
-                    yield f"__IMAGE__:{img_url}\n\n"
+                    provider_info = gen_res.get("info", "Z-Image-Turbo")
                     yield f"![{display_prompt}]({img_url})\n\n"
                     yield f"✨ *{display_prompt}* rendered successfully.\n\n"
-                    yield f"**Status**: Ready · **Archive**: `{filename}`"
+                    yield f"**Status**: Ready · **Engine**: `{provider_info}` · **Archive**: `{filename}`"
 
                     # Save to conversation history
                     assistant_reply = (
                         f"🎨 **Vision Node**: Synthesizing imagery for *\"{display_prompt}\"*...\n\n"
-                        f"__IMAGE__:{img_url}\n\n"
                         f"![{display_prompt}]({img_url})\n\n"
                         f"✨ *{display_prompt}* rendered successfully.\n\n"
-                        f"**Status**: Ready · **Archive**: `{filename}`"
+                        f"**Status**: Ready · **Engine**: `{provider_info}` · **Archive**: `{filename}`"
                     )
                     now_iso = datetime.now(timezone.utc).isoformat()
                     conv["messages"].append({"role": "user", "content": message, "timestamp": now_iso})
@@ -511,72 +582,6 @@ class ChatEngine:
             message = clean_msg
             corrected_message = self.correct_typos(message)
             mode = "security"
-
-        # ─── Autonomous Adversarial Review Interceptor (3 Agents Argue to Find Truth) ───
-        adversarial_match = re.match(
-            r"^(?:/\s*(?:adversarial[\s_-]*review|review|adversarial|debate|truth|audit|ar|vs|r|3)|adversarial\s+review)(?:[:\s]+(.*))?$",
-            clean_msg,
-            re.IGNORECASE | re.DOTALL
-        )
-        is_review_mode = (mode or "").lower() in ["review", "adversarial", "debate", "adversarial review"]
-        is_adversarial_nl = any(trigger in message_lower for trigger in [
-            "adversarial review", "adversarial debate", "3 agent debate", "3 agents debate",
-            "three agents debate", "three agent debate", "agents argue to find the truth",
-            "agents that argue to find the truth", "argue to find the truth", "debate between 3 agents",
-            "debate to find the truth", "3 agents that argue"
-        ])
-
-        if adversarial_match or is_adversarial_nl or is_review_mode:
-            review_topic = ""
-            if adversarial_match:
-                review_topic = (adversarial_match.group(1) or "").strip()
-            if not review_topic and is_adversarial_nl:
-                # Strip conversational fluff to isolate target inquiry
-                review_topic = re.sub(
-                    r"^(?:please\s+)?(?:run|do|make|perform|give\s+me\s+(?:an?)?)?\s*(?:adversarial\s+review\s+(?:of|on|for)?|3\s+agents?\s+(?:that\s+)?argue\s+to\s+find\s+(?:the\s+)?truth\s+(?:about|on|of)?|3\s+agents?\s+debate\s+(?:on|about|of)?|debate\s+(?:between\s+3\s+agents\s+)?(?:on|about|of)?|argue\s+to\s+find\s+the\s+truth\s+(?:about|on|of)?)\s*",
-                    "",
-                    clean_msg,
-                    flags=re.IGNORECASE
-                ).strip()
-                # Clean enclosing quotes or parentheses
-                review_topic = re.sub(r"^[\(\[\{\"\']+|[\)\]\}\"\']+$", "", review_topic).strip()
-                
-            review_topic = review_topic if adversarial_match else (review_topic or clean_msg)
-            bare_commands = {
-                "run adversarial review", "adversarial review", "adversarial debate",
-                "make adversarial review", "debate", "review", "/adversarial review",
-                "/ adversarial review", "/review", "/r", "/ar", "/debate", "/vs", "/3"
-            }
-            if not review_topic or review_topic.lower().strip() in bare_commands:
-                # Check if there is a recent topic in conversation history to review
-                prior_topic = ""
-                if conv and conv.get("messages"):
-                    for prev_m in reversed(conv.get("messages", [])):
-                        if prev_m.get("role") == "user":
-                            cand = (prev_m.get("content") or "").strip()
-                            if cand and cand.lower() not in bare_commands and not re.match(r"^/\s*adversarial\s*review\s*$", cand, re.IGNORECASE):
-                                prior_topic = re.sub(r"^/\s*(?:adversarial[\s_-]*review|review|r|ar|debate)[:\s]*", "", cand, flags=re.IGNORECASE).strip()
-                                if prior_topic:
-                                    break
-                review_topic = prior_topic or "Should early-stage startups choose a Modular Monolith over Microservices for mission-critical systems?"
-
-            try:
-                from core.adversarial_review import adversarial_review_engine
-                review_chunks = []
-                for chunk in adversarial_review_engine.stream_review(review_topic, ground_intel=clean_file_context):
-                    review_chunks.append(chunk)
-                    yield chunk
-
-                full_review = "".join(review_chunks)
-                now_iso = datetime.now(timezone.utc).isoformat()
-                conv["messages"].append({"role": "user", "content": message, "timestamp": now_iso})
-                conv["messages"].append({"role": "assistant", "content": full_review, "timestamp": now_iso})
-                self._save_conversation(conv_id)
-                return
-            except Exception as e:
-                logger.error(f"Adversarial Review streaming error: {e}")
-                yield f"⚠️ Adversarial Review Engine encountered an issue: {e}"
-                return
 
         # 2. Intelligence Routing & Operational Mode Specialization
         active_model = model
