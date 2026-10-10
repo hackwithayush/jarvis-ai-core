@@ -236,7 +236,7 @@ class AdversarialReviewEngine:
         )
 
         synthesis_parts = []
-        for chunk in self._stream_agent(arbiter_sys, arbiter_user):
+        for chunk in self._stream_agent(arbiter_sys, arbiter_user, model="qwen/qwen3.8-27b"):
             synthesis_parts.append(chunk)
             yield chunk
         synthesis_text = "".join(synthesis_parts).strip()

@@ -9,6 +9,11 @@ Usage:
 """
 import os
 import sys
+import logging
+import warnings
+
+warnings.filterwarnings("ignore")
+logging.getLogger().setLevel(logging.CRITICAL)
 
 # Ensure UTF-8 console output on Windows
 if hasattr(sys.stdout, "reconfigure"):
