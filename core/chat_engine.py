@@ -355,7 +355,7 @@ class ChatEngine:
             "code", "web", "tools", "security", "intel", "research", "help", "reset",
             "clear", "export", "status", "vitals", "diag", "diagnostics", "agent",
             "model", "settings", "config", "quit", "exit", "review", "adversarial",
-            "debate", "truth", "audit"
+            "debate", "truth", "audit", "r", "ar", "vs", "3"
         }
         if raw.startswith("/"):
             slash_token_match = re.match(r"^/\s*([a-zA-Z0-9_-]+)(?:\s+(.*))?$", raw, re.DOTALL)
@@ -512,7 +512,8 @@ class ChatEngine:
             mode = "security"
 
         # ─── Autonomous Adversarial Review Interceptor (3 Agents Argue to Find Truth) ───
-        adversarial_match = re.match(r"^/(?:review|adversarial|debate|truth|audit)[:\s]*(.*)$", clean_msg, re.IGNORECASE | re.DOTALL)
+        adversarial_match = re.match(r"^/(?:review|adversarial|debate|truth|audit|ar|vs|r|3)(?:[:\s]+(.*))?$", clean_msg, re.IGNORECASE | re.DOTALL)
+        is_review_mode = (mode or "").lower() in ["review", "adversarial", "debate"]
         is_adversarial_nl = any(trigger in message_lower for trigger in [
             "adversarial review", "adversarial debate", "3 agent debate", "3 agents debate",
             "three agents debate", "three agent debate", "agents argue to find the truth",
@@ -520,10 +521,10 @@ class ChatEngine:
             "debate to find the truth", "3 agents that argue"
         ])
 
-        if adversarial_match or is_adversarial_nl:
+        if adversarial_match or is_adversarial_nl or is_review_mode:
             review_topic = ""
             if adversarial_match:
-                review_topic = adversarial_match.group(1).strip()
+                review_topic = (adversarial_match.group(1) or "").strip()
             if not review_topic and is_adversarial_nl:
                 # Strip conversational fluff to isolate target inquiry
                 review_topic = re.sub(
@@ -535,15 +536,16 @@ class ChatEngine:
                 # Clean enclosing quotes or parentheses e.g. "(3 agent that argue to find the truth)"
                 review_topic = re.sub(r"^[\(\[\{\"\']+|[\)\]\}\"\']+$", "", review_topic).strip()
                 
-            review_topic = review_topic or clean_msg
-            if not review_topic or review_topic.lower() in ["run adversarial review", "adversarial review", "adversarial debate", "make adversarial review", "debate", "review"]:
+            review_topic = review_topic if adversarial_match else (review_topic or clean_msg)
+            if not review_topic or review_topic.lower() in ["run adversarial review", "adversarial review", "adversarial debate", "make adversarial review", "debate", "review", "/review", "/r", "/ar", "/debate"]:
                 yield (
                     "🏛️ **Autonomous Adversarial Review Court**\n\n"
                     "Please specify the target inquiry or dilemma you would like the 3 agents to debate.\n\n"
-                    "**Usage Examples:**\n"
-                    "- `/review Should early-stage startups choose a Modular Monolith over Microservices?`\n"
-                    "- `/review Is Rust better than C++ for high-frequency trading?`\n"
-                    "- `adversarial review on Monorepo vs Polyrepo for microservices`\n\n"
+                    "**Quick Commands:**\n"
+                    "- `/r <topic>` or `/review <topic>`\n"
+                    "- `/r Should early-stage startups choose a Modular Monolith over Microservices?`\n"
+                    "- `/r Is Rust better than C++ for high-frequency trading?`\n"
+                    "- Or select **Adversarial Review** in the left sidebar and type any topic directly!\n\n"
                     "*Nodes standing by: 🏛️ The Proponent (Thesis) · ⚔️ The Adversary (Antithesis) · ⚖️ The Arbiter (Synthesis).*"
                 )
                 return

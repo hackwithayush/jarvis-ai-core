@@ -317,9 +317,9 @@
                 <h1 class="text-2xl font-brand font-medium mb-8 text-[#FAFAFA] tracking-tight glow-cyan">J.A.R.V.I.S. Neural Hub</h1>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-xl">
-                    <button onclick="prefill('Optimize the following PostgreSQL schema for supply chain data:')" class="p-4 rounded-lg text-left bg-[#090e15] box-glow border border-[#1a2636] transition-all">
-                        <h3 class="font-medium text-sm text-[#FAFAFA]">Database Optimization</h3>
-                        <p class="text-xs text-[#717171] mt-1">Review PostgreSQL schemas</p>
+                    <button onclick="prefill('/review Should early-stage startups choose a Modular Monolith over Microservices?')" class="p-4 rounded-lg text-left bg-[#090e15] box-glow border border-[#1a2636] transition-all">
+                        <h3 class="font-medium text-sm text-amber-400">⚖️ Adversarial Review (3 Agents)</h3>
+                        <p class="text-xs text-[#717171] mt-1">Proponent vs Adversary vs Arbiter debate</p>
                     </button>
                     <button onclick="prefill('Review this Python logic for local model generation.')" class="p-4 rounded-lg text-left bg-[#090e15] box-glow border border-[#1a2636] transition-all">
                         <h3 class="font-medium text-sm text-[#FAFAFA]">Code Review</h3>
@@ -386,7 +386,7 @@
                 <div class="relative bg-[#111111] rounded-xl border border-[#27272A] focus-within:border-[#52525B] transition-colors flex flex-col p-1 z-20 shadow-lg shadow-black/50">
                     <textarea id="chat-input" rows="1" 
                         class="w-full bg-transparent border-none text-[#FAFAFA] font-sans placeholder-[#52525B] resize-none py-3 px-4 max-h-[30vh] custom-scrollbar" 
-                        placeholder="Message JARVIS, /review <topic>, or /image <prompt>..." autofocus></textarea>
+                        placeholder="Message JARVIS, type /r <topic> for Adversarial Review, or /image <prompt>..." autofocus></textarea>
                     
                     <div class="flex items-center justify-between px-2 pb-2">
                         <div class="flex gap-1 items-center">
@@ -396,6 +396,9 @@
                             </button>
                             <button id="mic-btn" onclick="toggleVoice()" class="p-1.5 text-[#717171] hover:text-[#FAFAFA] rounded hover:bg-[#1A1A1A] transition-colors" title="Voice Input">
                                 <i class="fas fa-microphone text-sm"></i>
+                            </button>
+                            <button onclick="prefill('/review ')" class="px-2 py-1 ml-1 text-[10px] font-mono font-semibold rounded-md bg-amber-950/40 border border-amber-700/50 text-amber-300 hover:bg-amber-900/50 transition-colors flex items-center gap-1" title="3-Agent Adversarial Review (/review)">
+                                <i class="fas fa-scale-balanced text-[9px]"></i> /review
                             </button>
                             
                             <!-- Dynamic Model Selector -->

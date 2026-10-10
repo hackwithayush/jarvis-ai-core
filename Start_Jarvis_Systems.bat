@@ -17,6 +17,7 @@ echo - Cognitive Level: GPT-5.5 Equivalent
 echo.
 echo What are your orders, Boss?
 echo.
+echo   [0] Launch 3-Agent Adversarial Review CLI (/review)
 echo   [1] Boot Terminal Interface (Direct Chat)
 echo   [2] Boot Web Interface (Full UI)
 echo   [3] Boot Telegram Agent (Mobile Access)
@@ -28,8 +29,9 @@ echo   [8] Stop All 24/7 Nodes
 echo   [9] Power Down (Exit)
 echo.
 
-set /p choice="Enter Command (1-9): "
+set /p choice="Enter Command (0-9): "
 
+if "%choice%"=="0" goto reviewcli
 if "%choice%"=="1" goto terminal
 if "%choice%"=="2" goto web
 if "%choice%"=="3" goto telegram
@@ -42,6 +44,14 @@ if "%choice%"=="9" goto exit
 
 echo Invalid command. Try again.
 timeout /t 2 >nul
+goto menu
+
+:reviewcli
+cls
+echo [JARVIS]: Launching 3-Agent Adversarial Review CLI...
+python -u review.py
+echo.
+pause
 goto menu
 
 :terminal
