@@ -575,7 +575,7 @@ class ChatEngine:
             clean_msg = re.sub(r"^/web[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
             message = clean_msg
             corrected_message = self.correct_typos(message)
-            mode = "intel"
+            mode = "research"
 
         elif re.match(r"^/tools[:\s]", clean_msg, re.IGNORECASE):
             clean_msg = re.sub(r"^/tools[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
@@ -585,8 +585,8 @@ class ChatEngine:
 
         # 2. Intelligence Routing & Operational Mode Specialization
         active_model = model
-        if active_model in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"]:
-            active_model = "gemini-2.5-flash"
+        if active_model in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash"]:
+            active_model = "gemini-3.8-flash"
 
         op_mode = (mode or "chat").lower()
         active_temperature = config.MODEL_TEMPERATURE
@@ -596,14 +596,15 @@ class ChatEngine:
 
         # ─── MODE 1: CODE FORGE ────────────────────────────────────────────────
         if op_mode == "code":
-            active_model = active_model or config.ROUTING_CONFIG.get("coding", "qwen/qwen3.8-27b")
+            if not active_model or active_model == "llama2-uncensored:latest":
+                active_model = config.ROUTING_CONFIG.get("coding", "qwen/qwen3.8-27b")
             active_temperature = 0.2
             telemetry_manager.add_trace(f"[CODE FORGE] Autonomous engineering node engaged ({active_model})")
 
             # Check if user requested code execution / benchmarking / verification
             code_blocks = re.findall(r'```(?:python)?\s*([\s\S]+?)\s*```', corrected_message)
             wants_exec = any(k in message_lower for k in ["run", "execute", "test", "benchmark", "verify", "output of"])
-            if wants_exec and code_blocks:
+            if (wants_exec or code_blocks) and code_blocks:
                 code_to_exec = code_blocks[0].strip()
                 try:
                     t0 = time.time()
@@ -636,7 +637,8 @@ class ChatEngine:
 
         # ─── MODE 2: CREATIVE CORE ─────────────────────────────────────────────
         elif op_mode == "creative":
-            active_model = active_model or config.ROUTING_CONFIG.get("creative", "meta-llama/llama-3.3-70b-instruct")
+            if not active_model or active_model == "llama2-uncensored:latest":
+                active_model = config.ROUTING_CONFIG.get("creative", "openai/gpt-oss-120b")
             active_temperature = 0.85
             active_top_p = 0.95
             telemetry_manager.add_trace(f"[CREATIVE CORE] Speculative concept studio engaged ({active_model})")
@@ -660,9 +662,8 @@ class ChatEngine:
                         context_snippets.append(
                             f"--- CREATIVE CORE: LIVE IMAGE SYNTHESIS COMPLETE ---\n"
                             f"Image URL: {img_url}\n"
-                            f"Visual Card Embed: __IMAGE__:{img_url}\n"
                             f"Markdown Embed: ![{clean_summary}]({img_url})\n"
-                            f"Directive: Include the Visual Card Embed '__IMAGE__:{img_url}' at the top of your response so the image renders directly in the user's chatbox, followed by a cinematic narrative describing the artwork."
+                            f"Directive: Include the Markdown Embed '![{clean_summary}]({img_url})' at the top of your response so the image renders directly in the user's chatbox, followed by a cinematic narrative describing the artwork."
                         )
                 except Exception as e:
                     logger.error(f"Creative Core image generation error: {e}")
@@ -672,18 +673,19 @@ class ChatEngine:
                 "You are CREATIVE CORE, JARVIS's speculative worldbuilder, concept artist, and cinematic director.\n"
                 "1. ELEVATED PROSE: Craft evocative, visceral narrative and bold prose. Ban all generic AI clichés.\n"
                 "2. SPECULATIVE ARCHITECTURE: When inventing technologies, factions, worlds, or sci-fi concepts, ground them in rich lore and tangible mechanics.\n"
-                "3. PROMPT CRAFTING: When discussing visual aesthetics, provide optimized Midjourney/Flux style prompt tags.\n"
+                "3. PROMPT CRAFTING: When discussing visual aesthetics, provide optimized Z-Image-Turbo / Flux style prompt tags.\n"
                 "4. VISIONARY HOOKS: Create high-impact, memorable headlines, scripts, and concepts."
             )
 
         # ─── MODE 3: SECURITY SCAN ─────────────────────────────────────────────
         elif op_mode == "security":
-            active_model = active_model or config.ROUTING_CONFIG.get("security", "deepseek/deepseek-chat")
+            if not active_model or active_model == "llama2-uncensored:latest":
+                active_model = config.ROUTING_CONFIG.get("security", "openai/gpt-oss-120b")
             active_temperature = 0.2
             telemetry_manager.add_trace(f"[SECURITY SCAN] Cyber Threat Intelligence & Vulnerability Auditor engaged ({active_model})")
 
-            # Check if user asked for local workstation / system scan
-            if any(k in message_lower for k in ["scan system", "system security", "audit pc", "check laptop", "firewall", "security status", "malware", "system health"]):
+            # Always run live workstation security scan in Security Scan mode when system/network/security is mentioned
+            if any(k in message_lower for k in ["scan", "system", "security", "audit", "pc", "laptop", "firewall", "status", "malware", "health", "port", "network", "defender", "check"]):
                 try:
                     t0 = time.time()
                     from core.system_guardian import SystemGuardian
@@ -714,8 +716,9 @@ class ChatEngine:
             )
 
         # ─── MODE 4: INTEL RESEARCH ────────────────────────────────────────────
-        elif op_mode == "research":
-            active_model = active_model or config.ROUTING_CONFIG.get("research", "deepseek/deepseek-chat")
+        elif op_mode in ["research", "intel", "web"]:
+            if not active_model or active_model == "llama2-uncensored:latest":
+                active_model = config.ROUTING_CONFIG.get("research", "openai/gpt-oss-120b")
             active_temperature = 0.3
             telemetry_manager.add_trace(f"[INTEL RESEARCH] Global reconnaissance and intelligence dossier engaged ({active_model})")
 

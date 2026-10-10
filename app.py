@@ -949,25 +949,64 @@ def get_user_status():
         "is_admin": current_user.is_admin
     })
 
-@app.route("/api/user/settings", methods=["POST"])
-@login_required
-def update_user_settings():
-    """Update user preferences (personality, language, etc)."""
-    data = request.json
+@app.route("/api/settings", methods=["GET", "POST"])
+@app.route("/api/user/settings", methods=["GET", "POST"])
+def handle_user_settings():
+    """Retrieve or update real system and AI settings (model, temperature, personality, protocols)."""
+    if request.method == "GET":
+        prefs = {}
+        if getattr(current_user, "is_authenticated", False) and getattr(current_user, "preferences", None):
+            prefs = current_user.preferences or {}
+        return jsonify({
+            "status": "success",
+            "default_model": getattr(config, "DEFAULT_MODEL", "openai/gpt-oss-120b"),
+            "temperature": getattr(config, "MODEL_TEMPERATURE", 0.4),
+            "uncensored_mode": getattr(config, "UNCENSORED_MODE", True),
+            "proactive_research": getattr(config, "PROACTIVE_RESEARCH", True),
+            "personality": prefs.get("personality", "normal"),
+            "nodes": {
+                "groq": bool(getattr(config, "GROQ_API_KEY", "")),
+                "gemini": bool(getattr(config, "GEMINI_API_KEY", "")),
+                "openrouter": bool(getattr(config, "OPENROUTER_API_KEY", "")),
+                "z_image_turbo": True,
+                "ollama": bool(model_manager.get_available_models()) if "model_manager" in globals() else False,
+            }
+        })
+
+    data = request.get_json(silent=True) or {}
     if not data:
         return jsonify({"error": "No settings provided"}), 400
-    
-    # Update personality if provided
+
+    if "default_model" in data and data["default_model"]:
+        config.DEFAULT_MODEL = str(data["default_model"])
+    if "temperature" in data:
+        try:
+            config.MODEL_TEMPERATURE = max(0.0, min(1.5, float(data["temperature"])))
+        except (ValueError, TypeError):
+            pass
+    if "uncensored_mode" in data:
+        config.UNCENSORED_MODE = bool(data["uncensored_mode"])
+    if "proactive_research" in data:
+        config.PROACTIVE_RESEARCH = bool(data["proactive_research"])
+
     new_personality = data.get("personality")
-    if new_personality in config.PERSONALITY_PROMPTS:
-        prefs = current_user.preferences or {}
-        prefs["personality"] = new_personality
-        current_user.preferences = prefs
-        db.session.commit()
-        logger.info(f"Identity Update: {current_user.username} switched to {new_personality} mode.")
-        return jsonify({"status": "Success", "personality": new_personality})
-    
-    return jsonify({"error": "Invalid personality mode"}), 400
+    if new_personality and getattr(current_user, "is_authenticated", False):
+        try:
+            prefs = dict(current_user.preferences or {})
+            prefs["personality"] = new_personality
+            current_user.preferences = prefs
+            db.session.commit()
+        except Exception as e:
+            logger.warning(f"Settings preference commit notice: {e}")
+
+    return jsonify({
+        "status": "success",
+        "default_model": config.DEFAULT_MODEL,
+        "temperature": config.MODEL_TEMPERATURE,
+        "uncensored_mode": config.UNCENSORED_MODE,
+        "proactive_research": config.PROACTIVE_RESEARCH,
+        "personality": new_personality or "normal",
+    })
 
 # ─── Conversations ──────────────────────────────────────────────
 
