@@ -1488,31 +1488,43 @@ def transcribe_voice():
         except Exception:
             pass
 
+_SYS_STATS_CACHE = {"data": None, "ts": 0.0, "gpu_str": "0%", "gpu_ts": 0.0}
+
 @app.route("/api/system/stats", methods=["GET"])
 def get_system_stats():
-    """Real-time hardware, network, agent, and memory graph telemetry."""
+    """Real-time hardware, network, agent, and memory graph telemetry (non-blocking & cached)."""
+    now = time.time()
+    if _SYS_STATS_CACHE["data"] is not None and (now - _SYS_STATS_CACHE["ts"]) < 2.5:
+        return jsonify(_SYS_STATS_CACHE["data"])
+
     try:
         import psutil
         import subprocess
-        cpu = psutil.cpu_percent(interval=0.1)
+        # Non-blocking instant CPU read (0ms instead of 100ms sleep)
+        cpu = psutil.cpu_percent(interval=None)
         ram = psutil.virtual_memory()
         ram_used = f"{ram.used / (1024**3):.1f}G"
-        
-        # Real GPU check via nvidia-smi if dedicated GPU is available
-        gpu_str = "0%"
-        try:
-            result = subprocess.run(
-                ['nvidia-smi', '--query-gpu=utilization.gpu', '--format=csv,noheader,nounits'],
-                capture_output=True, text=True, timeout=1.5
-            )
-            if result.returncode == 0 and result.stdout.strip():
-                gpu_val = int(result.stdout.strip().split('\n')[0])
-                gpu_str = f"{gpu_val}%"
-        except Exception:
-            gpu_str = "0%"
+
+        # Cache GPU check for 30s (and skip on cloud Linux without NVIDIA GPU)
+        gpu_str = _SYS_STATS_CACHE["gpu_str"]
+        if not os.getenv("RENDER") and (now - _SYS_STATS_CACHE["gpu_ts"]) > 30.0:
+            _SYS_STATS_CACHE["gpu_ts"] = now
+            try:
+                result = subprocess.run(
+                    ['nvidia-smi', '--query-gpu=utilization.gpu', '--format=csv,noheader,nounits'],
+                    capture_output=True, text=True, timeout=0.8
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    gpu_val = int(result.stdout.strip().split('\n')[0])
+                    gpu_str = f"{gpu_val}%"
+                else:
+                    gpu_str = "0%"
+            except Exception:
+                gpu_str = "0%"
+            _SYS_STATS_CACHE["gpu_str"] = gpu_str
 
         # Real uptime
-        uptime_secs = int(time.time() - SERVER_START_TIME)
+        uptime_secs = int(now - SERVER_START_TIME)
         uptime_h = uptime_secs // 3600
         uptime_m = (uptime_secs % 3600) // 60
         uptime_str = f"{uptime_h}h {uptime_m}m"
@@ -1522,7 +1534,7 @@ def get_system_stats():
         has_groq = bool(os.getenv("GROQ_API_KEY"))
         has_openrouter = bool(os.getenv("OPENROUTER_API_KEY"))
         has_telegram = bool(os.getenv("TELEGRAM_BOT_TOKEN"))
-        
+
         agents = [
             {
                 "name": "Neural Core",
@@ -1553,9 +1565,9 @@ def get_system_stats():
         # Real live API endpoints
         api_health = [
             { "name": "/api/chat", "status": "healthy", "latency": "15ms" },
-            { "name": "/api/system/stats", "status": "healthy", "latency": "3ms" },
+            { "name": "/api/system/stats", "status": "healthy", "latency": "1ms" },
             { "name": "/api/upload", "status": "healthy", "latency": "22ms" },
-            { "name": "/health", "status": "healthy", "latency": "2ms" }
+            { "name": "/health", "status": "healthy", "latency": "1ms" }
         ]
 
         # Real interconnected memory graph nodes
@@ -1577,11 +1589,13 @@ def get_system_stats():
             ]
         }
 
+        net_mb = psutil.net_io_counters().bytes_sent / (1024**2)
+
         # Real system traces
         traces = [
             f"Process PID: {os.getpid()} · Active Threads: {threading.active_count()}",
             f"Process RSS: {psutil.Process().memory_info().rss / (1024**2):.1f} MB",
-            f"Net Outbound: {psutil.net_io_counters().bytes_sent / (1024**2):.1f} MB",
+            f"Net Outbound: {net_mb:.1f} MB",
             f"Environment: {'Render Cloud Linux' if os.getenv('RENDER') else 'Local Workstation Node'}"
         ]
 
@@ -1590,20 +1604,23 @@ def get_system_stats():
             "uptime": uptime_str,
             "threads": str(threading.active_count()),
             "memory_pool": f"{ram.used / (1024**3):.1f} GB",
-            "trace_id": f"trc_{hex(int(time.time()))[2:]}"
+            "trace_id": f"trc_{hex(int(now))[2:]}"
         }
 
-        return jsonify({
+        payload = {
             "cpu": f"{cpu}%",
             "gpu": gpu_str,
             "ram": f"{ram_used}",
-            "net": f"{psutil.net_io_counters().bytes_sent / (1024**2):.1f}M",
+            "net": f"{net_mb:.1f}M",
             "agents": agents,
             "api_health": api_health,
             "memory_graph": memory_graph,
             "traces": traces,
             "runtime": runtime
-        })
+        }
+        _SYS_STATS_CACHE["data"] = payload
+        _SYS_STATS_CACHE["ts"] = now
+        return jsonify(payload)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

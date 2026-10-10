@@ -53,6 +53,53 @@ html, body, #root, .jarvis-app-shell {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+button, a, input, select, textarea {
+  touch-action: manipulation;
+}
+
+/* Prevent touch-scroll lockups ("screen stuck") on mobile & tablet */
+.jarvis-welcome,
+.jarvis-chat-scroll,
+.jarvis-left-sidebar,
+.jarvis-right-panel,
+.jarvis-settings-modal {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
+
+/* Optimize oversized body:before radial layer so mobile GPUs don't overdraw 4x viewport */
+body:before {
+  width: 100% !important;
+  height: 100% !important;
+  inset: 0 !important;
+}
+
+/* Eliminate expensive multi-layer Gaussian blur compositing lag on mobile & tablet (< 1024px) */
+@media (max-width: 1023.98px) {
+  .glass,
+  .glass-light,
+  .glass-card,
+  .backdrop-blur-md,
+  .backdrop-blur-xl,
+  .jarvis-left-sidebar,
+  .jarvis-right-panel,
+  .jarvis-backdrop {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .glass {
+    background: rgba(11, 16, 32, 0.95) !important;
+  }
+  .glass-light {
+    background: rgba(17, 24, 50, 0.92) !important;
+  }
+  .glass-card {
+    background: rgba(11, 16, 32, 0.92) !important;
+  }
 }
 
 @media (min-width: 640px) {
