@@ -127,7 +127,7 @@ class AdversarialReviewEngine:
         )
 
         thesis_parts = []
-        for chunk in self._stream_agent(proponent_sys, proponent_user):
+        for chunk in self._stream_agent(proponent_sys, proponent_user, model="openai/gpt-oss-120b"):
             thesis_parts.append(chunk)
             yield chunk
         thesis_text = "".join(thesis_parts).strip()
@@ -149,7 +149,7 @@ class AdversarialReviewEngine:
 
         adversary_user = (
             f"INQUIRY TOPIC: \"{clean_topic}\"\n\n"
-            f"PROPONENT'S THESIS:\n{thesis_text}\n{ground_prompt_addon}\n\n"
+            f"PROPONENT'S THESIS:\n{thesis_text[:2400]}\n{ground_prompt_addon}\n\n"
             "Deliver your Adversarial Counter-Analysis (Antithesis). Structure it with:\n"
             "- **Executive Critique & Vulnerability Vector**\n"
             "- **Critical Flaw 1: Flawed Assumptions & Boundary Failures**\n"
@@ -159,7 +159,7 @@ class AdversarialReviewEngine:
         )
 
         antithesis_parts = []
-        for chunk in self._stream_agent(adversary_sys, adversary_user):
+        for chunk in self._stream_agent(adversary_sys, adversary_user, model="meta-llama/llama-3.3-70b-instruct"):
             antithesis_parts.append(chunk)
             yield chunk
         antithesis_text = "".join(antithesis_parts).strip()
@@ -180,8 +180,8 @@ class AdversarialReviewEngine:
 
         rebuttal_user = (
             f"INQUIRY TOPIC: \"{clean_topic}\"\n\n"
-            f"YOUR ORIGINAL THESIS:\n{thesis_text[:600]}...\n\n"
-            f"ADVERSARY'S CRITIQUE:\n{antithesis_text}\n\n"
+            f"YOUR ORIGINAL THESIS:\n{thesis_text[:800]}...\n\n"
+            f"ADVERSARY'S CRITIQUE:\n{antithesis_text[:2200]}\n\n"
             "Deliver your Rebuttal & Concession Statement. Structure it with:\n"
             "- **1. Conceded Points (Valid Vulnerabilities Acknowledged)**\n"
             "- **2. Counter-Rebuttal (Flaws in the Adversary's Objections & Defended Ground)**\n"
@@ -189,7 +189,7 @@ class AdversarialReviewEngine:
         )
 
         rebuttal_parts = []
-        for chunk in self._stream_agent(rebuttal_sys, rebuttal_user):
+        for chunk in self._stream_agent(rebuttal_sys, rebuttal_user, model="openai/gpt-oss-20b"):
             rebuttal_parts.append(chunk)
             yield chunk
         rebuttal_text = "".join(rebuttal_parts).strip()
@@ -214,9 +214,9 @@ class AdversarialReviewEngine:
 
         arbiter_user = (
             f"INQUIRY TOPIC: \"{clean_topic}\"\n\n"
-            f"PROPONENT THESIS:\n{thesis_text}\n\n"
-            f"ADVERSARY ANTITHESIS:\n{antithesis_text}\n\n"
-            f"PROPONENT REBUTTAL & CONCESSIONS:\n{rebuttal_text}\n{ground_prompt_addon}\n\n"
+            f"PROPONENT THESIS:\n{thesis_text[:1800]}\n\n"
+            f"ADVERSARY ANTITHESIS:\n{antithesis_text[:1800]}\n\n"
+            f"PROPONENT REBUTTAL & CONCESSIONS:\n{rebuttal_text[:1400]}\n{ground_prompt_addon}\n\n"
             "Render your Binding Judicial Verdict & Ground Truth Synthesis. Structure it with:\n"
             "### ⚖️ JUDICIAL ADJUDICATION SUMMARY\n"
             "- **Valid Claims Confirmed (Points Won by Proponent)**\n"
@@ -236,7 +236,7 @@ class AdversarialReviewEngine:
         )
 
         synthesis_parts = []
-        for chunk in self._stream_agent(arbiter_sys, arbiter_user, model="qwen/qwen3.8-27b"):
+        for chunk in self._stream_agent(arbiter_sys, arbiter_user, model="meta-llama/llama-3.3-70b-instruct"):
             synthesis_parts.append(chunk)
             yield chunk
         synthesis_text = "".join(synthesis_parts).strip()
