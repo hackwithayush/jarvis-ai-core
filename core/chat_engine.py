@@ -400,20 +400,36 @@ class ChatEngine:
                     if cleaned_prev:
                         return cleaned_prev
 
-        # 4. Natural language generation patterns
+        # 4. Natural language generation patterns (including rich adjective chains & multi-paragraph art direction)
         nl_patterns = [
-            r"^(?:please\s+)?(?:generate|create|make|render)\s+(?:an?\s+)?(?:image|picture|photo|photograph|wallpaper|illustration|art)\s+(?:of|showing|depicting|with)?\s*(.+)$",
-            r"^(?:please\s+)?(?:draw|paint|sketch)\s+(?:me\s+)?(?:an?\s+)?(?:image|picture|illustration|painting)?\s*(?:of)?\s*(.+)$",
+            r"^(?:please\s+)?(?:can\s+you\s+|could\s+you\s+)?(?:generate|create|make|render|design|produce|deliver|synthesize|visualize)\s+(?:me\s+)?(?:an?\s+|one\s+|the\s+)?(?:[\w\s,\-]{0,120}?\s+)?(?:image|picture|photo|photograph|visualization|visualisation|render|rendering|wallpaper|illustration|art|artwork|portrait|scene|concept\s+art|poster|graphic)\s+(?:of|showing|depicting|with|featuring|inside|from|in|for|:)\s*(.+)$",
+            r"^(?:please\s+)?(?:draw|paint|sketch)\s+(?:me\s+)?(?:an?\s+)?(?:[\w\s,\-]{0,60}?\s+)?(?:image|picture|illustration|painting|sketch|portrait)?\s*(?:of)?\s*(.+)$",
             r"^(?:take|snap)\s+(?:a\s+)?(?:photo|picture)\s+of\s+(.+)$",
-            r"^(?:photo|photograph|picture|image)\s+of\s+(.+)$",
-            r"^(?:a\s+)?(?:breathtaking|stunning|cinematic|photorealistic|hyperrealistic|realistic|4k|8k|ultra-detailed)\s+(?:photograph|photo|image|portrait|picture)\s+of\s+(.+)$",
+            r"^(?:photo|photograph|picture|image|visualization|render)\s+of\s+(.+)$",
+            r"^(?:a\s+|an\s+)?(?:breathtaking|stunning|cinematic|photorealistic|hyperrealistic|realistic|4k|8k|ultra-detailed|extraordinarily\s+detailed)[\w\s,\-]{0,100}?\s+(?:photograph|photo|image|portrait|picture|visualization|render|rendering|scene)\s+(?:of|inside|showing|depicting)\s+(.+)$",
         ]
         for pat in nl_patterns:
             m = re.match(pat, raw, re.IGNORECASE | re.DOTALL)
             if m:
                 extracted = m.group(1).strip()
                 if extracted and len(extracted) > 1:
-                    return extracted
+                    # Preserve full prompt context when multi-paragraph or resolution instructions are present
+                    return raw if len(raw) > 160 else extracted
+
+        # 5. Structured art-direction / multi-section visual prompt detection
+        if not re.search(r"\b(?:def\s+|function\s+|class\s+|import\s+|SELECT\s+|<!DOCTYPE|<html)\b", raw):
+            has_art_headers = bool(re.search(
+                r"\b(?:MAIN\s+SUBJECT|CAMERA\s+AND\s+RENDERING|LIGHTING\s*:|COMPOSITION\s*:|QUALITY\s+REQUIREMENTS\s*:)",
+                raw,
+                re.IGNORECASE,
+            ))
+            has_deliver_image = bool(re.search(
+                r"\b(?:deliver|generate|create|render|produce)\s+(?:one|an?)\s+(?:[\w\s,\-]{0,90}?\s+)?(?:image|photograph|photo|visualization|render)\b",
+                raw,
+                re.IGNORECASE,
+            ))
+            if has_art_headers or has_deliver_image:
+                return raw
 
         return None
 
@@ -1094,6 +1110,28 @@ class ChatEngine:
         # 4. Neural After-Action Process
         assistant_message = "".join(full_response)
         assistant_message = self.clean_response(assistant_message)
+
+        # Heal any LLM-hallucinated Markdown image tags so persisted history always points to a real synthesized image
+        if "![" in assistant_message and "](" in assistant_message:
+            def _heal_md_img(match):
+                alt_txt = (match.group(1) or "").strip()
+                img_url = (match.group(2) or "").strip()
+                if "wikimedia.org" in img_url or img_url.startswith("data:"):
+                    return match.group(0)
+                if img_url.startswith("/api/assets/images/"):
+                    fname = os.path.basename(img_url.split("?")[0])
+                    if os.path.isfile(os.path.join(config.IMAGE_GEN_DIR, fname)):
+                        return match.group(0)
+                try:
+                    from core.image_engine import ImageGenerator
+                    synth = ImageGenerator().generate(alt_txt or message)
+                    if synth.get("status") == "success" and synth.get("url"):
+                        return f"![{alt_txt or 'Synthesized Visualization'}]({synth['url']})"
+                except Exception as heal_err:
+                    logger.warning(f"Post-stream Markdown image heal error: {heal_err}")
+                return match.group(0)
+
+            assistant_message = re.sub(r"!\[([^\]]*)\]\(([^)]+)\)", _heal_md_img, assistant_message)
         
         # Guard: Never persist a refusal into conversation history to prevent future context poisoning
         if not self.is_refusal(assistant_message):

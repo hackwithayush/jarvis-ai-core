@@ -40,8 +40,13 @@ class ImageGenerator:
         }
 
     def _enhance_prompt(self, prompt: str) -> str:
-        """Automatically enrich prompts with architectural and stylistic flags."""
-        p_lower = prompt.lower()
+        """Automatically enrich and condense prompts (including long multi-paragraph briefs)."""
+        # Collapse multi-line section headers and whitespace into a single coherent visual prompt
+        cleaned = re.sub(r"(?m)^(?:MAIN SUBJECT|ENVIRONMENT|LIGHTING|COMPOSITION|MATERIALS AND DETAIL|CAMERA AND RENDERING|QUALITY REQUIREMENTS|Avoid|Deliver one)[^:\n]*:\s*", ", ", prompt, flags=re.IGNORECASE)
+        cleaned = re.sub(r"[\r\n\t]+", " ", cleaned)
+        cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" ,")
+
+        p_lower = cleaned.lower()
 
         modifications = []
         if "--ultra" in p_lower:
@@ -55,18 +60,21 @@ class ImageGenerator:
 
         if "anime" in p_lower:
             modifications.append("anime style, studio ghibli, vibrant colors")
-        elif "realistic" in p_lower or "real" in p_lower:
+        elif ("realistic" in p_lower or "real" in p_lower) and "photorealistic" not in p_lower:
             modifications.append("photorealistic, lifelike, natural lighting, 8k detail")
-        elif "cyberpunk" in p_lower:
+        elif "cyberpunk" in p_lower and "neon" not in p_lower:
             modifications.append("cyberpunk aesthetic, neon glow, futuristic city vibes")
 
         clean_prompt = (
-            prompt.replace("--ultra", "")
+            cleaned.replace("--ultra", "")
             .replace("--4k", "")
             .replace("--cinematic", "")
             .replace("--pro", "")
             .strip()
         )
+        # Cap total prompt length at 850 chars so diffusion tokenizers and APIs never reject it
+        if len(clean_prompt) > 850:
+            clean_prompt = clean_prompt[:850].rsplit(" ", 1)[0]
         final_prompt = clean_prompt + (", " + ", ".join(modifications) if modifications else "")
         return final_prompt
 
@@ -123,24 +131,28 @@ class ImageGenerator:
         Returns provider description string on success, or None on failure.
         """
         seed = random.randint(1, 999999)
+        is_landscape = any(k in prompt.lower() for k in ["16:9", "landscape", "widescreen", "wide-angle"])
+        z_res = "1280x720 ( 16:9 )" if is_landscape else "1024x1024 ( 1:1 )"
+        w_px, h_px = (1280, 720) if is_landscape else (1024, 1024)
+
         gradio_nodes = [
             {
                 "name": "Tongyi-MAI/Z-Image-Turbo",
                 "base": "https://tongyi-mai-z-image-turbo.hf.space",
                 "endpoint": "/gradio_api/call/generate",
-                "payload": {"data": [prompt, "1024x1024 ( 1:1 )", seed, 8, 3.0, True, []]},
+                "payload": {"data": [prompt, z_res, seed, 8, 3.0, True, []]},
             },
             {
                 "name": "Z-Image-Turbo (Mirror Node)",
                 "base": "https://mrfakename-z-image-turbo.hf.space",
                 "endpoint": "/gradio_api/call/generate_image",
-                "payload": {"data": [prompt, 1024, 1024, 9, seed, True]},
+                "payload": {"data": [prompt, h_px, w_px, 9, seed, True]},
             },
             {
                 "name": "FLUX.1-schnell",
                 "base": "https://black-forest-labs-flux-1-schnell.hf.space",
                 "endpoint": "/gradio_api/call/infer",
-                "payload": {"data": [prompt, seed, True, 1024, 1024, 4]},
+                "payload": {"data": [prompt, seed, True, w_px, h_px, 4]},
             },
         ]
 
@@ -173,9 +185,12 @@ class ImageGenerator:
         return None
 
     def _try_pollinations(self, prompt: str, dest_path: str) -> str | None:
-        """Fallback to Pollinations AI with proper 3.5s burst-window pacing to eliminate 402 rate limits."""
-        safe_prompt = requests.utils.quote(prompt)
-        url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true"
+        """Fallback to Pollinations AI with URL-length protection and burst-window pacing."""
+        short_prompt = prompt[:340].rsplit(" ", 1)[0] if len(prompt) > 340 else prompt
+        is_landscape = any(k in prompt.lower() for k in ["16:9", "landscape", "widescreen", "wide-angle"])
+        dims = "&width=1280&height=720" if is_landscape else "&width=1024&height=1024"
+        safe_prompt = requests.utils.quote(short_prompt)
+        url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true{dims}&seed={random.randint(1, 99999)}"
         for attempt in range(4):
             try:
                 res = requests.get(url, headers=self.headers, stream=True, timeout=30)
@@ -187,7 +202,6 @@ class ImageGenerator:
                         shutil.copyfileobj(res.raw, f)
                     if os.path.exists(dest_path) and os.path.getsize(dest_path) > 1024:
                         return "Mission manifest via Pollinations AI acceleration grid."
-                # Pollinations enforces a ~3.5s per-IP cooldown window (returns 402/429 if faster)
                 wait_sec = 3.5 + (attempt * 1.5)
                 logger.info(f"Pollinations cooldown (status {res.status_code}), waiting {wait_sec:.1f}s...")
                 time.sleep(wait_sec)

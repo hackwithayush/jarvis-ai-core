@@ -463,15 +463,76 @@ def get_me():
         return jsonify({"id": current_user.id, "username": current_user.username, "is_admin": current_user.is_admin})
     return jsonify({"id": 0, "username": "Guest", "is_admin": False})
 
-@app.route("/api/assets/<atype>/<filename>")
+@app.route("/api/assets/<atype>/<path:filename>")
 def serve_assets(atype, filename):
-    """Serve synthesized visual and vocal assets from the neural grid."""
+    """Serve synthesized visual and vocal assets from the neural grid with self-healing fallback."""
+    safe_name = os.path.basename(filename.strip())
+    if not safe_name:
+        return jsonify({"error": "Invalid asset filename"}), 400
+
     if atype == "images":
-        return send_from_directory(config.IMAGE_GEN_DIR, filename)
+        target_path = os.path.join(config.IMAGE_GEN_DIR, safe_name)
+        if os.path.isfile(target_path) and os.path.getsize(target_path) > 100:
+            return send_from_directory(config.IMAGE_GEN_DIR, safe_name)
+
+        # Self-healing: if image file is missing (e.g. LLM hallucinated tag or ephemeral container reset), synthesize on demand
+        prompt_hint = (request.args.get("prompt") or "").strip()
+        if not prompt_hint:
+            stem = os.path.splitext(safe_name)[0]
+            stem = re.sub(r"^(?:gen_[0-9a-f]{16,32}|auto_|img_)", "", stem, flags=re.IGNORECASE)
+            stem = stem.replace("_", " ").replace("-", " ").strip()
+            prompt_hint = stem if len(stem) > 3 else "advanced autonomous AI intelligence core inside a futuristic research facility, cinematic 8k photorealistic render"
+
+        try:
+            from core.image_engine import ImageGenerator
+            gen_res = ImageGenerator().generate(prompt_hint)
+            gen_file = gen_res.get("filename")
+            if gen_res.get("status") == "success" and gen_file:
+                gen_path = os.path.join(config.IMAGE_GEN_DIR, gen_file)
+                if os.path.isfile(gen_path):
+                    if gen_path != target_path and safe_name.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+                        try:
+                            import shutil
+                            shutil.copyfile(gen_path, target_path)
+                            return send_from_directory(config.IMAGE_GEN_DIR, safe_name)
+                        except Exception:
+                            pass
+                    return send_from_directory(config.IMAGE_GEN_DIR, gen_file)
+        except Exception as e:
+            logger.warning(f"On-demand image self-heal failed for {safe_name}: {e}")
+
+        # Secondary fallback: serve most recent valid image in IMAGE_GEN_DIR so UI never breaks with 500
+        try:
+            existing = [
+                f for f in os.listdir(config.IMAGE_GEN_DIR)
+                if f.lower().endswith((".png", ".jpg", ".jpeg", ".webp"))
+                and os.path.getsize(os.path.join(config.IMAGE_GEN_DIR, f)) > 100
+            ]
+            if existing:
+                existing.sort(key=lambda x: os.path.getmtime(os.path.join(config.IMAGE_GEN_DIR, x)), reverse=True)
+                return send_from_directory(config.IMAGE_GEN_DIR, existing[0])
+        except Exception:
+            pass
+        return jsonify({"error": "Image asset not found"}), 404
+
     elif atype == "videos":
-        return send_from_directory(config.VIDEO_GEN_DIR, filename)
+        target_path = os.path.join(config.VIDEO_GEN_DIR, safe_name)
+        if os.path.isfile(target_path):
+            return send_from_directory(config.VIDEO_GEN_DIR, safe_name)
+        return jsonify({"error": "Video asset not found"}), 404
+
+    elif atype == "voices":
+        target_path = os.path.join(config.VOICE_DIR, safe_name)
+        if os.path.isfile(target_path):
+            return send_from_directory(config.VOICE_DIR, safe_name)
+        return jsonify({"error": "Voice asset not found"}), 404
+
     elif atype == "uploads":
-        return send_from_directory(config.UPLOAD_DIR, filename)
+        target_path = os.path.join(config.UPLOAD_DIR, safe_name)
+        if os.path.isfile(target_path):
+            return send_from_directory(config.UPLOAD_DIR, safe_name)
+        return jsonify({"error": "Upload asset not found"}), 404
+
     return jsonify({"error": "Asset category not found"}), 404
 
 @app.route("/api/upload", methods=["POST"])
@@ -1030,8 +1091,10 @@ def list_conversations():
 def get_conversation(id):
     """Get user specific conversation snapshot."""
     data = chat_engine.get_conversation(id)
-    if not data or not data.get("messages", []):
+    if not data:
         return jsonify({"error": "Neural patterns not found"}), 404
+    if "messages" not in data or data["messages"] is None:
+        data["messages"] = []
     return jsonify(data)
 
 @app.route("/api/conversations/<id>", methods=["DELETE"])
@@ -1320,18 +1383,6 @@ def generate_video_api():
     except Exception as e:
         logger.error(f"Neural Motion Failure: {e}")
         return jsonify({"error": "Motion node offline"}), 500
-
-@app.route("/api/assets/images/<filename>")
-def serve_image(filename):
-    return send_file(os.path.join(config.IMAGE_GEN_DIR, filename))
-
-@app.route("/api/assets/videos/<filename>")
-def serve_video(filename):
-    return send_file(os.path.join(config.VIDEO_GEN_DIR, filename))
-
-@app.route("/api/assets/voices/<filename>")
-def serve_voice(filename):
-    return send_file(os.path.join(config.VOICE_DIR, filename))
 
 @app.route("/health", methods=["GET"])
 @app.route("/healthz", methods=["GET"])
