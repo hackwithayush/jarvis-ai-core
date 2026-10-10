@@ -955,8 +955,17 @@ def handle_user_settings():
     """Retrieve or update real system and AI settings (model, temperature, personality, protocols)."""
     if request.method == "GET":
         prefs = {}
-        if getattr(current_user, "is_authenticated", False) and getattr(current_user, "preferences", None):
-            prefs = current_user.preferences or {}
+        try:
+            if getattr(current_user, "is_authenticated", False) and getattr(current_user, "preferences", None):
+                prefs = current_user.preferences or {}
+        except Exception:
+            prefs = {}
+        ollama_ok = False
+        try:
+            if "model_manager" in globals() and hasattr(model_manager, "is_ollama_running"):
+                ollama_ok = bool(model_manager.is_ollama_running())
+        except Exception:
+            ollama_ok = False
         return jsonify({
             "status": "success",
             "default_model": getattr(config, "DEFAULT_MODEL", "openai/gpt-oss-120b"),
@@ -969,7 +978,7 @@ def handle_user_settings():
                 "gemini": bool(getattr(config, "GEMINI_API_KEY", "")),
                 "openrouter": bool(getattr(config, "OPENROUTER_API_KEY", "")),
                 "z_image_turbo": True,
-                "ollama": bool(model_manager.get_available_models()) if "model_manager" in globals() else False,
+                "ollama": ollama_ok,
             }
         })
 
