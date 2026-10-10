@@ -1438,6 +1438,56 @@ def synthesize_voice():
         logger.error(f"Voice synthesis failed: {e}")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/voice/transcribe", methods=["POST"])
+def transcribe_voice():
+    """Convert recorded user speech audio to text via Groq Whisper Large v3 Turbo."""
+    audio_file = request.files.get("file") or request.files.get("audio")
+    if not audio_file:
+        return jsonify({"status": "error", "error": "No audio payload received"}), 400
+
+    import tempfile
+    import requests as http_requests
+
+    ext = ".webm"
+    fname = (audio_file.filename or "voice.webm").lower()
+    for candidate_ext in [".wav", ".mp3", ".ogg", ".m4a", ".mp4", ".webm"]:
+        if fname.endswith(candidate_ext):
+            ext = candidate_ext
+            break
+
+    fd, temp_audio_path = tempfile.mkstemp(suffix=ext)
+    os.close(fd)
+    try:
+        audio_file.save(temp_audio_path)
+        groq_key = getattr(config, "GROQ_API_KEY", "") or os.getenv("GROQ_API_KEY", "")
+        if groq_key:
+            for whisper_model in ["whisper-large-v3-turbo", "whisper-large-v3"]:
+                try:
+                    with open(temp_audio_path, "rb") as f_stream:
+                        resp = http_requests.post(
+                            "https://api.groq.com/openai/v1/audio/transcriptions",
+                            headers={"Authorization": f"Bearer {groq_key}"},
+                            files={"file": (f"voice{ext}", f_stream, audio_file.mimetype or "audio/webm")},
+                            data={"model": whisper_model, "response_format": "json"},
+                            timeout=15
+                        )
+                    if resp.status_code == 200:
+                        text_out = (resp.json().get("text") or "").strip()
+                        return jsonify({"status": "success", "text": text_out, "engine": whisper_model})
+                except Exception as w_err:
+                    logger.warning(f"Groq Whisper ({whisper_model}) transcription error: {w_err}")
+
+        return jsonify({"status": "error", "error": "Speech transcription service unavailable"}), 503
+    except Exception as e:
+        logger.error(f"Voice transcription failed: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+    finally:
+        try:
+            if os.path.exists(temp_audio_path):
+                os.remove(temp_audio_path)
+        except Exception:
+            pass
+
 @app.route("/api/system/stats", methods=["GET"])
 def get_system_stats():
     """Real-time hardware, network, agent, and memory graph telemetry."""

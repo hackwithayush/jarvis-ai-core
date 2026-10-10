@@ -565,23 +565,37 @@ class ChatEngine:
                 yield f"⚠ Vision Node error: {e}"
                 return
 
-        if re.match(r"^/code[:\s]", clean_msg, re.IGNORECASE):
-            clean_msg = re.sub(r"^/code[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
+        if re.match(r"^/\s*code(?:\b|[:\s]|$)", clean_msg, re.IGNORECASE):
+            clean_msg = re.sub(r"^/\s*code[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
+            if not clean_msg:
+                clean_msg = "Write a clean, production-grade Python async worker pool with retry and structured logging."
             message = clean_msg
             corrected_message = self.correct_typos(message)
             mode = "code"
 
-        elif re.match(r"^/web[:\s]", clean_msg, re.IGNORECASE):
-            clean_msg = re.sub(r"^/web[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
+        elif re.match(r"^/\s*(?:web|search|research|intel)(?:\b|[:\s]|$)", clean_msg, re.IGNORECASE):
+            clean_msg = re.sub(r"^/\s*(?:web|search|research|intel)[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
+            if not clean_msg:
+                clean_msg = "Latest global AI, software engineering, and cybersecurity breakthroughs today"
             message = clean_msg
             corrected_message = self.correct_typos(message)
             mode = "research"
 
-        elif re.match(r"^/tools[:\s]", clean_msg, re.IGNORECASE):
-            clean_msg = re.sub(r"^/tools[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
+        elif re.match(r"^/\s*(?:tools|security|scan|status|diag|diagnostics)(?:\b|[:\s]|$)", clean_msg, re.IGNORECASE):
+            clean_msg = re.sub(r"^/\s*(?:tools|security|scan|status|diag|diagnostics)[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
+            if not clean_msg:
+                clean_msg = "Report system status, hardware diagnostics, firewall, and workstation security status."
             message = clean_msg
             corrected_message = self.correct_typos(message)
             mode = "security"
+
+        elif re.match(r"^/\s*creative(?:\b|[:\s]|$)", clean_msg, re.IGNORECASE):
+            clean_msg = re.sub(r"^/\s*creative[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
+            if not clean_msg:
+                clean_msg = "Create a high-concept cyberpunk sci-fi world with visual direction and lore."
+            message = clean_msg
+            corrected_message = self.correct_typos(message)
+            mode = "creative"
 
         # 2. Intelligence Routing & Operational Mode Specialization
         active_model = model
