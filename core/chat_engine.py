@@ -406,7 +406,7 @@ class ChatEngine:
             r"^(?:please\s+)?(?:draw|paint|sketch)\s+(?:me\s+)?(?:an?\s+)?(?:[\w\s,\-]{0,60}?\s+)?(?:image|picture|illustration|painting|sketch|portrait)?\s*(?:of)?\s*(.+)$",
             r"^(?:take|snap)\s+(?:a\s+)?(?:photo|picture)\s+of\s+(.+)$",
             r"^(?:photo|photograph|picture|image|visualization|render)\s+of\s+(.+)$",
-            r"^(?:a\s+|an\s+)?(?:breathtaking|stunning|cinematic|photorealistic|hyperrealistic|realistic|4k|8k|ultra-detailed|extraordinarily\s+detailed)[\w\s,\-]{0,100}?\s+(?:photograph|photo|image|portrait|picture|visualization|render|rendering|scene)\s+(?:of|inside|showing|depicting)\s+(.+)$",
+            r"^(?:a\s+|an\s+)?(?:[\w\s,\-]{0,120}?\s+)?(?:product\s+photograph|photograph|photo|image|portrait|picture|visualization|render|rendering|illustration|concept\s+art)\s+(?:of|inside|showing|depicting|featuring|on)\s+(.+)$",
         ]
         for pat in nl_patterns:
             m = re.match(pat, raw, re.IGNORECASE | re.DOTALL)
@@ -414,12 +414,12 @@ class ChatEngine:
                 extracted = m.group(1).strip()
                 if extracted and len(extracted) > 1:
                     # Preserve full prompt context when multi-paragraph or resolution instructions are present
-                    return raw if len(raw) > 160 else extracted
+                    return raw if len(raw) > 140 else extracted
 
         # 5. Structured art-direction / multi-section visual prompt detection
         if not re.search(r"\b(?:def\s+|function\s+|class\s+|import\s+|SELECT\s+|<!DOCTYPE|<html)\b", raw):
             has_art_headers = bool(re.search(
-                r"\b(?:MAIN\s+SUBJECT|CAMERA\s+AND\s+RENDERING|LIGHTING\s*:|COMPOSITION\s*:|QUALITY\s+REQUIREMENTS\s*:)",
+                r"\b(?:MAIN\s+SUBJECT|CAMERA\s+AND\s+RENDERING|LIGHTING\s*:|COMPOSITION\s*:|QUALITY\s+REQUIREMENTS\s*:|4:3\s+composition|16:9\s+(?:landscape\s+)?composition|shallow\s+depth\s+of\s+field|studio\s+background)",
                 raw,
                 re.IGNORECASE,
             ))
@@ -545,9 +545,48 @@ class ChatEngine:
                 yield f"⚠️ Adversarial Review Engine encountered an issue: {e}"
                 return
 
-        # Image generation intent interception across all modes and prefixes
+        # Normalize slash-command operational modes before image intent routing
+        if re.match(r"^/\s*code(?:\b|[:\s]|$)", clean_msg, re.IGNORECASE):
+            clean_msg = re.sub(r"^/\s*code[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
+            if not clean_msg:
+                clean_msg = "Write a clean, production-grade Python async worker pool with retry and structured logging."
+            message = clean_msg
+            corrected_message = self.correct_typos(message)
+            message_lower = corrected_message.lower()
+            mode = "code"
+
+        elif re.match(r"^/\s*(?:web|search|research|intel)(?:\b|[:\s]|$)", clean_msg, re.IGNORECASE):
+            clean_msg = re.sub(r"^/\s*(?:web|search|research|intel)[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
+            if not clean_msg:
+                clean_msg = "Latest global AI, software engineering, and cybersecurity breakthroughs today"
+            message = clean_msg
+            corrected_message = self.correct_typos(message)
+            message_lower = corrected_message.lower()
+            mode = "research"
+
+        elif re.match(r"^/\s*(?:tools|security|scan|status|diag|diagnostics)(?:\b|[:\s]|$)", clean_msg, re.IGNORECASE):
+            clean_msg = re.sub(r"^/\s*(?:tools|security|scan|status|diag|diagnostics)[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
+            if not clean_msg:
+                clean_msg = "Report system status, hardware diagnostics, firewall, and workstation security status."
+            message = clean_msg
+            corrected_message = self.correct_typos(message)
+            message_lower = corrected_message.lower()
+            mode = "security"
+
+        elif re.match(r"^/\s*creative(?:\b|[:\s]|$)", clean_msg, re.IGNORECASE):
+            clean_msg = re.sub(r"^/\s*creative[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
+            if not clean_msg:
+                clean_msg = "Create a high-concept futuristic quantum intelligence core with cinematic visual direction and lore."
+            message = clean_msg
+            corrected_message = self.correct_typos(message)
+            message_lower = corrected_message.lower()
+            mode = "creative"
+
+        op_mode = (mode or "chat").lower()
+
+        # Image generation intent interception (when NOT in Creative Core; Creative Core runs BOTH Z-Image-Turbo + Concept Studio below)
         detected_image_prompt = self.detect_image_intent(clean_msg, conv)
-        if detected_image_prompt:
+        if detected_image_prompt and op_mode != "creative":
             clean_alt = re.sub(r'[\r\n\t]+', ' ', detected_image_prompt).strip()
             display_prompt = clean_alt[:120] + ("..." if len(clean_alt) > 120 else "")
             yield f"🎨 **Vision Node**: Synthesizing imagery for *\"{display_prompt}\"*...\n\n"
@@ -558,16 +597,18 @@ class ChatEngine:
                     img_url = gen_res.get("url")
                     filename = gen_res.get("filename", "asset")
                     provider_info = gen_res.get("info", "Z-Image-Turbo")
+                    aspect_str = gen_res.get("aspect", "1:1")
+                    dims_str = f"{gen_res.get('width', 1024)}×{gen_res.get('height', 1024)}"
                     yield f"![{display_prompt}]({img_url})\n\n"
                     yield f"✨ *{display_prompt}* rendered successfully.\n\n"
-                    yield f"**Status**: Ready · **Engine**: `{provider_info}` · **Archive**: `{filename}`"
+                    yield f"**Status**: Ready · **Engine**: `{provider_info}` · **Format**: `{aspect_str}` (`{dims_str}`) · **Archive**: `{filename}`"
 
                     # Save to conversation history
                     assistant_reply = (
                         f"🎨 **Vision Node**: Synthesizing imagery for *\"{display_prompt}\"*...\n\n"
                         f"![{display_prompt}]({img_url})\n\n"
                         f"✨ *{display_prompt}* rendered successfully.\n\n"
-                        f"**Status**: Ready · **Engine**: `{provider_info}` · **Archive**: `{filename}`"
+                        f"**Status**: Ready · **Engine**: `{provider_info}` · **Format**: `{aspect_str}` (`{dims_str}`) · **Archive**: `{filename}`"
                     )
                     now_iso = datetime.now(timezone.utc).isoformat()
                     conv["messages"].append({"role": "user", "content": message, "timestamp": now_iso})
@@ -581,48 +622,17 @@ class ChatEngine:
                 yield f"⚠ Vision Node error: {e}"
                 return
 
-        if re.match(r"^/\s*code(?:\b|[:\s]|$)", clean_msg, re.IGNORECASE):
-            clean_msg = re.sub(r"^/\s*code[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
-            if not clean_msg:
-                clean_msg = "Write a clean, production-grade Python async worker pool with retry and structured logging."
-            message = clean_msg
-            corrected_message = self.correct_typos(message)
-            mode = "code"
-
-        elif re.match(r"^/\s*(?:web|search|research|intel)(?:\b|[:\s]|$)", clean_msg, re.IGNORECASE):
-            clean_msg = re.sub(r"^/\s*(?:web|search|research|intel)[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
-            if not clean_msg:
-                clean_msg = "Latest global AI, software engineering, and cybersecurity breakthroughs today"
-            message = clean_msg
-            corrected_message = self.correct_typos(message)
-            mode = "research"
-
-        elif re.match(r"^/\s*(?:tools|security|scan|status|diag|diagnostics)(?:\b|[:\s]|$)", clean_msg, re.IGNORECASE):
-            clean_msg = re.sub(r"^/\s*(?:tools|security|scan|status|diag|diagnostics)[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
-            if not clean_msg:
-                clean_msg = "Report system status, hardware diagnostics, firewall, and workstation security status."
-            message = clean_msg
-            corrected_message = self.correct_typos(message)
-            mode = "security"
-
-        elif re.match(r"^/\s*creative(?:\b|[:\s]|$)", clean_msg, re.IGNORECASE):
-            clean_msg = re.sub(r"^/\s*creative[:\s]*", "", clean_msg, flags=re.IGNORECASE).strip()
-            if not clean_msg:
-                clean_msg = "Create a high-concept cyberpunk sci-fi world with visual direction and lore."
-            message = clean_msg
-            corrected_message = self.correct_typos(message)
-            mode = "creative"
-
         # 2. Intelligence Routing & Operational Mode Specialization
         active_model = model
         if active_model in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash"]:
             active_model = "gemini-3.8-flash"
 
-        op_mode = (mode or "chat").lower()
         active_temperature = config.MODEL_TEMPERATURE
         active_top_p = config.MODEL_TOP_P
         telemetry_manager.set_active_mode(op_mode)
         telemetry_manager.set_trace_id(trace_id or f"trc_{uuid.uuid4().hex[:6]}")
+        creative_prefix_chunks = []
+        creative_img_rendered = False
 
         # ─── MODE 1: CODE FORGE ────────────────────────────────────────────────
         if op_mode == "code":
@@ -665,46 +675,72 @@ class ChatEngine:
                 "5. ARCHITECTURAL RATIONALE: State the engineering trade-offs and rationale clearly."
             )
 
-        # ─── MODE 2: CREATIVE CORE ─────────────────────────────────────────────
+        # ─── MODE 2: CREATIVE CORE (CONCEPT STUDIO + Z-IMAGE-TURBO) ────────────
         elif op_mode == "creative":
             if not active_model or active_model == "llama2-uncensored:latest":
                 active_model = config.ROUTING_CONFIG.get("creative", "openai/gpt-oss-120b")
-            active_temperature = 0.85
+            active_temperature = 0.75
             active_top_p = 0.95
-            telemetry_manager.add_trace(f"[CREATIVE CORE] Speculative concept studio engaged ({active_model})")
+            telemetry_manager.add_trace(f"[CREATIVE CORE] Concept Studio + Z-Image-Turbo engaged ({active_model})")
 
-            # Check for image generation intent
-            visual_triggers = ["generate image", "create image", "draw", "visualize", "render", "wallpaper", "portrait", "illustration", "art of"]
-            if any(vt in message_lower for vt in visual_triggers):
+            # In Creative Core mode, every non-greeting prompt activates Z-Image-Turbo visual synthesis + Concept Studio direction
+            trivial_greetings = {"hi", "hello", "hey", "yo", "hola", "namaste", "good morning", "good evening"}
+            is_text_only_req = any(t in message_lower for t in ["no image", "without image", "text only", "don't generate an image"])
+            should_synthesize_visual = (clean_msg.lower().strip() not in trivial_greetings) and not is_text_only_req
+
+            if should_synthesize_visual:
                 try:
                     t0 = time.time()
                     from core.image_engine import ImageGenerator
-                    clean_p = corrected_message
-                    for vt in ["generate an image of", "generate image of", "create an image of", "create image of", "draw a picture of", "draw an image of", "draw", "visualize"]:
-                        clean_p = re.sub(vt, "", clean_p, flags=re.IGNORECASE)
-                    clean_p = clean_p.strip() or "cinematic futuristic concept"
-                    gen_res = ImageGenerator().generate(clean_p)
+                    raw_visual_prompt = detected_image_prompt or clean_msg
+                    clean_alt = re.sub(r'[\r\n\t]+', ' ', raw_visual_prompt).strip()
+                    display_prompt = clean_alt[:110] + ("..." if len(clean_alt) > 110 else "")
+
+                    banner_chunk = f"🎨 **Creative Core · Concept Studio + Z-Image-Turbo**: Synthesizing high-definition visual asset & studio direction...\n\n"
+                    creative_prefix_chunks.append(banner_chunk)
+                    yield banner_chunk
+
+                    gen_res = ImageGenerator().generate(raw_visual_prompt)
                     duration_ms = (time.time() - t0) * 1000
                     if gen_res.get("status") == "success":
                         img_url = gen_res.get("url")
-                        clean_summary = re.sub(r'[\r\n\t]+', ' ', clean_p).strip()[:100]
-                        telemetry_manager.add_tool_log("image_gen", clean_summary, "success", duration_ms)
+                        filename = gen_res.get("filename", "asset.png")
+                        provider_info = gen_res.get("info", "Z-Image-Turbo")
+                        aspect_str = gen_res.get("aspect", "1:1")
+                        dims_str = f"{gen_res.get('width', 1024)}×{gen_res.get('height', 1024)}"
+                        distilled_used = gen_res.get("distilled_prompt", "")
+
+                        telemetry_manager.add_tool_log("image_gen", display_prompt[:80], "success", duration_ms)
+                        img_block = (
+                            f"![{display_prompt}]({img_url})\n\n"
+                            f"**Engine**: `{provider_info}` · **Format**: `{aspect_str}` (`{dims_str}`) · **Archive**: `{filename}`\n\n"
+                            f"---\n\n"
+                        )
+                        creative_prefix_chunks.append(img_block)
+                        creative_img_rendered = True
+                        yield img_block
+
                         context_snippets.append(
-                            f"--- CREATIVE CORE: LIVE IMAGE SYNTHESIS COMPLETE ---\n"
-                            f"Image URL: {img_url}\n"
-                            f"Markdown Embed: ![{clean_summary}]({img_url})\n"
-                            f"Directive: Include the Markdown Embed '![{clean_summary}]({img_url})' at the top of your response so the image renders directly in the user's chatbox, followed by a cinematic narrative describing the artwork."
+                            f"--- CREATIVE CORE: Z-IMAGE-TURBO SYNTHESIS ALREADY DISPLAYED ABOVE ---\n"
+                            f"Rendered Image URL: {img_url}\n"
+                            f"Format & Resolution: {aspect_str} ({dims_str})\n"
+                            f"Distilled Diffusion Prompt Used: {distilled_used}\n"
+                            f"CRITICAL DIRECTIVE: The synthesized image above is ALREADY rendered and visible at the top of the user's screen. "
+                            f"Do NOT output any `![...](...)` markdown image tag or fake `/api/assets/images/...` link in your text. "
+                            f"Provide a concise, authoritative **Concept Studio Art Direction Brief** directly below the image with:\n"
+                            f"1. **Visual & Structural Architecture**: Key subject geometry, materials, surface finishes, and spatial composition.\n"
+                            f"2. **Lighting & Optical Telemetry**: Studio/key illumination setup, color temperature, lens focal length, depth of field, and dynamic range.\n"
+                            f"3. **Master Z-Image-Turbo / Flux Prompt Tags**: A copy-ready code block of positive diffusion tags for iterative studio refinement."
                         )
                 except Exception as e:
                     logger.error(f"Creative Core image generation error: {e}")
 
             context_snippets.append(
-                "--- SPECIALIZATION DIRECTIVE: CREATIVE CORE ---\n"
-                "You are CREATIVE CORE, JARVIS's speculative worldbuilder, concept artist, and cinematic director.\n"
-                "1. ELEVATED PROSE: Craft evocative, visceral narrative and bold prose. Ban all generic AI clichés.\n"
-                "2. SPECULATIVE ARCHITECTURE: When inventing technologies, factions, worlds, or sci-fi concepts, ground them in rich lore and tangible mechanics.\n"
-                "3. PROMPT CRAFTING: When discussing visual aesthetics, provide optimized Z-Image-Turbo / Flux style prompt tags.\n"
-                "4. VISIONARY HOOKS: Create high-impact, memorable headlines, scripts, and concepts."
+                "--- SPECIALIZATION DIRECTIVE: CREATIVE CORE (CONCEPT STUDIO) ---\n"
+                "You are CREATIVE CORE, JARVIS's elite Concept Studio Director and Industrial/Cinematic Visual Architect.\n"
+                "1. PRECISION ART DIRECTION: Deliver crisp, structured visual direction grounded in real optical physics, industrial design, and cinematography.\n"
+                "2. ZERO IMAGE LINK HALLUCINATION: Never invent or guess `/api/assets/images/gen_...` URLs.\n"
+                "3. CONCISE STUDIO BREAKDOWN: Keep the Concept Studio breakdown sharp, well-formatted, and immediately actionable."
             )
 
         # ─── MODE 3: SECURITY SCAN ─────────────────────────────────────────────
@@ -1001,7 +1037,11 @@ class ChatEngine:
             c_text = (m.get("content") or "").strip()
             # Do not inject previous error banners, empty items, or canned refusal phrases into model context
             if c_text and not c_text.startswith("⚠️") and not self.is_refusal(c_text):
-                raw_history.append({"role": m.get("role", "user"), "content": c_text})
+                if creative_img_rendered:
+                    # Strip prior markdown image embeds from LLM prompt context so the model does not mimic/hallucinate fake asset URLs
+                    c_text = re.sub(r"!\[[^\]]*\]\(/api/assets/images/[^)]+\)\s*", "", c_text).strip()
+                if c_text:
+                    raw_history.append({"role": m.get("role", "user"), "content": c_text})
 
         # Cap total history characters to 12,000 to prevent provider 413 payload / rate limit overflows
         history = []
@@ -1018,11 +1058,11 @@ class ChatEngine:
         history.append({"role": "user", "content": model_user_turn})
         
         # Stream response with real-time thinking block suppression
-        full_response = []
+        full_response = list(creative_prefix_chunks)
 
         # ─── Guaranteed Visual Intelligence Delivery ───
         # If verified original photographs were found, yield the primary portrait immediately!
-        if visual_dossier_data and visual_dossier_data.get("images"):
+        if visual_dossier_data and visual_dossier_data.get("images") and not creative_img_rendered:
             primary_img = visual_dossier_data["images"][0]
             img_card = f"![{primary_img['title']}]({primary_img['url']})\n\n"
             full_response.append(img_card)
@@ -1122,6 +1162,9 @@ class ChatEngine:
                     fname = os.path.basename(img_url.split("?")[0])
                     if os.path.isfile(os.path.join(config.IMAGE_GEN_DIR, fname)):
                         return match.group(0)
+                    if creative_img_rendered:
+                        # An authentic Creative Core image was already rendered at the top; strip any duplicate hallucinated tag
+                        return ""
                 try:
                     from core.image_engine import ImageGenerator
                     synth = ImageGenerator().generate(alt_txt or message)

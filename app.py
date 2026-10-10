@@ -182,24 +182,12 @@ except ImportError:
 def neural_heartbeat():
     """Background thread to monitor system health every 15 minutes."""
     while True:
+        time.sleep(900)
         try:
             health = DiagnosticNode.check_environment()
             logger.info(f"Neural Heartbeat: {health['status'].upper()} | Active Threads: {threading.active_count()}")
         except Exception as e:
             logger.error(f"Heartbeat Failure: {e}")
-        
-        # Dump threads every 10 seconds for debugging
-        import traceback, sys
-        logger.info("--- DUMPING ALL THREADS ---")
-        for th in threading.enumerate():
-            logger.info(f"Thread: {th.name}")
-            frame = sys._current_frames().get(th.ident)
-            if frame:
-                logger.info("".join(traceback.format_stack(frame)))
-        logger.info("---------------------------")
-        
-        import time
-        time.sleep(10) # 10 seconds for debug
 
 threading.Thread(target=neural_heartbeat, daemon=True).start()
 
