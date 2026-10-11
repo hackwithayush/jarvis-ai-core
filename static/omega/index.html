@@ -9,17 +9,52 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.22"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.22">
+    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.23"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.23">
   </head>
   <body>
     <div id="jarvis-bg-stage" aria-hidden="true">
       <img id="jarvis-bg-photo" alt="" />
-      <video id="jarvis-bg-video" autoplay loop muted playsinline></video>
+      <video id="jarvis-bg-video" src="/static/media/videos/stark_hud_core.mp4" autoplay loop muted playsinline></video>
       <canvas id="jarvis-bg-canvas"></canvas>
       <div id="jarvis-bg-vignette"></div>
     </div>
-    <audio id="jarvis-music-audio" crossorigin="anonymous" loop preload="none"></audio>
+    <audio id="jarvis-music-audio" src="/static/media/audio/lofi_focus_beat.mp3" loop preload="auto"></audio>
+
+    <!-- Real Small Video & Audio Background Deck (PiP HUD) -->
+    <div id="jarvis-mini-av-player" class="jarvis-mini-av">
+      <div class="jarvis-mini-av-header">
+        <div class="jarvis-mini-av-badge">
+          <span id="jarvis-mini-av-dot" class="jarvis-mini-av-dot"></span>
+          <span>LIVE AV DECK</span>
+        </div>
+        <div class="jarvis-mini-av-top-btns">
+          <button type="button" id="jarvis-mini-av-bg-btn" class="jarvis-mini-av-iconbtn" title="Toggle Full-Screen Video Background">⛶</button>
+          <button type="button" id="jarvis-mini-av-min-btn" class="jarvis-mini-av-iconbtn" title="Minimize / Expand Small Video Deck">—</button>
+        </div>
+      </div>
+      <div id="jarvis-mini-av-body" class="jarvis-mini-av-body">
+        <div class="jarvis-mini-av-screen">
+          <video id="jarvis-mini-video" src="/static/media/videos/stark_hud_core.mp4" autoplay loop muted playsinline></video>
+          <div class="jarvis-mini-av-overlay">
+            <span id="jarvis-mini-video-label" class="jarvis-mini-video-label">🎬 Stark Arc Reactor HUD</span>
+            <div id="jarvis-mini-eq" class="jarvis-mini-eq">
+              <span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+        <div class="jarvis-mini-av-meta">
+          <div id="jarvis-mini-audio-label" class="jarvis-mini-audio-label">🎵 Stark Lo-Fi Focus Beat</div>
+          <div class="jarvis-mini-av-controls">
+            <button type="button" id="jarvis-mini-play-btn" class="jarvis-mini-av-btn active" title="Play / Pause Video & Audio">⏸</button>
+            <button type="button" id="jarvis-mini-mute-btn" class="jarvis-mini-av-btn active" title="Toggle Audio On / Mute">🔊</button>
+            <button type="button" id="jarvis-mini-next-vid-btn" class="jarvis-mini-av-btn" title="Next Background Video (.mp4)">🎬⏭</button>
+            <button type="button" id="jarvis-mini-next-aud-btn" class="jarvis-mini-av-btn" title="Next Music Track (.mp3)">🎵⏭</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="root"></div>
     <script>
       window.__JARVIS_THEME_PRESETS = {
@@ -31,6 +66,21 @@
         arctic_frost:   { label: 'Arctic Frost',    accent: '#38bdf8', secondary: '#818cf8', dim: '#0284c7', bg: '#040d1a', surface: '#0a192e', surfaceLight: '#112645' },
         cyber_punk:     { label: 'Night City Neon', accent: '#fcee0a', secondary: '#ff0055', dim: '#c9bd00', bg: '#09090f', surface: '#131320', surfaceLight: '#1c1c30' },
         rose_quartz:    { label: 'Velvet Rose',     accent: '#ff4ecd', secondary: '#ff7b54', dim: '#d435a7', bg: '#120410', surface: '#1f081b', surfaceLight: '#2e0e29' }
+      };
+
+      window.__JARVIS_VIDEOS = {
+        'vid_stark_hud':   { url: '/static/media/videos/stark_hud_core.mp4',    title: '🎬 Stark Arc Reactor HUD' },
+        'vid_cyberpunk':   { url: '/static/media/videos/cyberpunk_horizon.mp4', title: '🎬 Cyberpunk Horizon Grid' },
+        'vid_deep_space':  { url: '/static/media/videos/deep_space_cosmos.mp4', title: '🎬 Deep Space Nebula Warp' },
+        'vid_matrix_rain': { url: '/static/media/videos/matrix_neural_rain.mp4', title: '🎬 Neural Matrix Rain' }
+      };
+
+      window.__JARVIS_AUDIO_TRACKS = {
+        'lofi_focus':      { url: '/static/media/audio/lofi_focus_beat.mp3',      title: '🎧 Stark Lo-Fi Focus Beat' },
+        'synthwave_drive': { url: '/static/media/audio/synthwave_drive.mp3',      title: '🌆 Night City Synthwave' },
+        'deep_space':      { url: '/static/media/audio/deep_space_drone.mp3',     title: '🌌 Deep Space Ambient' },
+        'stark_tactical':  { url: '/static/media/audio/stark_tactical_pulse.mp3', title: '⚡ Stark Lab Tactical Pulse' },
+        'cyber_rain':      { url: '/static/media/audio/cyber_rain_piano.mp3',     title: '🌧️ Cyber Rain & Soft Piano' }
       };
 
       window.__JARVIS_4K_WALLPAPERS = {
@@ -335,12 +385,13 @@
         root.style.setProperty('--jarvis-icon-glow', (iconMode === 'custom' ? iconColor : accent) + '66');
 
         // Universal 3D / 4K Photo / Live Video Background Engine
-        const bgMode = cfg.bg_mode || 'none';
-        const bgPreset = cfg.bg_preset || '3d_quantum_core';
+        const bgMode = cfg.bg_mode || 'live';
+        const bgPreset = cfg.bg_preset || 'vid_stark_hud';
         const bgCustomUrl = cfg.bg_custom_url || '';
         const bgCustomType = cfg.bg_custom_type || 'photo';
-        const bgOpacity = cfg.bg_opacity !== undefined ? Number(cfg.bg_opacity) : 0.90;
+        const bgOpacity = cfg.bg_opacity !== undefined ? Number(cfg.bg_opacity) : 0.88;
         const bgBlur = cfg.bg_blur !== undefined ? Number(cfg.bg_blur) : 0;
+        const miniAvVisible = cfg.mini_av_visible !== undefined ? !!cfg.mini_av_visible : true;
 
         root.style.setProperty('--jarvis-bg-opacity', String(bgOpacity));
         root.style.setProperty('--jarvis-bg-blur', String(bgBlur) + 'px');
@@ -348,6 +399,41 @@
         const photoEl = document.getElementById('jarvis-bg-photo');
         const videoEl = document.getElementById('jarvis-bg-video');
         const canvasEl = document.getElementById('jarvis-bg-canvas');
+        const miniPlayerEl = document.getElementById('jarvis-mini-av-player');
+        const miniVideoEl = document.getElementById('jarvis-mini-video');
+        const miniVideoLabel = document.getElementById('jarvis-mini-video-label');
+        const miniBgBtn = document.getElementById('jarvis-mini-av-bg-btn');
+
+        // Determine active real video URL & title for both Full-BG and Small AV Deck
+        const builtinVid = window.__JARVIS_VIDEOS[bgPreset];
+        const activeVideoUrl = builtinVid
+          ? builtinVid.url
+          : ((bgPreset === 'custom_video' || bgCustomType === 'video') && bgCustomUrl
+              ? bgCustomUrl
+              : window.__JARVIS_VIDEOS['vid_stark_hud'].url);
+        const activeVideoTitle = builtinVid
+          ? builtinVid.title
+          : ((bgPreset === 'custom_video' || bgCustomType === 'video') && bgCustomUrl
+              ? '🎬 Custom Live Video'
+              : window.__JARVIS_VIDEOS['vid_stark_hud'].title);
+
+        if (miniPlayerEl) {
+          miniPlayerEl.style.display = miniAvVisible ? 'flex' : 'none';
+        }
+        if (miniVideoEl && miniAvVisible) {
+          if (miniVideoEl.getAttribute('src') !== activeVideoUrl) {
+            miniVideoEl.setAttribute('src', activeVideoUrl);
+          }
+          if (!window.__jarvisAvPaused) {
+            miniVideoEl.play().catch(function() {});
+          }
+        }
+        if (miniVideoLabel) {
+          miniVideoLabel.textContent = activeVideoTitle;
+        }
+        if (miniBgBtn) {
+          miniBgBtn.classList.toggle('active', bgMode !== 'none');
+        }
 
         if (bgMode === 'none') {
           root.setAttribute('data-bg-active', 'false');
@@ -365,15 +451,19 @@
             window.__startJarvisCanvasBg(scene, accent, secondary);
           } else if (bgMode === 'live') {
             if (photoEl) photoEl.style.display = 'none';
-            if ((bgPreset === 'custom_video' || bgCustomType === 'video') && bgCustomUrl) {
+            const isVideoPreset = !!builtinVid || ((bgPreset === 'custom_video' || bgCustomType === 'video') && !!bgCustomUrl);
+            if (isVideoPreset) {
               window.__stopJarvisCanvasBg();
               if (canvasEl) canvasEl.style.display = 'none';
               if (videoEl) {
-                if (videoEl.getAttribute('src') !== bgCustomUrl) {
-                  videoEl.setAttribute('src', bgCustomUrl);
+                const vUrl = builtinVid ? builtinVid.url : bgCustomUrl;
+                if (videoEl.getAttribute('src') !== vUrl) {
+                  videoEl.setAttribute('src', vUrl);
                 }
                 videoEl.style.display = 'block';
-                videoEl.play().catch(function() {});
+                if (!window.__jarvisAvPaused) {
+                  videoEl.play().catch(function() {});
+                }
               }
             } else {
               if (videoEl) { videoEl.pause(); videoEl.style.display = 'none'; }
@@ -397,7 +487,7 @@
           }
         }
 
-        // Universal Music & Sonic Studio Engine (WebAudio Synth + Custom MP3/Stream + Video BG Audio)
+        // Universal Music & Sonic Studio Engine (Real MP3 Files + Custom Stream + WebAudio Synth Fallback)
         if (!window.__jarvisMusicEngine) {
           window.__jarvisMusicEngine = {
             ctx: null,
@@ -544,16 +634,37 @@
               const enabled = !!cfg.music_enabled;
               const preset = cfg.music_preset || 'lofi_focus';
               const customUrl = (cfg.music_custom_url || '').trim();
-              const vol = cfg.music_volume !== undefined ? Number(cfg.music_volume) : 0.65;
+              const customTitle = (cfg.music_custom_title || '').trim();
+              const vol = cfg.music_volume !== undefined ? Number(cfg.music_volume) : 0.55;
               const loop = cfg.music_loop !== undefined ? !!cfg.music_loop : true;
               const bass = !!cfg.music_bass_boost;
               const bgVidSound = !!cfg.bg_video_sound;
 
               const audioEl = document.getElementById('jarvis-music-audio');
               const videoEl = document.getElementById('jarvis-bg-video');
+              const miniAudioLabel = document.getElementById('jarvis-mini-audio-label');
+              const miniMuteBtn = document.getElementById('jarvis-mini-mute-btn');
+              const miniEq = document.getElementById('jarvis-mini-eq');
+
               if (videoEl) {
                 videoEl.muted = !bgVidSound;
                 videoEl.volume = Math.max(0, Math.min(1, vol));
+              }
+
+              const builtinTrack = window.__JARVIS_AUDIO_TRACKS[preset];
+              const trackTitle = (preset === 'custom_audio' && customUrl)
+                ? ('🎵 ' + (customTitle || 'Custom Audio Track'))
+                : (builtinTrack ? builtinTrack.title : '🎧 Stark Lo-Fi Focus Beat');
+
+              if (miniAudioLabel) {
+                miniAudioLabel.textContent = enabled ? trackTitle : ('🔇 ' + trackTitle.replace(/^[^\s]+\s/, '') + ' (Muted)');
+              }
+              if (miniMuteBtn) {
+                miniMuteBtn.textContent = enabled ? '🔊' : '🔇';
+                miniMuteBtn.classList.toggle('active', enabled);
+              }
+              if (miniEq) {
+                miniEq.classList.toggle('paused', !enabled || !!window.__jarvisAvPaused);
               }
 
               if (this.masterGain && this.ctx) {
@@ -563,7 +674,7 @@
                 this.bassFilter.gain.setValueAtTime(bass ? 9.5 : 0, this.ctx.currentTime);
               }
 
-              if (!enabled) {
+              if (!enabled || window.__jarvisAvPaused) {
                 this.playing = false;
                 this.stopSynth();
                 if (audioEl) { audioEl.pause(); }
@@ -571,29 +682,52 @@
               }
 
               this.playing = true;
-              if (preset === 'custom_audio' && customUrl) {
-                this.stopSynth();
-                if (audioEl) {
-                  audioEl.loop = loop;
-                  audioEl.volume = Math.max(0, Math.min(1, vol));
-                  if (audioEl.getAttribute('src') !== customUrl) {
-                    audioEl.setAttribute('src', customUrl);
-                  }
-                  audioEl.play().catch(function() {});
+              const targetAudioUrl = (preset === 'custom_audio' && customUrl)
+                ? customUrl
+                : (builtinTrack ? builtinTrack.url : window.__JARVIS_AUDIO_TRACKS['lofi_focus'].url);
+
+              this.stopSynth();
+              if (audioEl && targetAudioUrl) {
+                audioEl.loop = loop;
+                audioEl.muted = false;
+                audioEl.volume = Math.max(0, Math.min(1, vol));
+                if (audioEl.getAttribute('src') !== targetAudioUrl) {
+                  audioEl.setAttribute('src', targetAudioUrl);
                 }
-              } else {
-                if (audioEl) { audioEl.pause(); }
-                this.startSynth(preset);
+                const self = this;
+                const playPromise = audioEl.play();
+                if (playPromise && typeof playPromise.catch === 'function') {
+                  playPromise.catch(function() {
+                    // Browser autoplay policy waiting for first user interaction; unlock immediately on first click/key
+                    if (!window.__jarvisAudioUnlockBound) {
+                      window.__jarvisAudioUnlockBound = true;
+                      const unlock = function() {
+                        window.__jarvisAudioUnlockBound = false;
+                        window.removeEventListener('pointerdown', unlock);
+                        window.removeEventListener('keydown', unlock);
+                        if (self.playing && !window.__jarvisAvPaused && audioEl) {
+                          audioEl.play().catch(function() {});
+                        }
+                        const v1 = document.getElementById('jarvis-bg-video');
+                        const v2 = document.getElementById('jarvis-mini-video');
+                        if (v1 && v1.style.display !== 'none' && !window.__jarvisAvPaused) v1.play().catch(function() {});
+                        if (v2 && !window.__jarvisAvPaused) v2.play().catch(function() {});
+                      };
+                      window.addEventListener('pointerdown', unlock, { once: true });
+                      window.addEventListener('keydown', unlock, { once: true });
+                    }
+                  });
+                }
               }
             }
           };
         }
 
-        const musicEnabled = !!cfg.music_enabled;
+        const musicEnabled = cfg.music_enabled !== undefined ? !!cfg.music_enabled : true;
         const musicPreset = cfg.music_preset || 'lofi_focus';
         const musicCustomUrl = cfg.music_custom_url || '';
         const musicCustomTitle = cfg.music_custom_title || '';
-        const musicVolume = cfg.music_volume !== undefined ? Number(cfg.music_volume) : 0.65;
+        const musicVolume = cfg.music_volume !== undefined ? Number(cfg.music_volume) : 0.55;
         const musicLoop = cfg.music_loop !== undefined ? !!cfg.music_loop : true;
         const musicBassBoost = !!cfg.music_bass_boost;
         const bgVideoSound = !!cfg.bg_video_sound;
@@ -603,6 +737,7 @@
             music_enabled: musicEnabled,
             music_preset: musicPreset,
             music_custom_url: musicCustomUrl,
+            music_custom_title: musicCustomTitle,
             music_volume: musicVolume,
             music_loop: musicLoop,
             music_bass_boost: musicBassBoost,
@@ -610,40 +745,160 @@
           });
         } catch (e) {}
 
+        const fullCfg = {
+          preset: cfg.preset || 'omega_cyan',
+          accent: accent,
+          secondary: secondary,
+          bg: bg,
+          surface: surface,
+          icon_mode: iconMode,
+          icon_color: iconColor,
+          icon_glow: iconGlow,
+          bg_mode: bgMode,
+          bg_preset: bgPreset,
+          bg_custom_url: bgCustomUrl,
+          bg_custom_type: bgCustomType,
+          bg_opacity: bgOpacity,
+          bg_blur: bgBlur,
+          music_enabled: musicEnabled,
+          music_preset: musicPreset,
+          music_custom_url: musicCustomUrl,
+          music_custom_title: musicCustomTitle,
+          music_volume: musicVolume,
+          music_loop: musicLoop,
+          music_bass_boost: musicBassBoost,
+          bg_video_sound: bgVideoSound,
+          mini_av_visible: miniAvVisible
+        };
+        window.__jarvisCurrentThemeCfg = fullCfg;
         try {
-          localStorage.setItem('jarvis_theme_cfg', JSON.stringify({
-            preset: cfg.preset || 'omega_cyan',
-            accent: accent,
-            secondary: secondary,
-            bg: bg,
-            surface: surface,
-            icon_mode: iconMode,
-            icon_color: iconColor,
-            icon_glow: iconGlow,
-            bg_mode: bgMode,
-            bg_preset: bgPreset,
-            bg_custom_url: bgCustomUrl,
-            bg_custom_type: bgCustomType,
-            bg_opacity: bgOpacity,
-            bg_blur: bgBlur,
-            music_enabled: musicEnabled,
-            music_preset: musicPreset,
-            music_custom_url: musicCustomUrl,
-            music_custom_title: musicCustomTitle,
-            music_volume: musicVolume,
-            music_loop: musicLoop,
-            music_bass_boost: musicBassBoost,
-            bg_video_sound: bgVideoSound
-          }));
+          localStorage.setItem('jarvis_theme_cfg', JSON.stringify(fullCfg));
         } catch (e) {}
       };
 
-      // Apply saved theme & background immediately on boot
-      try {
-        const savedTheme = localStorage.getItem('jarvis_theme_cfg');
-        if (savedTheme) {
-          window.__applyJarvisTheme(JSON.parse(savedTheme));
+      // Interactive Controls for Real Small Video & Audio Background Deck (#jarvis-mini-av-player)
+      (function() {
+        const videoKeys = ['vid_stark_hud', 'vid_cyberpunk', 'vid_deep_space', 'vid_matrix_rain'];
+        const audioKeys = ['lofi_focus', 'synthwave_drive', 'deep_space', 'stark_tactical', 'cyber_rain'];
+
+        function getCfg() {
+          if (window.__jarvisCurrentThemeCfg) return Object.assign({}, window.__jarvisCurrentThemeCfg);
+          try {
+            const raw = localStorage.getItem('jarvis_theme_cfg');
+            if (raw) return JSON.parse(raw);
+          } catch (e) {}
+          return { bg_mode: 'live', bg_preset: 'vid_stark_hud', music_enabled: true, music_preset: 'lofi_focus', mini_av_visible: true };
         }
+
+        function saveAndApply(nextCfg) {
+          window.__applyJarvisTheme(nextCfg);
+          fetch('/api/theme', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(nextCfg)
+          }).catch(function() {});
+        }
+
+        const playBtn = document.getElementById('jarvis-mini-play-btn');
+        const muteBtn = document.getElementById('jarvis-mini-mute-btn');
+        const nextVidBtn = document.getElementById('jarvis-mini-next-vid-btn');
+        const nextAudBtn = document.getElementById('jarvis-mini-next-aud-btn');
+        const bgBtn = document.getElementById('jarvis-mini-av-bg-btn');
+        const minBtn = document.getElementById('jarvis-mini-av-min-btn');
+        const playerEl = document.getElementById('jarvis-mini-av-player');
+
+        if (playBtn) {
+          playBtn.addEventListener('click', function() {
+            window.__jarvisAvPaused = !window.__jarvisAvPaused;
+            const paused = !!window.__jarvisAvPaused;
+            playBtn.textContent = paused ? '▶' : '⏸';
+            playBtn.classList.toggle('active', !paused);
+            const v1 = document.getElementById('jarvis-bg-video');
+            const v2 = document.getElementById('jarvis-mini-video');
+            const a1 = document.getElementById('jarvis-music-audio');
+            const eq = document.getElementById('jarvis-mini-eq');
+            if (paused) {
+              if (v1) v1.pause();
+              if (v2) v2.pause();
+              if (a1) a1.pause();
+              if (window.__jarvisMusicEngine) window.__jarvisMusicEngine.stopSynth();
+            } else {
+              if (v1 && v1.style.display !== 'none') v1.play().catch(function() {});
+              if (v2) v2.play().catch(function() {});
+              window.__applyJarvisTheme(getCfg());
+            }
+            if (eq) eq.classList.toggle('paused', paused || !getCfg().music_enabled);
+          });
+        }
+
+        if (muteBtn) {
+          muteBtn.addEventListener('click', function() {
+            window.__jarvisAvPaused = false;
+            if (playBtn) { playBtn.textContent = '⏸'; playBtn.classList.add('active'); }
+            const cfg = getCfg();
+            cfg.music_enabled = !cfg.music_enabled;
+            saveAndApply(cfg);
+          });
+        }
+
+        if (nextVidBtn) {
+          nextVidBtn.addEventListener('click', function() {
+            window.__jarvisAvPaused = false;
+            if (playBtn) { playBtn.textContent = '⏸'; playBtn.classList.add('active'); }
+            const cfg = getCfg();
+            const idx = videoKeys.indexOf(cfg.bg_preset);
+            cfg.bg_mode = 'live';
+            cfg.bg_preset = videoKeys[(idx + 1) % videoKeys.length];
+            saveAndApply(cfg);
+          });
+        }
+
+        if (nextAudBtn) {
+          nextAudBtn.addEventListener('click', function() {
+            window.__jarvisAvPaused = false;
+            if (playBtn) { playBtn.textContent = '⏸'; playBtn.classList.add('active'); }
+            const cfg = getCfg();
+            const idx = audioKeys.indexOf(cfg.music_preset);
+            cfg.music_enabled = true;
+            cfg.music_preset = audioKeys[(idx + 1) % audioKeys.length];
+            saveAndApply(cfg);
+          });
+        }
+
+        if (bgBtn) {
+          bgBtn.addEventListener('click', function() {
+            const cfg = getCfg();
+            if (cfg.bg_mode === 'none') {
+              cfg.bg_mode = 'live';
+              if (!window.__JARVIS_VIDEOS[cfg.bg_preset]) cfg.bg_preset = 'vid_stark_hud';
+            } else {
+              cfg.bg_mode = 'none';
+            }
+            saveAndApply(cfg);
+          });
+        }
+
+        if (minBtn && playerEl) {
+          minBtn.addEventListener('click', function() {
+            const isMin = playerEl.classList.toggle('minimized');
+            minBtn.textContent = isMin ? '▢' : '—';
+          });
+        }
+      })();
+
+      // Apply saved theme & background immediately on boot (with v16.23 AV activation upgrade)
+      try {
+        const rawSaved = localStorage.getItem('jarvis_theme_cfg');
+        let bootCfg = rawSaved ? JSON.parse(rawSaved) : {};
+        if (!localStorage.getItem('jarvis_av_v16_23')) {
+          localStorage.setItem('jarvis_av_v16_23', '1');
+          bootCfg.bg_mode = 'live';
+          bootCfg.bg_preset = 'vid_stark_hud';
+          bootCfg.music_enabled = true;
+          bootCfg.music_preset = bootCfg.music_preset || 'lofi_focus';
+          bootCfg.mini_av_visible = true;
+        }
+        window.__applyJarvisTheme(bootCfg);
       } catch (e) {}
 
       // 60/120fps Physics Inertia Smooth Wheel Scroller for Settings Modal & Scroll Containers

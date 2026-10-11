@@ -1150,7 +1150,7 @@ def handle_user_settings():
                 cur_theme[url_k] = data["theme_config"][url_k].strip()[:2048]
         if "music_custom_title" in data["theme_config"] and isinstance(data["theme_config"]["music_custom_title"], str):
             cur_theme["music_custom_title"] = data["theme_config"]["music_custom_title"].strip()[:160]
-        for bool_k in ("icon_glow", "music_enabled", "music_loop", "music_bass_boost", "bg_video_sound"):
+        for bool_k in ("icon_glow", "music_enabled", "music_loop", "music_bass_boost", "bg_video_sound", "mini_av_visible"):
             if bool_k in data["theme_config"]:
                 cur_theme[bool_k] = bool(data["theme_config"][bool_k])
         if "bg_opacity" in data["theme_config"]:
@@ -1274,6 +1274,24 @@ def list_music_library():
                 "url": f"/static/uploads/music/{fname}",
             })
     return jsonify({"tracks": tracks[:25]})
+
+@app.route("/api/theme", methods=["GET", "POST"])
+def api_theme_sync():
+    """Quick sync endpoint for the Small Video & Audio Background Deck (#jarvis-mini-av-player)."""
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        cur_theme = dict(getattr(config, "THEME_CONFIG", {}))
+        for k in ("preset", "accent", "secondary", "bg", "surface", "icon_mode", "icon_color", "bg_mode", "bg_preset", "bg_custom_type", "music_preset"):
+            if k in data and isinstance(data[k], str) and data[k].strip():
+                cur_theme[k] = data[k].strip()[:64]
+        for url_k in ("bg_custom_url", "music_custom_url"):
+            if url_k in data and isinstance(data[url_k], str):
+                cur_theme[url_k] = data[url_k].strip()[:2048]
+        for bool_k in ("icon_glow", "music_enabled", "music_loop", "music_bass_boost", "bg_video_sound", "mini_av_visible"):
+            if bool_k in data:
+                cur_theme[bool_k] = bool(data[bool_k])
+        config.THEME_CONFIG = cur_theme
+    return jsonify({"status": "success", "theme_config": getattr(config, "THEME_CONFIG", {})})
 
 # ─── Conversations ──────────────────────────────────────────────
 

@@ -81,13 +81,13 @@ THEME_CONFIG = {                  # #11 Visual Theme, Icon, 3D/4K/Live Backgroun
     "icon_mode": "theme",         # "theme" | "spectrum" | "custom"
     "icon_color": "#00f5ff",
     "icon_glow": True,
-    "bg_mode": "none",            # "none" | "3d" | "live" | "photo"
-    "bg_preset": "3d_quantum_core",
+    "bg_mode": "live",            # "none" | "3d" | "live" | "photo"
+    "bg_preset": "vid_stark_hud",
     "bg_custom_url": "",
-    "bg_custom_type": "photo",    # "photo" | "video"
-    "bg_opacity": 0.55,
+    "bg_custom_type": "video",    # "photo" | "video"
+    "bg_opacity": 0.65,
     "bg_blur": 0,
-    "music_enabled": False,
+    "music_enabled": True,
     "music_preset": "lofi_focus", # "lofi_focus" | "synthwave_drive" | "deep_space" | "stark_tactical" | "cyber_rain" | "custom_audio"
     "music_custom_url": "",
     "music_custom_title": "",
@@ -95,6 +95,7 @@ THEME_CONFIG = {                  # #11 Visual Theme, Icon, 3D/4K/Live Backgroun
     "music_loop": True,
     "music_bass_boost": False,
     "bg_video_sound": False,
+    "mini_av_visible": True,
 }
 
 # ─── Telegram Bot ──────────────────────────────────────────────

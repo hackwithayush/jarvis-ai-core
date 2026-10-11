@@ -657,4 +657,236 @@ body:before {
   pointer-events: none;
 }
 
+/* ─── v16.23 Real Small Video & Audio Background Deck (#jarvis-mini-av-player) ─── */
+.jarvis-mini-av {
+  position: fixed;
+  bottom: 88px;
+  right: 16px;
+  z-index: 48;
+  width: 212px;
+  display: flex;
+  flex-direction: column;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--color-omega-surface) 84%, rgba(4, 8, 20, 0.92));
+  border: 1px solid color-mix(in srgb, var(--color-omega-cyan) 42%, transparent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65), 0 0 18px color-mix(in srgb, var(--color-omega-cyan) 18%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  overflow: hidden;
+  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  user-select: none;
+}
 
+@media (min-width: 1100px) and (max-width: 1359.98px) {
+  .jarvis-mini-av {
+    right: 258px;
+  }
+}
+
+@media (min-width: 1360px) {
+  .jarvis-mini-av {
+    right: 286px;
+  }
+}
+
+@media (max-width: 639.98px) {
+  .jarvis-mini-av {
+    width: 176px;
+    bottom: 82px;
+    right: 10px;
+  }
+}
+
+.jarvis-mini-av.minimized {
+  width: 158px;
+}
+
+.jarvis-mini-av.minimized .jarvis-mini-av-body {
+  display: none !important;
+}
+
+.jarvis-mini-av-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.jarvis-mini-av-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: "Orbitron", "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-omega-cyan);
+}
+
+.jarvis-mini-av-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #00ffb2;
+  box-shadow: 0 0 8px #00ffb2;
+  animation: jarvisPulseDot 1.6s infinite ease-in-out;
+}
+
+@keyframes jarvisPulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.82); }
+}
+
+.jarvis-mini-av-top-btns {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.jarvis-mini-av-iconbtn {
+  width: 20px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #94a3b8;
+  font-size: 10px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.jarvis-mini-av-iconbtn:hover,
+.jarvis-mini-av-iconbtn.active {
+  color: var(--color-omega-cyan);
+  border-color: var(--color-omega-cyan);
+  background: color-mix(in srgb, var(--color-omega-cyan) 16%, transparent);
+}
+
+.jarvis-mini-av-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.jarvis-mini-av-screen {
+  position: relative;
+  width: 100%;
+  height: 104px;
+  background: #040711;
+  overflow: hidden;
+}
+
+@media (max-width: 639.98px) {
+  .jarvis-mini-av-screen {
+    height: 84px;
+  }
+}
+
+#jarvis-mini-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.jarvis-mini-av-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 4px 7px;
+  background: linear-gradient(to top, rgba(3, 6, 16, 0.92), transparent);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.jarvis-mini-video-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jarvis-mini-eq {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+.jarvis-mini-eq span {
+  width: 2.5px;
+  height: 10px;
+  border-radius: 2px;
+  background: var(--color-omega-cyan);
+  animation: jarvisEqBounce 0.75s infinite ease-in-out alternate;
+}
+
+.jarvis-mini-eq span:nth-child(2) { animation-delay: 0.18s; height: 7px; }
+.jarvis-mini-eq span:nth-child(3) { animation-delay: 0.34s; height: 11px; }
+.jarvis-mini-eq span:nth-child(4) { animation-delay: 0.50s; height: 6px; }
+
+.jarvis-mini-eq.paused span {
+  animation-play-state: paused !important;
+  height: 3px !important;
+  opacity: 0.4;
+}
+
+@keyframes jarvisEqBounce {
+  0% { transform: scaleY(0.3); }
+  100% { transform: scaleY(1); }
+}
+
+.jarvis-mini-av-meta {
+  padding: 6px 8px 7px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.jarvis-mini-audio-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9.5px;
+  color: var(--color-omega-cyan);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.jarvis-mini-av-controls {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.jarvis-mini-av-btn {
+  padding: 3.5px 0;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #cbd5e1;
+  font-size: 10px;
+  font-family: "JetBrains Mono", monospace;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.jarvis-mini-av-btn:hover,
+.jarvis-mini-av-btn.active {
+  color: var(--color-omega-cyan);
+  border-color: color-mix(in srgb, var(--color-omega-cyan) 55%, transparent);
+  background: color-mix(in srgb, var(--color-omega-cyan) 16%, transparent);
+}
