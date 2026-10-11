@@ -950,7 +950,7 @@ class ChatEngine:
                     resolved_img_path = candidate_p
 
         # If we have an image path and file_context does not already contain deep vision analysis, run vision model
-        if resolved_img_path and os.path.exists(resolved_img_path):
+        if getattr(config, "FILE_VISION_ANALYSIS", True) and resolved_img_path and os.path.exists(resolved_img_path):
             if "VISUAL RECOGNITION & OCR ANALYSIS" not in str(file_context):
                 try:
                     logger.info(f"ChatEngine: Executing on-demand vision analysis for {resolved_img_path}")
@@ -970,7 +970,7 @@ class ChatEngine:
                 except Exception as e:
                     logger.warning(f"ChatEngine direct vision analysis failed: {e}")
 
-        if file_context and str(file_context).strip():
+        if getattr(config, "FILE_VISION_ANALYSIS", True) and file_context and str(file_context).strip():
             logger.info("ChatEngine: Ingesting attached file context into active reasoning pipeline.")
             context_snippets.append(
                 f"--- USER ATTACHED FILE CONTEXT ---\n"
@@ -979,26 +979,27 @@ class ChatEngine:
                 f"Directive: The user has attached a file/image. Prioritize analyzing and responding based on its content."
             )
 
-        # --- Memory Injection (Upgrade 1) ---
-        # 1. RAG Long-term Memory
-        rag_context = self.knowledge.build_context_prompt(corrected_message)
-        if rag_context:
-            context_snippets.append(rag_context)
+        # --- Memory Injection (Priority #5: Memory / Context) ---
+        if getattr(config, "MEMORY_ENABLED", True):
+            # 1. RAG Long-term Memory
+            rag_context = self.knowledge.build_context_prompt(corrected_message)
+            if rag_context:
+                context_snippets.append(rag_context)
 
-        # 2. Omega Cognitive Memory Engine Sync (Session-Aware)
-        try:
-            omega_context = self.omega_memory.process_input(corrected_message, conv_id=conv_id)
-            if omega_context:
-                context_snippets.append(omega_context)
-        except Exception as e:
-            logger.error(f"Omega Memory processing failed: {e}")
-            
-        # 3. Extract and Inject User Preferences (Short/Long term)
-        if user and hasattr(user, 'preferences'):
-            user.preferences = self.memory.extract_preferences(corrected_message, user.preferences or {})
-            memory_snippet = self.memory.build_memory_snippet(user.preferences)
-            if memory_snippet:
-                context_snippets.append(memory_snippet)
+            # 2. Omega Cognitive Memory Engine Sync (Session-Aware)
+            try:
+                omega_context = self.omega_memory.process_input(corrected_message, conv_id=conv_id)
+                if omega_context:
+                    context_snippets.append(omega_context)
+            except Exception as e:
+                logger.error(f"Omega Memory processing failed: {e}")
+                
+            # 3. Extract and Inject User Preferences (Short/Long term)
+            if user and hasattr(user, 'preferences'):
+                user.preferences = self.memory.extract_preferences(corrected_message, user.preferences or {})
+                memory_snippet = self.memory.build_memory_snippet(user.preferences)
+                if memory_snippet:
+                    context_snippets.append(memory_snippet)
                 
         # 4. Conversation Summarization
         if len(conv.get("messages", [])) > 15:
@@ -1032,6 +1033,20 @@ class ChatEngine:
             active_personality = (user.preferences or {}).get("personality", "normal")
             personality_prompt = config.PERSONALITY_PROMPTS.get(active_personality, config.PERSONALITY_PROMPTS["normal"])
             system_prompt += f"\n\n# ACTIVE PERSONALITY: {active_personality}\n{personality_prompt}"
+
+        # Custom Instructions Injection (Priority #4)
+        custom_inst = getattr(config, "CUSTOM_INSTRUCTIONS", "")
+        if custom_inst and custom_inst.strip():
+            system_prompt += f"\n\n# OPERATOR CUSTOM INSTRUCTIONS:\n{custom_inst.strip()}"
+
+        # Output Format Preference (Priority #8)
+        out_fmt = getattr(config, "OUTPUT_FORMAT_PREF", "markdown")
+        if out_fmt == "json":
+            system_prompt += "\n\n# OUTPUT FORMAT DIRECTIVE: Respond using structured, valid JSON unless explicitly asked otherwise."
+        elif out_fmt == "concise":
+            system_prompt += "\n\n# OUTPUT FORMAT DIRECTIVE: Keep responses ultra-concise, direct, and bulleted with zero fluff."
+        elif out_fmt == "executive_brief":
+            system_prompt += "\n\n# OUTPUT FORMAT DIRECTIVE: Structure responses as an Executive Briefing (Summary, Key Findings, Actionable Recommendations)."
 
         if config.AGENT_THINKING_BLOCK and getattr(config, "THINKING_DIRECTIVE", ""):
             system_prompt += f"\n\n{config.THINKING_DIRECTIVE}"

@@ -1005,14 +1005,15 @@ def get_user_status():
 @app.route("/api/settings", methods=["GET", "POST"])
 @app.route("/api/user/settings", methods=["GET", "POST"])
 def handle_user_settings():
-    """Retrieve or update real system and AI settings (model, temperature, personality, protocols)."""
-    if request.method == "GET":
+    """Retrieve or update the 10-priority AI Agent settings (Model, Reasoning, Tools, Instructions, Memory, Web Search, File/Vision, Output Format, Permissions, Speed)."""
+    prefs = {}
+    try:
+        if getattr(current_user, "is_authenticated", False) and getattr(current_user, "preferences", None):
+            prefs = dict(current_user.preferences or {})
+    except Exception:
         prefs = {}
-        try:
-            if getattr(current_user, "is_authenticated", False) and getattr(current_user, "preferences", None):
-                prefs = current_user.preferences or {}
-        except Exception:
-            prefs = {}
+
+    if request.method == "GET":
         ollama_ok = False
         try:
             if "model_manager" in globals() and hasattr(model_manager, "is_ollama_running"):
@@ -1021,11 +1022,36 @@ def handle_user_settings():
             ollama_ok = False
         return jsonify({
             "status": "success",
+            # 1. Model
             "default_model": getattr(config, "DEFAULT_MODEL", "openai/gpt-oss-120b"),
-            "temperature": getattr(config, "MODEL_TEMPERATURE", 0.4),
-            "uncensored_mode": getattr(config, "UNCENSORED_MODE", True),
-            "proactive_research": getattr(config, "PROACTIVE_RESEARCH", True),
+            # 2. Reasoning / Thinking
+            "reasoning_effort": getattr(config, "REASONING_EFFORT", "adaptive"),
+            "thinking_visible": getattr(config, "AGENT_THINKING_BLOCK", False),
+            # 3. Tools / Integrations
+            "tools_enabled": getattr(config, "TOOLS_ENABLED", {
+                "code_sandbox": True,
+                "image_synthesis": True,
+                "system_guardian": True,
+                "mcp_workspace": True,
+            }),
+            # 4. Instructions / Customization
             "personality": prefs.get("personality", "normal"),
+            "custom_instructions": getattr(config, "CUSTOM_INSTRUCTIONS", ""),
+            "uncensored_mode": getattr(config, "UNCENSORED_MODE", True),
+            # 5. Memory / Context
+            "memory_enabled": getattr(config, "MEMORY_ENABLED", True),
+            # 6. Web Search
+            "proactive_research": getattr(config, "PROACTIVE_RESEARCH", True),
+            "web_search_enabled": getattr(config, "PROACTIVE_RESEARCH", True),
+            # 7. File & Image Analysis
+            "file_vision_analysis": getattr(config, "FILE_VISION_ANALYSIS", True),
+            # 8. Output Format
+            "output_format": getattr(config, "OUTPUT_FORMAT_PREF", "markdown"),
+            # 9. Permissions / Approvals
+            "require_approval": getattr(config, "REQUIRE_APPROVAL", True),
+            # 10. Usage / Speed
+            "speed_profile": getattr(config, "SPEED_PROFILE", "balanced"),
+            "temperature": getattr(config, "MODEL_TEMPERATURE", 0.4),
             "nodes": {
                 "groq": bool(getattr(config, "GROQ_API_KEY", "")),
                 "gemini": bool(getattr(config, "GEMINI_API_KEY", "")),
@@ -1039,22 +1065,65 @@ def handle_user_settings():
     if not data:
         return jsonify({"error": "No settings provided"}), 400
 
+    # 1. Model
     if "default_model" in data and data["default_model"]:
         config.DEFAULT_MODEL = str(data["default_model"])
+    # 2. Reasoning / Thinking
+    if "reasoning_effort" in data and str(data["reasoning_effort"]).lower() in ("low", "medium", "high", "adaptive"):
+        config.REASONING_EFFORT = str(data["reasoning_effort"]).lower()
+    if "thinking_visible" in data:
+        config.AGENT_THINKING_BLOCK = bool(data["thinking_visible"])
+    # 3. Tools / Integrations
+    if isinstance(data.get("tools_enabled"), dict):
+        current_tools = dict(getattr(config, "TOOLS_ENABLED", {}))
+        for k, v in data["tools_enabled"].items():
+            if k in current_tools:
+                current_tools[k] = bool(v)
+        config.TOOLS_ENABLED = current_tools
+    # 4. Instructions / Customization
+    if "custom_instructions" in data:
+        config.CUSTOM_INSTRUCTIONS = str(data["custom_instructions"] or "").strip()[:2000]
+    if "uncensored_mode" in data:
+        config.UNCENSORED_MODE = bool(data["uncensored_mode"])
+    # 5. Memory / Context
+    if "memory_enabled" in data:
+        config.MEMORY_ENABLED = bool(data["memory_enabled"])
+    if data.get("clear_memory"):
+        try:
+            chat_engine.omega_memory.memory["long_term_memory"] = []
+            chat_engine.omega_memory._save_memory(chat_engine.omega_memory.memory)
+        except Exception as e:
+            logger.warning(f"Clear memory notice: {e}")
+    # 6. Web Search
+    if "proactive_research" in data:
+        config.PROACTIVE_RESEARCH = bool(data["proactive_research"])
+    elif "web_search_enabled" in data:
+        config.PROACTIVE_RESEARCH = bool(data["web_search_enabled"])
+    # 7. File & Image Analysis
+    if "file_vision_analysis" in data:
+        config.FILE_VISION_ANALYSIS = bool(data["file_vision_analysis"])
+    # 8. Output Format
+    if "output_format" in data and str(data["output_format"]).lower() in ("markdown", "concise", "json", "executive_brief"):
+        config.OUTPUT_FORMAT_PREF = str(data["output_format"]).lower()
+    # 9. Permissions / Approvals
+    if "require_approval" in data:
+        config.REQUIRE_APPROVAL = bool(data["require_approval"])
+    # 10. Usage / Speed
+    if "speed_profile" in data and str(data["speed_profile"]).lower() in ("fast", "balanced", "deep"):
+        config.SPEED_PROFILE = str(data["speed_profile"]).lower()
+        if config.SPEED_PROFILE == "fast":
+            config.DEFAULT_MODEL = config.ROUTING_CONFIG.get("fast", "openai/gpt-oss-20b")
+        elif config.SPEED_PROFILE == "deep":
+            config.DEFAULT_MODEL = config.ROUTING_CONFIG.get("flagship", "openai/gpt-oss-120b")
     if "temperature" in data:
         try:
             config.MODEL_TEMPERATURE = max(0.0, min(1.5, float(data["temperature"])))
         except (ValueError, TypeError):
             pass
-    if "uncensored_mode" in data:
-        config.UNCENSORED_MODE = bool(data["uncensored_mode"])
-    if "proactive_research" in data:
-        config.PROACTIVE_RESEARCH = bool(data["proactive_research"])
 
     new_personality = data.get("personality")
     if new_personality and getattr(current_user, "is_authenticated", False):
         try:
-            prefs = dict(current_user.preferences or {})
             prefs["personality"] = new_personality
             current_user.preferences = prefs
             db.session.commit()
@@ -1064,10 +1133,19 @@ def handle_user_settings():
     return jsonify({
         "status": "success",
         "default_model": config.DEFAULT_MODEL,
-        "temperature": config.MODEL_TEMPERATURE,
+        "reasoning_effort": config.REASONING_EFFORT,
+        "thinking_visible": config.AGENT_THINKING_BLOCK,
+        "tools_enabled": config.TOOLS_ENABLED,
+        "personality": new_personality or prefs.get("personality", "normal"),
+        "custom_instructions": config.CUSTOM_INSTRUCTIONS,
         "uncensored_mode": config.UNCENSORED_MODE,
+        "memory_enabled": config.MEMORY_ENABLED,
         "proactive_research": config.PROACTIVE_RESEARCH,
-        "personality": new_personality or "normal",
+        "file_vision_analysis": config.FILE_VISION_ANALYSIS,
+        "output_format": config.OUTPUT_FORMAT_PREF,
+        "require_approval": config.REQUIRE_APPROVAL,
+        "speed_profile": config.SPEED_PROFILE,
+        "temperature": config.MODEL_TEMPERATURE,
     })
 
 # ─── Conversations ──────────────────────────────────────────────

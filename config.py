@@ -54,10 +54,23 @@ ZAI_API_KEY = (os.environ.get("ZAI_API_KEY") or "").strip().strip('"').strip("'"
 # Set to 'true' in your cloud environment variables to disable local Ollama
 SERVER_MODE = os.environ.get("SERVER_MODE", "false").lower() == "true" or bool(os.environ.get("RENDER"))
 
-# ─── Agentic Infrastructure (Chain of Thought) ───────────────────
-AGENT_THINKING_BLOCK = False # Internal reasoning disabled in output to keep responses direct and clean
-MAX_AGENT_LOOPS = 5         # Prevents infinite recursion in complex missions
-PROACTIVE_RESEARCH = True   # Automatically searches web for unknown facts
+# ─── Agentic Infrastructure (10-Priority Agent Control Matrix) ────
+AGENT_THINKING_BLOCK = False      # Internal reasoning hidden in output by default
+REASONING_EFFORT = "adaptive"     # #2 Reasoning / Thinking: "low" | "medium" | "high" | "adaptive"
+MAX_AGENT_LOOPS = 5               # Prevents infinite recursion in complex missions
+PROACTIVE_RESEARCH = True         # #6 Web Search: Automatically searches web for current facts
+MEMORY_ENABLED = True             # #5 Memory / Context: Enable selective long-term & thread memory
+FILE_VISION_ANALYSIS = True       # #7 File & Image Analysis: Enable OCR, document & vision sensors
+CUSTOM_INSTRUCTIONS = ""          # #4 Instructions / Customization: User-defined global directives
+OUTPUT_FORMAT_PREF = "markdown"   # #8 Output Format: "markdown" | "concise" | "json" | "executive_brief"
+REQUIRE_APPROVAL = True           # #9 Permissions / Approvals: Require confirmation for destructive actions
+SPEED_PROFILE = "balanced"        # #10 Usage / Speed: "fast" | "balanced" | "deep"
+TOOLS_ENABLED = {                 # #3 Tools / Integrations
+    "code_sandbox": True,
+    "image_synthesis": True,
+    "system_guardian": True,
+    "mcp_workspace": True,
+}
 
 # ─── Telegram Bot ──────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = os.environ.get("BOT_TOKEN", "")
