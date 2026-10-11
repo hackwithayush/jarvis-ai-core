@@ -605,7 +605,7 @@ body:before {
   border-radius: 6px;
 }
 
-/* ─── v16.19 Universal 3D / 4K Photo / Live Video Background Stage ─── */
+/* ─── v16.20 Universal 3D / 4K Photo / Live Video Background Stage ─── */
 #jarvis-bg-stage {
   position: fixed;
   inset: 0;
@@ -615,17 +615,28 @@ body:before {
   pointer-events: none;
   overflow: hidden;
   display: none;
-  opacity: var(--jarvis-bg-opacity, 0.55);
+  opacity: var(--jarvis-bg-opacity, 0.9);
   filter: blur(var(--jarvis-bg-blur, 0px));
-  transition: opacity 0.3s ease, filter 0.3s ease;
+  transition: opacity 0.25s ease, filter 0.25s ease;
 }
 
 :root[data-bg-active="true"] #jarvis-bg-stage {
-  display: block;
+  display: block !important;
 }
 
-:root[data-bg-active="true"] .jarvis-app-shell {
+:root[data-bg-active="true"] .jarvis-app-shell,
+:root[data-bg-active="true"] .jarvis-center-col,
+:root[data-bg-active="true"] .jarvis-welcome,
+:root[data-bg-active="true"] .jarvis-chat-scroll {
   background-color: transparent !important;
+  background-image: none !important;
+}
+
+:root[data-bg-active="true"] .glass,
+:root[data-bg-active="true"] .jarvis-left-sidebar,
+:root[data-bg-active="true"] .jarvis-right-panel,
+:root[data-bg-active="true"] .jarvis-topbar {
+  background: color-mix(in srgb, var(--color-omega-surface) 58%, transparent) !important;
 }
 
 #jarvis-bg-photo,
@@ -642,7 +653,7 @@ body:before {
 #jarvis-bg-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 50%, transparent 30%, rgba(3, 6, 16, 0.65) 100%);
+  background: radial-gradient(circle at 50% 50%, transparent 45%, rgba(3, 6, 16, 0.25) 100%);
   pointer-events: none;
 }
 

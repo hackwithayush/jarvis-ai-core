@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.19"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.19">
+    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.20"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.20">
   </head>
   <body>
     <div id="jarvis-bg-stage" aria-hidden="true">
@@ -71,7 +71,7 @@
 
         // Initialize particles/nodes for 3D & Live scenes
         const nodes = [];
-        for (let i = 0; i < 95; i++) {
+        for (let i = 0; i < 120; i++) {
           const theta = Math.random() * Math.PI * 2;
           const phi = Math.acos(2 * Math.random() - 1);
           nodes.push({
@@ -81,8 +81,8 @@
             theta: theta,
             phi: phi,
             r: 160 + Math.random() * 90,
-            s: Math.random() * 2 + 0.8,
-            v: Math.random() * 2.5 + 0.8
+            s: Math.random() * 2.4 + 1.1,
+            v: Math.random() * 2.8 + 1.0
           });
         }
         const rainCols = Math.floor(Math.max(w, 1920) / 22);
@@ -92,29 +92,41 @@
         const render = function() {
           st.raf = requestAnimationFrame(render);
           if (document.hidden) return;
-          t += 0.014;
+          t += 0.015;
           ctx.clearRect(0, 0, w, h);
-          const cx = w / 2 + st.mouseX * 35;
-          const cy = h / 2 + st.mouseY * 25;
+          const cx = w / 2 + st.mouseX * 42;
+          const cy = h / 2 + st.mouseY * 28;
           const c1 = st.accent;
           const c2 = st.secondary;
 
           if (preset === '3d_quantum_core') {
-            // 3D Rotating Quantum Sphere + Gyroscopic Titanium/Neon Rings
-            const baseR = Math.min(w, h) * 0.27;
-            const rotY = t * 0.7 + st.mouseX * 0.5;
-            const rotX = t * 0.45 + st.mouseY * 0.4;
+            // 3D Rotating Quantum Sphere + Bright Core Star + Gyroscopic Rings
+            const baseR = Math.min(w, h) * 0.28;
+            const rotY = t * 0.75 + st.mouseX * 0.55;
+            const rotX = t * 0.5 + st.mouseY * 0.45;
+
+            const coreGlow = ctx.createRadialGradient(cx, cy, 4, cx, cy, baseR * 1.15);
+            coreGlow.addColorStop(0, '#ffffff');
+            coreGlow.addColorStop(0.18, c1);
+            coreGlow.addColorStop(0.55, c2 + '55');
+            coreGlow.addColorStop(1, 'transparent');
+            ctx.fillStyle = coreGlow;
+            ctx.globalAlpha = 0.55;
+            ctx.beginPath();
+            ctx.arc(cx, cy, baseR * 1.15, 0, Math.PI * 2);
+            ctx.fill();
+
             ctx.save();
             ctx.translate(cx, cy);
-            for (let ring = 0; ring < 3; ring++) {
+            for (let ring = 0; ring < 4; ring++) {
               ctx.save();
-              ctx.rotate(rotY * (ring % 2 === 0 ? 1 : -0.8) + ring * 1.05);
-              ctx.scale(1, 0.36 + 0.22 * Math.sin(rotX + ring));
+              ctx.rotate(rotY * (ring % 2 === 0 ? 1 : -0.85) + ring * 0.9);
+              ctx.scale(1, 0.34 + 0.24 * Math.sin(rotX + ring));
               ctx.beginPath();
-              ctx.arc(0, 0, baseR * (0.78 + ring * 0.18), 0, Math.PI * 2);
-              ctx.strokeStyle = ring === 1 ? c2 : c1;
-              ctx.globalAlpha = 0.42;
-              ctx.lineWidth = 1.8;
+              ctx.arc(0, 0, baseR * (0.7 + ring * 0.16), 0, Math.PI * 2);
+              ctx.strokeStyle = ring % 2 === 1 ? c2 : c1;
+              ctx.globalAlpha = 0.78;
+              ctx.lineWidth = 2.4;
               ctx.stroke();
               ctx.restore();
             }
@@ -127,11 +139,11 @@
               const x3 = baseR * Math.sin(b) * Math.cos(a);
               const y3 = baseR * Math.cos(b);
               const z3 = baseR * Math.sin(b) * Math.sin(a) + 420;
-              const scale = 380 / Math.max(80, z3);
+              const scale = 390 / Math.max(80, z3);
               const px = cx + x3 * scale;
               const py = cy + y3 * scale;
               ctx.fillStyle = i % 3 === 0 ? c2 : c1;
-              ctx.globalAlpha = Math.min(0.85, Math.max(0.15, (550 - z3) / 450));
+              ctx.globalAlpha = Math.min(0.95, Math.max(0.25, (580 - z3) / 420));
               ctx.beginPath();
               ctx.arc(px, py, n.s * scale, 0, Math.PI * 2);
               ctx.fill();
@@ -139,27 +151,27 @@
             ctx.globalAlpha = 1;
           } else if (preset === '3d_cyber_grid') {
             // 3D Perspective Synthwave / Cyber Horizon Grid
-            const horizon = h * 0.48 + st.mouseY * 18;
-            const sunGrad = ctx.createRadialGradient(cx, horizon - 30, 10, cx, horizon - 30, Math.min(w, h) * 0.28);
+            const horizon = h * 0.47 + st.mouseY * 18;
+            const sunGrad = ctx.createRadialGradient(cx, horizon - 20, 8, cx, horizon - 20, Math.min(w, h) * 0.32);
             sunGrad.addColorStop(0, c1);
-            sunGrad.addColorStop(0.45, c2 + '66');
+            sunGrad.addColorStop(0.45, c2 + '99');
             sunGrad.addColorStop(1, 'transparent');
             ctx.fillStyle = sunGrad;
             ctx.fillRect(0, 0, w, h);
 
             ctx.strokeStyle = c1;
-            ctx.lineWidth = 1;
-            ctx.globalAlpha = 0.38;
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.68;
             ctx.beginPath();
-            for (let i = -18; i <= 18; i++) {
-              const xTop = cx + i * 28;
-              const xBot = cx + i * 210;
+            for (let i = -20; i <= 20; i++) {
+              const xTop = cx + i * 26;
+              const xBot = cx + i * 215;
               ctx.moveTo(xTop, horizon);
               ctx.lineTo(xBot, h);
             }
-            const offset = (t * 40) % 20;
+            const offset = (t * 42) % 20;
             for (let d = 1; d < 18; d++) {
-              const p = Math.pow((d + offset / 20) / 18, 2.1);
+              const p = Math.pow((d + offset / 20) / 18, 2.05);
               const y = horizon + p * (h - horizon);
               ctx.moveTo(0, y);
               ctx.lineTo(w, y);
@@ -169,32 +181,32 @@
           } else if (preset === '3d_neural_matrix') {
             // 3D Depth-Projected Neural Constellation
             const pts = [];
-            const ry = t * 0.35 + st.mouseX * 0.4;
+            const ry = t * 0.38 + st.mouseX * 0.45;
             for (let i = 0; i < nodes.length; i++) {
               const n = nodes[i];
               const cosR = Math.cos(ry), sinR = Math.sin(ry);
               const rx = n.x * cosR - (n.z - 500) * sinR;
               const rz = n.x * sinR + (n.z - 500) * cosR + 650;
               if (rz > 80) {
-                const sc = 450 / rz;
-                pts.push({ x: cx + rx * sc * 0.55, y: cy + n.y * sc * 0.55, sc: sc, c: i % 2 ? c1 : c2 });
+                const sc = 460 / rz;
+                pts.push({ x: cx + rx * sc * 0.58, y: cy + n.y * sc * 0.58, sc: sc, c: i % 2 ? c1 : c2 });
               }
             }
-            ctx.lineWidth = 0.8;
+            ctx.lineWidth = 1.2;
             for (let i = 0; i < pts.length; i++) {
               const p1 = pts[i];
               ctx.fillStyle = p1.c;
-              ctx.globalAlpha = Math.min(0.8, p1.sc * 0.7);
+              ctx.globalAlpha = Math.min(0.95, p1.sc * 0.85);
               ctx.beginPath();
-              ctx.arc(p1.x, p1.y, Math.max(1.2, 2.4 * p1.sc), 0, Math.PI * 2);
+              ctx.arc(p1.x, p1.y, Math.max(1.6, 3.0 * p1.sc), 0, Math.PI * 2);
               ctx.fill();
               for (let j = i + 1; j < pts.length; j++) {
                 const p2 = pts[j];
                 const dx = p1.x - p2.x, dy = p1.y - p2.y;
                 const d2 = dx * dx + dy * dy;
-                if (d2 < 16000) {
+                if (d2 < 18500) {
                   ctx.strokeStyle = c1;
-                  ctx.globalAlpha = (1 - d2 / 16000) * 0.24;
+                  ctx.globalAlpha = (1 - d2 / 18500) * 0.48;
                   ctx.beginPath();
                   ctx.moveTo(p1.x, p1.y);
                   ctx.lineTo(p2.x, p2.y);
@@ -207,19 +219,19 @@
             // 3D Hyperspace Warp Star Tunnel
             for (let i = 0; i < nodes.length; i++) {
               const n = nodes[i];
-              n.z -= n.v * 7.5;
+              n.z -= n.v * 8.5;
               if (n.z <= 20) {
                 n.z = 950;
                 n.x = (Math.random() - 0.5) * 1600;
                 n.y = (Math.random() - 0.5) * 1000;
               }
-              const k = 360 / n.z;
-              const kPrev = 360 / (n.z + n.v * 18);
+              const k = 370 / n.z;
+              const kPrev = 370 / (n.z + n.v * 22);
               const px = cx + n.x * k, py = cy + n.y * k;
               const ox = cx + n.x * kPrev, oy = cy + n.y * kPrev;
               ctx.strokeStyle = i % 3 === 0 ? c2 : c1;
-              ctx.globalAlpha = Math.min(0.9, (1000 - n.z) / 800);
-              ctx.lineWidth = Math.max(1, (1000 - n.z) / 320);
+              ctx.globalAlpha = Math.min(0.95, (1000 - n.z) / 700);
+              ctx.lineWidth = Math.max(1.4, (1000 - n.z) / 260);
               ctx.beginPath();
               ctx.moveTo(ox, oy);
               ctx.lineTo(px, py);
@@ -230,55 +242,55 @@
             // Live Cyber Aurora Waves
             for (let band = 0; band < 4; band++) {
               ctx.beginPath();
-              const baseH = h * (0.28 + band * 0.16);
+              const baseH = h * (0.25 + band * 0.16);
               ctx.moveTo(0, h);
               for (let x = 0; x <= w; x += 24) {
-                const y = baseH + Math.sin(x * 0.003 + t * (1.1 + band * 0.3) + band) * 65 + Math.cos(x * 0.007 - t * 0.8) * 35;
+                const y = baseH + Math.sin(x * 0.003 + t * (1.2 + band * 0.3) + band) * 75 + Math.cos(x * 0.007 - t * 0.85) * 40;
                 ctx.lineTo(x, y);
               }
               ctx.lineTo(w, h);
               ctx.closePath();
-              const grad = ctx.createLinearGradient(0, baseH - 80, 0, h);
-              grad.addColorStop(0, (band % 2 === 0 ? c1 : c2) + '44');
+              const grad = ctx.createLinearGradient(0, baseH - 90, 0, h);
+              grad.addColorStop(0, (band % 2 === 0 ? c1 : c2) + '77');
               grad.addColorStop(1, 'transparent');
               ctx.fillStyle = grad;
               ctx.fill();
             }
           } else if (preset === 'live_matrix_rain') {
             // Live Cyber Matrix Rain
-            ctx.font = '14px "JetBrains Mono", monospace';
+            ctx.font = 'bold 15px "JetBrains Mono", monospace';
             const chars = '01JARVISOMEGA987654321HEX';
             for (let i = 0; i < drops.length; i++) {
               const x = i * 24;
               const y = drops[i] * 20;
               ctx.fillStyle = i % 5 === 0 ? c2 : c1;
-              ctx.globalAlpha = 0.45;
+              ctx.globalAlpha = 0.72;
               const ch = chars[(i + Math.floor(t * 12)) % chars.length];
               ctx.fillText(ch, x, y);
-              drops[i] += 0.38;
+              drops[i] += 0.42;
               if (y > h && Math.random() > 0.975) drops[i] = 0;
             }
             ctx.globalAlpha = 1;
           } else if (preset === 'live_nebula_pulse') {
             // Live Deep Space Nebula Clouds + Stars
             for (let k = 0; k < 3; k++) {
-              const nx = w * (0.3 + k * 0.2) + Math.sin(t * 0.6 + k * 2) * 90;
-              const ny = h * (0.35 + (k % 2) * 0.25) + Math.cos(t * 0.5 + k) * 70;
-              const rad = Math.min(w, h) * 0.42;
+              const nx = w * (0.28 + k * 0.22) + Math.sin(t * 0.65 + k * 2) * 100;
+              const ny = h * (0.35 + (k % 2) * 0.25) + Math.cos(t * 0.55 + k) * 80;
+              const rad = Math.min(w, h) * 0.48;
               const g = ctx.createRadialGradient(nx, ny, 10, nx, ny, rad);
-              g.addColorStop(0, (k % 2 === 0 ? c1 : c2) + '38');
+              g.addColorStop(0, (k % 2 === 0 ? c1 : c2) + '66');
               g.addColorStop(1, 'transparent');
               ctx.fillStyle = g;
               ctx.fillRect(0, 0, w, h);
             }
-            for (let i = 0; i < 65; i++) {
+            for (let i = 0; i < 85; i++) {
               const n = nodes[i];
               const sx = ((n.x + 800) / 1600) * w;
               const sy = ((n.y + 500) / 1000) * h;
               ctx.fillStyle = '#ffffff';
-              ctx.globalAlpha = 0.25 + 0.45 * Math.abs(Math.sin(t * 1.5 + i));
+              ctx.globalAlpha = 0.35 + 0.55 * Math.abs(Math.sin(t * 1.6 + i));
               ctx.beginPath();
-              ctx.arc(sx, sy, n.s * 0.75, 0, Math.PI * 2);
+              ctx.arc(sx, sy, n.s * 0.85, 0, Math.PI * 2);
               ctx.fill();
             }
             ctx.globalAlpha = 1;
@@ -326,7 +338,7 @@
         const bgPreset = cfg.bg_preset || '3d_quantum_core';
         const bgCustomUrl = cfg.bg_custom_url || '';
         const bgCustomType = cfg.bg_custom_type || 'photo';
-        const bgOpacity = cfg.bg_opacity !== undefined ? Number(cfg.bg_opacity) : 0.55;
+        const bgOpacity = cfg.bg_opacity !== undefined ? Number(cfg.bg_opacity) : 0.90;
         const bgBlur = cfg.bg_blur !== undefined ? Number(cfg.bg_blur) : 0;
 
         root.style.setProperty('--jarvis-bg-opacity', String(bgOpacity));

@@ -208,13 +208,21 @@ OMEGA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "
 
 @app.route("/")
 def index():
-    """Serve the JARVIS premium holographic interface (React UI)."""
-    return send_from_directory(OMEGA_DIR, "index.html")
+    """Serve the JARVIS premium holographic interface (React UI) with no-cache headers."""
+    resp = send_from_directory(OMEGA_DIR, "index.html", max_age=0)
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 @app.route("/assets/<path:filename>")
 def omega_assets(filename):
-    """Serve OMEGA React build assets (JS, CSS)."""
-    return send_from_directory(os.path.join(OMEGA_DIR, "assets"), filename)
+    """Serve OMEGA React build assets (JS, CSS) with no-cache headers so updates apply immediately."""
+    resp = send_from_directory(os.path.join(OMEGA_DIR, "assets"), filename, max_age=0)
+    resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    resp.headers["Pragma"] = "no-cache"
+    resp.headers["Expires"] = "0"
+    return resp
 
 @app.route("/favicon.svg")
 def omega_favicon():
