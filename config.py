@@ -72,7 +72,7 @@ TOOLS_ENABLED = {                 # #3 Tools / Integrations
     "system_guardian": True,
     "mcp_workspace": True,
 }
-THEME_CONFIG = {                  # #11 Visual Theme, Icon & 3D/4K/Live Background Studio
+THEME_CONFIG = {                  # #11 Visual Theme, Icon, 3D/4K/Live Background & Music Studio
     "preset": "omega_cyan",
     "accent": "#00f5ff",
     "secondary": "#8a5cff",
@@ -87,6 +87,14 @@ THEME_CONFIG = {                  # #11 Visual Theme, Icon & 3D/4K/Live Backgrou
     "bg_custom_type": "photo",    # "photo" | "video"
     "bg_opacity": 0.55,
     "bg_blur": 0,
+    "music_enabled": False,
+    "music_preset": "lofi_focus", # "lofi_focus" | "synthwave_drive" | "deep_space" | "stark_tactical" | "cyber_rain" | "custom_audio"
+    "music_custom_url": "",
+    "music_custom_title": "",
+    "music_volume": 0.65,
+    "music_loop": True,
+    "music_bass_boost": False,
+    "bg_video_sound": False,
 }
 
 # ─── Telegram Bot ──────────────────────────────────────────────

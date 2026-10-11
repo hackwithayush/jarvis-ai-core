@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.20"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.20">
+    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.22"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.22">
   </head>
   <body>
     <div id="jarvis-bg-stage" aria-hidden="true">
@@ -19,6 +19,7 @@
       <canvas id="jarvis-bg-canvas"></canvas>
       <div id="jarvis-bg-vignette"></div>
     </div>
+    <audio id="jarvis-music-audio" crossorigin="anonymous" loop preload="none"></audio>
     <div id="root"></div>
     <script>
       window.__JARVIS_THEME_PRESETS = {
@@ -396,6 +397,219 @@
           }
         }
 
+        // Universal Music & Sonic Studio Engine (WebAudio Synth + Custom MP3/Stream + Video BG Audio)
+        if (!window.__jarvisMusicEngine) {
+          window.__jarvisMusicEngine = {
+            ctx: null,
+            masterGain: null,
+            bassFilter: null,
+            timer: null,
+            noiseNode: null,
+            activePreset: '',
+            playing: false,
+            ensureCtx: function() {
+              if (!this.ctx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return null;
+                this.ctx = new AC();
+                this.bassFilter = this.ctx.createBiquadFilter();
+                this.bassFilter.type = 'lowshelf';
+                this.bassFilter.frequency.value = 110;
+                this.bassFilter.gain.value = 0;
+                this.masterGain = this.ctx.createGain();
+                this.masterGain.gain.value = 0.65;
+                this.bassFilter.connect(this.masterGain);
+                this.masterGain.connect(this.ctx.destination);
+              }
+              if (this.ctx && this.ctx.state === 'suspended') {
+                this.ctx.resume().catch(function() {});
+              }
+              return this.ctx;
+            },
+            stopSynth: function() {
+              if (this.timer) { clearInterval(this.timer); this.timer = null; }
+              if (this.noiseNode) {
+                try { this.noiseNode.stop(); this.noiseNode.disconnect(); } catch (e) {}
+                this.noiseNode = null;
+              }
+              this.activePreset = '';
+            },
+            playChordNote: function(freq, type, dur, vol, detune) {
+              const ctx = this.ctx;
+              if (!ctx) return;
+              const now = ctx.currentTime;
+              const osc = ctx.createOscillator();
+              const g = ctx.createGain();
+              const flt = ctx.createBiquadFilter();
+              flt.type = 'lowpass';
+              flt.frequency.value = type === 'sawtooth' ? 1450 : 2100;
+              osc.type = type || 'sine';
+              osc.frequency.setValueAtTime(freq, now);
+              if (detune) osc.detune.setValueAtTime(detune, now);
+              g.gain.setValueAtTime(0.0001, now);
+              g.gain.linearRampToValueAtTime(vol, now + Math.min(0.18, dur * 0.2));
+              g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+              osc.connect(flt);
+              flt.connect(g);
+              g.connect(this.bassFilter);
+              osc.start(now);
+              osc.stop(now + dur + 0.04);
+            },
+            startSynth: function(preset) {
+              const ctx = this.ensureCtx();
+              if (!ctx) return;
+              if (this.timer && this.activePreset === preset) return;
+              this.stopSynth();
+              this.activePreset = preset;
+              let step = 0;
+              const self = this;
+
+              if (preset === 'cyber_rain') {
+                try {
+                  const bufSize = ctx.sampleRate * 2;
+                  const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+                  const data = buf.getChannelData(0);
+                  let lastOut = 0.0;
+                  for (let i = 0; i < bufSize; i++) {
+                    const white = Math.random() * 2 - 1;
+                    data[i] = (lastOut + (0.02 * white)) / 1.02;
+                    lastOut = data[i];
+                    data[i] *= 0.14;
+                  }
+                  const noise = ctx.createBufferSource();
+                  noise.buffer = buf;
+                  noise.loop = true;
+                  const nFilter = ctx.createBiquadFilter();
+                  nFilter.type = 'bandpass';
+                  nFilter.frequency.value = 900;
+                  noise.connect(nFilter);
+                  nFilter.connect(this.bassFilter);
+                  noise.start();
+                  this.noiseNode = noise;
+                } catch (e) {}
+              }
+
+              const tick = function() {
+                if (!self.playing) return;
+                if (preset === 'lofi_focus' || preset === 'cyber_rain') {
+                  const chords = [
+                    [220.0, 261.63, 329.63, 392.0],
+                    [174.61, 220.0, 261.63, 349.23],
+                    [196.0, 246.94, 293.66, 392.0],
+                    [164.81, 207.65, 246.94, 329.63]
+                  ];
+                  const c = chords[Math.floor(step / 4) % chords.length];
+                  if (step % 4 === 0) {
+                    c.forEach(function(f, idx) {
+                      self.playChordNote(f, 'triangle', 1.85, 0.075, idx * 4 - 6);
+                    });
+                    self.playChordNote(c[0] * 0.5, 'sine', 1.7, 0.14, 0);
+                  }
+                  const arp = c[step % c.length] * 2;
+                  self.playChordNote(arp, 'sine', 0.42, 0.045, 3);
+                } else if (preset === 'synthwave_drive') {
+                  const bassNotes = [110.0, 110.0, 87.31, 98.0];
+                  const arpNotes = [220.0, 261.63, 329.63, 440.0, 329.63, 261.63, 246.94, 329.63];
+                  const b = bassNotes[Math.floor(step / 4) % bassNotes.length];
+                  self.playChordNote(b, 'sawtooth', 0.24, 0.12, 0);
+                  self.playChordNote(arpNotes[step % arpNotes.length] * 1.5, 'sawtooth', 0.22, 0.06, 6);
+                } else if (preset === 'deep_space') {
+                  const drones = [
+                    [130.81, 196.0, 293.66, 392.0],
+                    [146.83, 220.0, 329.63, 440.0],
+                    [110.0, 164.81, 246.94, 369.99]
+                  ];
+                  if (step % 6 === 0) {
+                    const d = drones[Math.floor(step / 6) % drones.length];
+                    d.forEach(function(f, idx) {
+                      self.playChordNote(f, 'sine', 3.4, 0.08, idx * 5 - 7);
+                    });
+                    self.playChordNote(d[0] * 0.5, 'sine', 3.4, 0.15, 0);
+                  }
+                } else if (preset === 'stark_tactical') {
+                  const pulse = [146.83, 164.81, 196.0, 220.0, 293.66, 220.0, 196.0, 164.81];
+                  self.playChordNote(pulse[step % pulse.length], 'triangle', 0.20, 0.095, 0);
+                  if (step % 2 === 0) {
+                    self.playChordNote(73.42, 'sine', 0.30, 0.16, 0);
+                  }
+                }
+                step++;
+              };
+
+              const intervalMs = (preset === 'synthwave_drive' || preset === 'stark_tactical') ? 240 : 480;
+              tick();
+              this.timer = setInterval(tick, intervalMs);
+            },
+            sync: function(cfg) {
+              const enabled = !!cfg.music_enabled;
+              const preset = cfg.music_preset || 'lofi_focus';
+              const customUrl = (cfg.music_custom_url || '').trim();
+              const vol = cfg.music_volume !== undefined ? Number(cfg.music_volume) : 0.65;
+              const loop = cfg.music_loop !== undefined ? !!cfg.music_loop : true;
+              const bass = !!cfg.music_bass_boost;
+              const bgVidSound = !!cfg.bg_video_sound;
+
+              const audioEl = document.getElementById('jarvis-music-audio');
+              const videoEl = document.getElementById('jarvis-bg-video');
+              if (videoEl) {
+                videoEl.muted = !bgVidSound;
+                videoEl.volume = Math.max(0, Math.min(1, vol));
+              }
+
+              if (this.masterGain && this.ctx) {
+                this.masterGain.gain.setValueAtTime(Math.max(0, Math.min(1, vol)), this.ctx.currentTime);
+              }
+              if (this.bassFilter && this.ctx) {
+                this.bassFilter.gain.setValueAtTime(bass ? 9.5 : 0, this.ctx.currentTime);
+              }
+
+              if (!enabled) {
+                this.playing = false;
+                this.stopSynth();
+                if (audioEl) { audioEl.pause(); }
+                return;
+              }
+
+              this.playing = true;
+              if (preset === 'custom_audio' && customUrl) {
+                this.stopSynth();
+                if (audioEl) {
+                  audioEl.loop = loop;
+                  audioEl.volume = Math.max(0, Math.min(1, vol));
+                  if (audioEl.getAttribute('src') !== customUrl) {
+                    audioEl.setAttribute('src', customUrl);
+                  }
+                  audioEl.play().catch(function() {});
+                }
+              } else {
+                if (audioEl) { audioEl.pause(); }
+                this.startSynth(preset);
+              }
+            }
+          };
+        }
+
+        const musicEnabled = !!cfg.music_enabled;
+        const musicPreset = cfg.music_preset || 'lofi_focus';
+        const musicCustomUrl = cfg.music_custom_url || '';
+        const musicCustomTitle = cfg.music_custom_title || '';
+        const musicVolume = cfg.music_volume !== undefined ? Number(cfg.music_volume) : 0.65;
+        const musicLoop = cfg.music_loop !== undefined ? !!cfg.music_loop : true;
+        const musicBassBoost = !!cfg.music_bass_boost;
+        const bgVideoSound = !!cfg.bg_video_sound;
+
+        try {
+          window.__jarvisMusicEngine.sync({
+            music_enabled: musicEnabled,
+            music_preset: musicPreset,
+            music_custom_url: musicCustomUrl,
+            music_volume: musicVolume,
+            music_loop: musicLoop,
+            music_bass_boost: musicBassBoost,
+            bg_video_sound: bgVideoSound
+          });
+        } catch (e) {}
+
         try {
           localStorage.setItem('jarvis_theme_cfg', JSON.stringify({
             preset: cfg.preset || 'omega_cyan',
@@ -411,7 +625,15 @@
             bg_custom_url: bgCustomUrl,
             bg_custom_type: bgCustomType,
             bg_opacity: bgOpacity,
-            bg_blur: bgBlur
+            bg_blur: bgBlur,
+            music_enabled: musicEnabled,
+            music_preset: musicPreset,
+            music_custom_url: musicCustomUrl,
+            music_custom_title: musicCustomTitle,
+            music_volume: musicVolume,
+            music_loop: musicLoop,
+            music_bass_boost: musicBassBoost,
+            bg_video_sound: bgVideoSound
           }));
         } catch (e) {}
       };

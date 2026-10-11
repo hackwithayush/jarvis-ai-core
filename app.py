@@ -1139,19 +1139,28 @@ def handle_user_settings():
             config.MODEL_TEMPERATURE = max(0.0, min(1.5, float(data["temperature"])))
         except (ValueError, TypeError):
             pass
-    # 11. Custom Theme, Icon Color & 3D/4K/Live Background Studio
+    # 11. Custom Theme, Icon Color, 3D/4K/Live Background & Music Studio
     if isinstance(data.get("theme_config"), dict):
         cur_theme = dict(getattr(config, "THEME_CONFIG", {}))
-        for k in ("preset", "accent", "secondary", "bg", "surface", "icon_mode", "icon_color", "bg_mode", "bg_preset", "bg_custom_type"):
+        for k in ("preset", "accent", "secondary", "bg", "surface", "icon_mode", "icon_color", "bg_mode", "bg_preset", "bg_custom_type", "music_preset"):
             if k in data["theme_config"] and isinstance(data["theme_config"][k], str):
                 cur_theme[k] = data["theme_config"][k].strip()[:64]
-        if "bg_custom_url" in data["theme_config"] and isinstance(data["theme_config"]["bg_custom_url"], str):
-            cur_theme["bg_custom_url"] = data["theme_config"]["bg_custom_url"].strip()[:2048]
-        if "icon_glow" in data["theme_config"]:
-            cur_theme["icon_glow"] = bool(data["theme_config"]["icon_glow"])
+        for url_k in ("bg_custom_url", "music_custom_url"):
+            if url_k in data["theme_config"] and isinstance(data["theme_config"][url_k], str):
+                cur_theme[url_k] = data["theme_config"][url_k].strip()[:2048]
+        if "music_custom_title" in data["theme_config"] and isinstance(data["theme_config"]["music_custom_title"], str):
+            cur_theme["music_custom_title"] = data["theme_config"]["music_custom_title"].strip()[:160]
+        for bool_k in ("icon_glow", "music_enabled", "music_loop", "music_bass_boost", "bg_video_sound"):
+            if bool_k in data["theme_config"]:
+                cur_theme[bool_k] = bool(data["theme_config"][bool_k])
         if "bg_opacity" in data["theme_config"]:
             try:
                 cur_theme["bg_opacity"] = max(0.05, min(1.0, float(data["theme_config"]["bg_opacity"])))
+            except (ValueError, TypeError):
+                pass
+        if "music_volume" in data["theme_config"]:
+            try:
+                cur_theme["music_volume"] = max(0.0, min(1.0, float(data["theme_config"]["music_volume"])))
             except (ValueError, TypeError):
                 pass
         if "bg_blur" in data["theme_config"]:
@@ -1218,6 +1227,53 @@ def upload_custom_background():
         "media_type": media_type,
         "filename": safe_name,
     })
+
+@app.route("/api/music/upload", methods=["POST"])
+def upload_custom_music():
+    """Upload a custom audio/music file (.mp3, .wav, .ogg, .m4a, .aac, .flac, .webm) for the Settings Music Studio."""
+    if "file" not in request.files:
+        return jsonify({"error": "No audio file uploaded"}), 400
+    f = request.files["file"]
+    if not f or not f.filename:
+        return jsonify({"error": "Empty filename"}), 400
+
+    ext = os.path.splitext(f.filename)[1].lower()
+    allowed_audio = {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".webm", ".mp4"}
+    if ext not in allowed_audio:
+        return jsonify({"error": f"Unsupported audio format: {ext}"}), 400
+
+    music_dir = os.path.join(app.root_path, "static", "uploads", "music")
+    os.makedirs(music_dir, exist_ok=True)
+    clean_base = re.sub(r"[^a-zA-Z0-9_\-\s]", "", os.path.splitext(f.filename)[0]).strip()[:40] or "track"
+    safe_name = f"music_{uuid.uuid4().hex[:8]}_{clean_base.replace(' ', '_')}{ext}"
+    save_path = os.path.join(music_dir, safe_name)
+    f.save(save_path)
+
+    url = f"/static/uploads/music/{safe_name}"
+    return jsonify({
+        "status": "success",
+        "url": url,
+        "title": clean_base,
+        "filename": safe_name,
+    })
+
+@app.route("/api/music/library", methods=["GET"])
+def list_music_library():
+    """Return uploaded music tracks from static/uploads/music."""
+    music_dir = os.path.join(app.root_path, "static", "uploads", "music")
+    if not os.path.exists(music_dir):
+        return jsonify({"tracks": []})
+    tracks = []
+    for fname in sorted(os.listdir(music_dir), reverse=True):
+        if any(fname.lower().endswith(ext) for ext in (".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".webm", ".mp4")):
+            parts = os.path.splitext(fname)[0].split("_", 2)
+            label = parts[2].replace("_", " ") if len(parts) >= 3 else fname
+            tracks.append({
+                "filename": fname,
+                "title": label,
+                "url": f"/static/uploads/music/{fname}",
+            })
+    return jsonify({"tracks": tracks[:25]})
 
 # ─── Conversations ──────────────────────────────────────────────
 
