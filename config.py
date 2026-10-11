@@ -71,6 +71,16 @@ TOOLS_ENABLED = {                 # #3 Tools / Integrations
     "system_guardian": True,
     "mcp_workspace": True,
 }
+THEME_CONFIG = {                  # #11 Visual Theme & Icon Color Studio
+    "preset": "omega_cyan",
+    "accent": "#00f5ff",
+    "secondary": "#8a5cff",
+    "bg": "#050816",
+    "surface": "#0b1020",
+    "icon_mode": "theme",         # "theme" | "spectrum" | "custom"
+    "icon_color": "#00f5ff",
+    "icon_glow": True,
+}
 
 # ─── Telegram Bot ──────────────────────────────────────────────
 TELEGRAM_BOT_TOKEN = os.environ.get("BOT_TOKEN", "")

@@ -1052,6 +1052,17 @@ def handle_user_settings():
             # 10. Usage / Speed
             "speed_profile": getattr(config, "SPEED_PROFILE", "balanced"),
             "temperature": getattr(config, "MODEL_TEMPERATURE", 0.4),
+            # 11. Custom Theme & Icon Color Studio
+            "theme_config": getattr(config, "THEME_CONFIG", {
+                "preset": "omega_cyan",
+                "accent": "#00f5ff",
+                "secondary": "#8a5cff",
+                "bg": "#050816",
+                "surface": "#0b1020",
+                "icon_mode": "theme",
+                "icon_color": "#00f5ff",
+                "icon_glow": True,
+            }),
             "nodes": {
                 "groq": bool(getattr(config, "GROQ_API_KEY", "")),
                 "gemini": bool(getattr(config, "GEMINI_API_KEY", "")),
@@ -1120,6 +1131,15 @@ def handle_user_settings():
             config.MODEL_TEMPERATURE = max(0.0, min(1.5, float(data["temperature"])))
         except (ValueError, TypeError):
             pass
+    # 11. Custom Theme & Icon Color Studio
+    if isinstance(data.get("theme_config"), dict):
+        cur_theme = dict(getattr(config, "THEME_CONFIG", {}))
+        for k in ("preset", "accent", "secondary", "bg", "surface", "icon_mode", "icon_color"):
+            if k in data["theme_config"] and isinstance(data["theme_config"][k], str):
+                cur_theme[k] = data["theme_config"][k].strip()[:32]
+        if "icon_glow" in data["theme_config"]:
+            cur_theme["icon_glow"] = bool(data["theme_config"]["icon_glow"])
+        config.THEME_CONFIG = cur_theme
 
     new_personality = data.get("personality")
     if new_personality and getattr(current_user, "is_authenticated", False):
@@ -1146,6 +1166,7 @@ def handle_user_settings():
         "require_approval": config.REQUIRE_APPROVAL,
         "speed_profile": config.SPEED_PROFILE,
         "temperature": config.MODEL_TEMPERATURE,
+        "theme_config": config.THEME_CONFIG,
     })
 
 # ─── Conversations ──────────────────────────────────────────────

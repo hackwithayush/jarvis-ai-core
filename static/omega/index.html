@@ -9,12 +9,73 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.12"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.12">
+    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.13"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.13">
   </head>
   <body>
     <div id="root"></div>
     <script>
+      window.__JARVIS_THEME_PRESETS = {
+        omega_cyan:     { label: 'Stark Cyan',      accent: '#00f5ff', secondary: '#8a5cff', dim: '#00c4cc', bg: '#050816', surface: '#0b1020', surfaceLight: '#111832' },
+        crimson_mk85:   { label: 'Iron Man Mk-85',  accent: '#ff3b5c', secondary: '#ffb800', dim: '#d92648', bg: '#120408', surface: '#1e0810', surfaceLight: '#2b0d18' },
+        emerald_matrix: { label: 'Emerald Matrix',  accent: '#00ffb2', secondary: '#00d4ff', dim: '#00cc8e', bg: '#03100b', surface: '#071d14', surfaceLight: '#0d2c1f' },
+        royal_nebula:   { label: 'Quantum Nebula',  accent: '#b86bff', secondary: '#ff4ecd', dim: '#9340e8', bg: '#090416', surface: '#13092a', surfaceLight: '#1d103d' },
+        solar_gold:     { label: 'Solar Arc Gold',  accent: '#ffb800', secondary: '#ff6200', dim: '#cc9300', bg: '#100b02', surface: '#1c1405', surfaceLight: '#291e09' },
+        arctic_frost:   { label: 'Arctic Frost',    accent: '#38bdf8', secondary: '#818cf8', dim: '#0284c7', bg: '#040d1a', surface: '#0a192e', surfaceLight: '#112645' },
+        cyber_punk:     { label: 'Night City Neon', accent: '#fcee0a', secondary: '#ff0055', dim: '#c9bd00', bg: '#09090f', surface: '#131320', surfaceLight: '#1c1c30' },
+        rose_quartz:    { label: 'Velvet Rose',     accent: '#ff4ecd', secondary: '#ff7b54', dim: '#d435a7', bg: '#120410', surface: '#1f081b', surfaceLight: '#2e0e29' }
+      };
+
+      window.__applyJarvisTheme = function(cfg) {
+        if (!cfg || typeof cfg !== 'object') return;
+        const root = document.documentElement;
+        const preset = window.__JARVIS_THEME_PRESETS[cfg.preset] || window.__JARVIS_THEME_PRESETS.omega_cyan;
+        const isCustom = cfg.preset === 'custom';
+        const accent = (isCustom && cfg.accent) ? cfg.accent : (cfg.accent || preset.accent);
+        const secondary = (isCustom && cfg.secondary) ? cfg.secondary : (cfg.secondary || preset.secondary);
+        const bg = (isCustom && cfg.bg) ? cfg.bg : (cfg.bg || preset.bg);
+        const surface = (isCustom && cfg.surface) ? cfg.surface : (cfg.surface || preset.surface);
+        const dim = isCustom ? accent : (preset.dim || accent);
+        const surfaceLight = isCustom ? surface : (preset.surfaceLight || surface);
+
+        root.style.setProperty('--color-omega-cyan', accent);
+        root.style.setProperty('--color-omega-cyan-dim', dim);
+        root.style.setProperty('--color-omega-purple', secondary);
+        root.style.setProperty('--color-omega-bg', bg);
+        root.style.setProperty('--color-omega-surface', surface);
+        root.style.setProperty('--color-omega-surface-light', surfaceLight);
+
+        const iconMode = cfg.icon_mode || 'theme';
+        const iconColor = cfg.icon_color || accent;
+        const iconGlow = cfg.icon_glow !== undefined ? !!cfg.icon_glow : true;
+
+        root.setAttribute('data-icon-mode', iconMode);
+        root.setAttribute('data-icon-glow', iconGlow ? 'true' : 'false');
+        root.style.setProperty('--jarvis-icon-color', iconMode === 'custom' ? iconColor : accent);
+        root.style.setProperty('--jarvis-icon-glow', (iconMode === 'custom' ? iconColor : accent) + '66');
+
+        try {
+          localStorage.setItem('jarvis_theme_cfg', JSON.stringify({
+            preset: cfg.preset || 'omega_cyan',
+            accent: accent,
+            secondary: secondary,
+            bg: bg,
+            surface: surface,
+            icon_mode: iconMode,
+            icon_color: iconColor,
+            icon_glow: iconGlow
+          }));
+        } catch (e) {}
+      };
+
+      // Apply saved theme immediately on boot
+      try {
+        const savedTheme = localStorage.getItem('jarvis_theme_cfg');
+        if (savedTheme) {
+          window.__applyJarvisTheme(JSON.parse(savedTheme));
+        }
+      } catch (e) {}
+
       // Global shortcut: Cmd+N / Ctrl+N for New Thread
       window.addEventListener('keydown', function(e) {
         if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'n') {

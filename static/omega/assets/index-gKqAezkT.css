@@ -415,3 +415,148 @@ body:before {
     max-height: 4.5rem !important;
   }
 }
+
+/* ─── v16.13 Dynamic Multi-Color Theme & Icon Color Customization Engine ─── */
+:root {
+  --jarvis-icon-color: #00f5ff;
+  --jarvis-icon-glow: rgba(0, 245, 255, 0.42);
+}
+
+body {
+  background-color: var(--color-omega-bg) !important;
+  transition: background-color 0.25s ease, color 0.2s ease;
+}
+
+body:before {
+  background:
+    radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--color-omega-cyan) 11%, transparent), transparent 45%),
+    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--color-omega-purple) 11%, transparent), transparent 45%),
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--color-omega-cyan-dim) 9%, transparent), transparent 50%) !important;
+}
+
+.glass {
+  background: color-mix(in srgb, var(--color-omega-surface) 78%, transparent) !important;
+}
+.glass-light {
+  background: color-mix(in srgb, var(--color-omega-surface-light) 74%, transparent) !important;
+}
+.glass-card {
+  background: color-mix(in srgb, var(--color-omega-surface) 84%, transparent) !important;
+}
+.glass-card:hover {
+  background: color-mix(in srgb, var(--color-omega-surface-light) 82%, transparent) !important;
+  border-color: color-mix(in srgb, var(--color-omega-cyan) 30%, transparent) !important;
+  box-shadow: 0 0 22px color-mix(in srgb, var(--color-omega-cyan) 14%, transparent) !important;
+}
+
+@media (max-width: 1023.98px) {
+  .glass,
+  .jarvis-left-sidebar,
+  .jarvis-right-panel {
+    background: color-mix(in srgb, var(--color-omega-surface) 96%, black) !important;
+  }
+  .glass-light {
+    background: color-mix(in srgb, var(--color-omega-surface-light) 94%, black) !important;
+  }
+  .glass-card {
+    background: color-mix(in srgb, var(--color-omega-surface) 94%, black) !important;
+  }
+}
+
+/* Mode 1: Custom Single-Color Icon Override */
+:root[data-icon-mode="custom"] #root svg {
+  color: var(--jarvis-icon-color) !important;
+  stroke: var(--jarvis-icon-color) !important;
+  transition: color 0.2s ease, stroke 0.2s ease, filter 0.2s ease;
+}
+
+/* Mode 2: Multi-Color Cyber Spectrum Icons */
+:root[data-icon-mode="spectrum"] .jarvis-topbar button:nth-of-type(4n+1) svg {
+  color: #00f5ff !important; stroke: #00f5ff !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-topbar button:nth-of-type(4n+2) svg {
+  color: #b86bff !important; stroke: #b86bff !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-topbar button:nth-of-type(4n+3) svg {
+  color: #ffb800 !important; stroke: #ffb800 !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-topbar button:nth-of-type(4n+4) svg {
+  color: #00ffb2 !important; stroke: #00ffb2 !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-left-sidebar button:nth-of-type(6n+1) svg {
+  color: #00f5ff !important; stroke: #00f5ff !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-left-sidebar button:nth-of-type(6n+2) svg {
+  color: #ff3b5c !important; stroke: #ff3b5c !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-left-sidebar button:nth-of-type(6n+3) svg {
+  color: #00ffb2 !important; stroke: #00ffb2 !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-left-sidebar button:nth-of-type(6n+4) svg {
+  color: #b86bff !important; stroke: #b86bff !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-left-sidebar button:nth-of-type(6n+5) svg {
+  color: #ffb800 !important; stroke: #ffb800 !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-left-sidebar button:nth-of-type(6n+6) svg {
+  color: #ff4ecd !important; stroke: #ff4ecd !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-input-dock button:nth-of-type(3n+1) svg {
+  color: #00f5ff !important; stroke: #00f5ff !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-input-dock button:nth-of-type(3n+2) svg {
+  color: #ffb800 !important; stroke: #ffb800 !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-input-dock button:nth-of-type(3n+3) svg {
+  color: #ff4ecd !important; stroke: #ff4ecd !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-right-panel svg {
+  color: #b86bff !important; stroke: #b86bff !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-welcome-grid .glass-card:nth-of-type(4n+1) svg {
+  color: #00f5ff !important; stroke: #00f5ff !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-welcome-grid .glass-card:nth-of-type(4n+2) svg {
+  color: #ffb800 !important; stroke: #ffb800 !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-welcome-grid .glass-card:nth-of-type(4n+3) svg {
+  color: #ff4ecd !important; stroke: #ff4ecd !important;
+}
+:root[data-icon-mode="spectrum"] .jarvis-welcome-grid .glass-card:nth-of-type(4n+4) svg {
+  color: #00ffb2 !important; stroke: #00ffb2 !important;
+}
+
+/* Optional Neon Drop-Shadow Glow on Icons */
+:root[data-icon-glow="true"] #root svg {
+  filter: drop-shadow(0 0 5px var(--jarvis-icon-glow));
+}
+
+/* Keep solid-fill action buttons high-contrast */
+:root[data-icon-mode="custom"] .jarvis-send-btn svg,
+:root[data-icon-mode="spectrum"] .jarvis-send-btn svg {
+  color: var(--color-omega-bg) !important;
+  stroke: var(--color-omega-bg) !important;
+  filter: none !important;
+}
+
+/* Color picker input styling inside Settings Modal */
+.jarvis-color-picker {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  overflow: hidden;
+}
+.jarvis-color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.jarvis-color-picker::-webkit-color-swatch {
+  border: none;
+  border-radius: 6px;
+}
+
