@@ -241,6 +241,8 @@ class ChatEngine:
         text = re.sub(r'<(think|thinking)>[\s\S]*?</\1>', '', text, flags=re.IGNORECASE)
         # Strip unclosed thinking tags if truncated
         text = re.sub(r'<(think|thinking)>[\s\S]*$', '', text, flags=re.IGNORECASE)
+        # Strip LLM-hallucinated fake OpenAI / external gen_ file links
+        text = re.sub(r'\[[^\]]*\]\(https?://api\.openai\.com/v1/files/[^)]+\)', '', text, flags=re.IGNORECASE)
 
         banned = [
             ("as an ai", ""),
@@ -436,18 +438,24 @@ class ChatEngine:
     def chat_stream(self, message: str, user: User, conv_id: Optional[str] = None, mode: Optional[str] = None, file_context: Optional[str] = None, trace_id: Optional[str] = None, model: Optional[str] = None, **kwargs) -> Generator[str, None, None]:
         """Execute the Multi-Agent graph or Standard fallback and stream the final synthesis."""
         
-        if not self._current_conversation_id and not conv_id:
+        norm_conv_id = str(conv_id).strip() if conv_id is not None else ""
+        if not norm_conv_id or norm_conv_id.lower() in ("null", "none", "new", "undefined"):
+            # Explicit new thread (frontend sent conversation_id: null) -> MUST create a brand-new isolated conversation
             new_conv = self.new_conversation()
             conv_id = new_conv["id"]
+        else:
+            conv_id = norm_conv_id
         
-        conv_id = conv_id or self._current_conversation_id
         conv = self._conversations.get(conv_id)
         
-        # Safety: if the frontend sent a stale conv_id, create a fresh conversation
+        # Safety: if the frontend sent an unknown/new conv_id, create a fresh isolated conversation with that ID
         if conv is None:
             new_conv = self.new_conversation(conv_id=conv_id)
             conv_id = new_conv["id"]
             conv = self._conversations[conv_id]
+        
+        # Keep active conversation pointer synced to the current request's conversation
+        self._current_conversation_id = conv_id
         
         # 0. Empty input guard: if message is empty and no file attached, prompt immediately
         clean_msg = (message or "").strip()
@@ -1037,9 +1045,14 @@ class ChatEngine:
             c_text = (m.get("content") or "").strip()
             # Do not inject previous error banners, empty items, or canned refusal phrases into model context
             if c_text and not c_text.startswith("⚠️") and not self.is_refusal(c_text):
-                if creative_img_rendered:
-                    # Strip prior markdown image embeds from LLM prompt context so the model does not mimic/hallucinate fake asset URLs
-                    c_text = re.sub(r"!\[[^\]]*\]\(/api/assets/images/[^)]+\)\s*", "", c_text).strip()
+                if creative_img_rendered or op_mode in ["creative", "art", "story"]:
+                    # Strip prior markdown image embeds and Creative Core banners from LLM prompt context
+                    # so the model does not mimic headers or hallucinate fake asset/OpenAI URLs
+                    c_text = re.sub(r"🎨\s*\*?\*?Creative Core[^\n]*\n*", "", c_text)
+                    c_text = re.sub(r"!\[[^\]]*\]\([^)]+\)\s*", "", c_text)
+                    c_text = re.sub(r"\*?Engine\*?:\s*[^\n]*Archive:\s*`?gen_[^\n]*\n*", "", c_text)
+                    c_text = re.sub(r"\[[^\]]*\]\(https?://api\.openai\.com/v1/files/[^)]+\)\s*", "", c_text)
+                    c_text = c_text.strip()
                 if c_text:
                     raw_history.append({"role": m.get("role", "user"), "content": c_text})
 
@@ -1179,6 +1192,10 @@ class ChatEngine:
         # Guard: Never persist a refusal into conversation history to prevent future context poisoning
         if not self.is_refusal(assistant_message):
             now_iso = datetime.now(timezone.utc).isoformat()
+            if not conv.get("messages") and conv.get("title") in (None, "", "New Conversation"):
+                clean_title = re.sub(r"\s+", " ", (message or "New Conversation")).strip()
+                conv["title"] = (clean_title[:42] + "...") if len(clean_title) > 45 else clean_title
+            conv["updated"] = now_iso
             conv["messages"].append({"role": "user", "content": message, "timestamp": now_iso})
             conv["messages"].append({"role": "assistant", "content": assistant_message, "timestamp": now_iso})
             self._save_conversation(conv_id)
@@ -1233,7 +1250,8 @@ class ChatEngine:
                 json.dump(self._conversations[conv_id], f, indent=2)
 
     def _load_conversations(self):
-        if not os.path.exists(config.CONVERSATION_DIR): return
+        if not os.path.exists(config.CONVERSATION_DIR):
+            return
         for filename in os.listdir(config.CONVERSATION_DIR):
             if filename.endswith(".json"):
                 conv_id = filename[:-5]
@@ -1241,7 +1259,8 @@ class ChatEngine:
                 try:
                     with open(filepath, "r", encoding="utf-8") as f:
                         self._conversations[conv_id] = json.load(f)
-                except: pass
+                except Exception as e:
+                    logger.debug(f"Skipped invalid conversation file {filename}: {e}")
 
     def export_conversation(self, conv_id: Optional[str] = None, format: str = "jsonl") -> str:
         """Export a conversation as json, jsonl, or markdown."""

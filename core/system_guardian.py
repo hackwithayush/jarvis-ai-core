@@ -180,14 +180,12 @@ class SystemGuardian:
             for hkey, path in startup_paths:
                 try:
                     with winreg.OpenKey(hkey, path, 0, winreg.KEY_READ) as key:
-                        i = 0
-                        while True:
+                        for i in range(1024):
                             name, value, _ = winreg.EnumValue(key, i)
                             # Tag suspicious executables in Temp or AppData
                             if any(x in str(value).lower() for x in ["temp", "appdata\\local\\temp", "wscript.exe", "cmd.exe /c"]):
                                 report["suspicious_startup_keys"].append({"name": name, "path": value})
                                 report["warnings"].append(f"Suspicious persistence key: '{name}' pointing to '{value}'")
-                            i += 1
                 except OSError:
                     pass # Reached end of registry keys
         except Exception as e:
@@ -483,8 +481,10 @@ class SystemGuardian:
                 if temp_dir and os.path.exists(temp_dir):
                     for root, _, files in os.walk(temp_dir):
                         for f in files:
-                            try: total_bytes += os.path.getsize(os.path.join(root, f))
-                            except: pass
+                            try:
+                                total_bytes += os.path.getsize(os.path.join(root, f))
+                            except Exception:
+                                pass
             sim_mb = round(total_bytes / (1024 * 1024), 2)
             actions_taken.append(f"[SIMULATION] Would purge storage bloat: Cleaned {sim_mb} MB from temporary folders.")
         else:
@@ -503,8 +503,10 @@ class SystemGuardian:
                                     size = 0
                                     for root, _, files in os.walk(file_path):
                                         for f in files:
-                                            try: size += os.path.getsize(os.path.join(root, f))
-                                            except: pass
+                                            try:
+                                                size += os.path.getsize(os.path.join(root, f))
+                                            except Exception:
+                                                pass
                                     shutil.rmtree(file_path)
                                     cleaned_mb += size
                             except Exception:
@@ -684,7 +686,7 @@ class SystemGuardian:
                             HWND_BROADCAST = 0xffff
                             WM_SETTINGCHANGE = 0x001a
                             ctypes.windll.user32.SendNotifyMessageW(HWND_BROADCAST, WM_SETTINGCHANGE, 0, "Environment")
-                        except:
+                        except Exception:
                             pass
                         actions_taken.append("Rollback executed successfully: User PATH registry restored to healthy baseline.")
                     except Exception as restore_err:

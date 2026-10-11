@@ -198,8 +198,8 @@ class KnowledgeManager:
             return []
 
     def build_context_prompt(self, query: str) -> str:
-        """Build a knowledge context snippet to inject into the system prompt."""
-        if not self.enabled:
+        """Build a knowledge context snippet to inject into the system prompt (only high-confidence knowledge documents)."""
+        if not self.enabled or not query or len(query.strip()) < 6:
             return ""
 
         try:
@@ -207,8 +207,18 @@ class KnowledgeManager:
             if not results:
                 return ""
 
-            context = "\n--- KNOWLEDGE CONTEXT (use this to answer) ---\n"
-            for i, r in enumerate(results, 1):
+            # Filter out conversational memory dumps and low-relevance hits so unrelated chats never leak
+            valid_results = [
+                r for r in results
+                if r.get("similarity", 0.0) >= 0.55
+                and r.get("source") not in ("Omega Memory Engine", "Neural Memory Engine")
+                and r.get("category") != "personal"
+            ]
+            if not valid_results:
+                return ""
+
+            context = "\n--- KNOWLEDGE CONTEXT (use this to answer if relevant) ---\n"
+            for i, r in enumerate(valid_results, 1):
                 title = r.get("title", "").strip()
                 source = r.get("source", "Unknown")
                 content = r.get("content", "").strip()

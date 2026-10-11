@@ -14,29 +14,31 @@ class MemoryManager:
     """Handles extraction and management of user-specific memory patterns."""
 
     def __init__(self):
-        # Common patterns to identify preferences/facts
+        # Strictly bounded patterns to identify explicit personal preferences/facts
         self.extraction_patterns = {
-            "name": [r"my name is ([\w\s]+)", r"call me ([\w\s]+)"],
-            "preference": [r"i prefer ([\w\s]+)", r"i like ([\w\s]+)", r"use ([\w\s]+) from now on"],
-            "occupation": [r"i am a ([\w\s]+)", r"i work as a ([\w\s]+)"],
-            "language": [r"i speak ([\w]+)", r"respond in ([\w]+)"]
+            "name": [r"\bmy name is ([a-zA-Z][a-zA-Z\s]{1,25}?)(?:[\.,!;\n]|$)", r"\bcall me ([a-zA-Z][a-zA-Z\s]{1,25}?)(?:[\.,!;\n]|$)"],
+            "occupation": [r"\bi work as an? ([a-zA-Z][a-zA-Z\s]{2,30}?)(?:[\.,!;\n]|$)"],
+            "language": [r"\bi speak ([a-zA-Z]{3,15})(?:[\.,!;\n]|$)", r"\brespond in ([a-zA-Z]{3,15})(?:[\.,!;\n]|$)"]
         }
         self.knowledge = None # Injected late to avoid circular imports
 
     def extract_preferences(self, message: str, current_prefs: Dict[str, Any]) -> Dict[str, Any]:
-        """Scan a user message for new preferences and merge with existing ones."""
-        message = message.lower()
+        """Scan a user message for explicit personal preferences and merge with existing ones."""
+        if not message or len(message) > 240:
+            return current_prefs
+        msg_lower = message.lower().strip()
         new_prefs = current_prefs.copy()
         
         found_any = False
         for key, patterns in self.extraction_patterns.items():
             for pattern in patterns:
-                match = re.search(pattern, message)
+                match = re.search(pattern, msg_lower)
                 if match:
                     value = match.group(1).strip()
-                    logger.info(f"Memory Extract: Found {key} -> {value}")
-                    new_prefs[key] = value
-                    found_any = True
+                    if 2 <= len(value) <= 30:
+                        logger.info(f"Memory Extract: Found {key} -> {value}")
+                        new_prefs[key] = value
+                        found_any = True
         
         return new_prefs if found_any else current_prefs
 

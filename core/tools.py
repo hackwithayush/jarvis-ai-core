@@ -200,7 +200,7 @@ class ToolEngine:
             if os.path.exists(temp_path):
                 try:
                     os.remove(temp_path)
-                except:
+                except Exception:
                     pass
 
     # ─── Web Scraping ───────────────────────────────────────────────

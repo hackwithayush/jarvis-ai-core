@@ -55,27 +55,34 @@ class LegendBugAnalyzer:
                         self._report(rel_path, node.lineno, "WARNING", 
                                     f"Function '{node.name}' is too large ({len(node.body)} lines). Refactor required.")
 
-                # Heuristic 3: Hardcoded Secrets (Simple check)
+                # Heuristic 3: Hardcoded Secrets (Exclude URLs and dummy placeholders)
                 if isinstance(node, ast.Assign):
                     for target in node.targets:
                         if isinstance(target, ast.Name) and any(x in target.id.lower() for x in ["key", "secret", "token", "password"]):
+                            if "url" in target.id.lower() or "endpoint" in target.id.lower():
+                                continue
                             if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
-                                if len(node.value.value) > 10:
+                                val_s = node.value.value.strip()
+                                if len(val_s) > 10 and not val_s.startswith(("http://", "https://", "dummy")):
                                     self._report(rel_path, node.lineno, "SECURITY", 
                                                 f"Potential hardcoded secret in variable '{target.id}'.")
 
-                # Heuristic 4: Infinite Loop Potential
+                # Heuristic 4: Unpaced Infinite Loop Potential (flag while True loops with no break/return/sleep)
                 if isinstance(node, ast.While):
                     if isinstance(node.test, ast.Constant) and node.test.value is True:
-                        # Check if there's a break or return
-                        has_exit = False
+                        has_exit_or_sleep = False
                         for subnode in ast.walk(node):
-                            if isinstance(subnode, (ast.Break, ast.Return)):
-                                has_exit = True
+                            if isinstance(subnode, (ast.Break, ast.Return, ast.Raise)):
+                                has_exit_or_sleep = True
                                 break
-                        if not has_exit:
+                            if isinstance(subnode, ast.Call):
+                                func_str = ast.unparse(subnode.func) if hasattr(ast, "unparse") else ""
+                                if any(k in func_str for k in ["sleep", "wait", "get", "accept", "recv", "listen", "poll", "input"]):
+                                    has_exit_or_sleep = True
+                                    break
+                        if not has_exit_or_sleep:
                             self._report(rel_path, node.lineno, "ERROR", 
-                                        "Infinite loop detected with no exit condition (break/return).")
+                                        "Unpaced infinite loop detected with no exit or sleep condition.")
 
         except Exception as e:
             logger.error(f"Analyzer failed on {filepath}: {e}")

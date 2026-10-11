@@ -74,7 +74,7 @@ Return a JSON-like structure (but as text) with:
                                 "title": title.strip("- ").strip(),
                                 "implication": impl.strip()
                             })
-        except:
+        except Exception:
             logger.warning("AI Analysis parsing partially failed. Using raw data.")
 
         # 3. Generate PDF Briefing

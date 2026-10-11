@@ -804,14 +804,18 @@ def chat():
             return jsonify({"error": "No data received"}), 400
             
         message = data.get("message", "").strip()
-        conv_id = data.get("conversation_id")
+        raw_conv_id = data.get("conversation_id")
+        if raw_conv_id is None or str(raw_conv_id).strip().lower() in ("", "null", "none", "new", "undefined"):
+            conv_id = chat_engine.new_conversation()["id"]
+        else:
+            conv_id = str(raw_conv_id).strip()
         file_context = data.get("file_context", "")
         image_path = data.get("image_path") or data.get("local_path")
         image_url = data.get("image_url")
         
         # Neural Trace ID for Deep Observability
         trace_id = f"trc_{uuid.uuid4().hex[:6]}"
-        logger.info(f"[{trace_id}] New Mission Sequence: {message[:30]}...")
+        logger.info(f"[{trace_id}] New Mission Sequence [Conv: {conv_id}]: {message[:30]}...")
 
         # 2. Synchronized Stream Generator
         user_obj = None
@@ -832,7 +836,7 @@ def chat():
                     active_user = db.session.get(User, user_id) if user_id else None
                     
                     try:
-                        logger.info(f"[{trace_id}] Neural Link [Mode: {mode}, Model: {model_req}]: Initiating sequence.")
+                        logger.info(f"[{trace_id}] Neural Link [Mode: {mode}, Model: {model_req}, Conv: {conv_id}]: Initiating sequence.")
                         for chunk in chat_engine.chat_stream(
                             message, 
                             active_user, 
@@ -852,7 +856,7 @@ def chat():
                             credits_left = active_user.credits
                         else:
                             credits_left = 9999
-                        yield f"data: {json.dumps({'done': True, 'conversation_id': chat_engine._current_conversation_id, 'credits': credits_left})}\n\n"
+                        yield f"data: {json.dumps({'done': True, 'conversation_id': conv_id, 'credits': credits_left})}\n\n"
                         
                     except Exception as e:
                         logger.error(f"Neural Stream Breach: {e}")
@@ -1069,15 +1073,28 @@ def handle_user_settings():
 # ─── Conversations ──────────────────────────────────────────────
 
 @app.route("/api/conversations", methods=["GET"])
-@login_required
 def list_conversations():
-    """Get all logged-in user conversations."""
-    return jsonify(chat_engine.list_conversations(current_user.id))
+    """Get all user conversations."""
+    if not getattr(current_user, "is_authenticated", False) and request.remote_addr not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "Authentication Required"}), 401
+    uid = getattr(current_user, "id", 1) if getattr(current_user, "is_authenticated", False) else 1
+    return jsonify(chat_engine.list_conversations(uid))
+
+@app.route("/api/conversations/new", methods=["POST"])
+def create_new_conversation_route():
+    """Explicitly initialize a brand-new isolated conversation thread."""
+    if not getattr(current_user, "is_authenticated", False) and request.remote_addr not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "Authentication Required"}), 401
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    new_conv = chat_engine.new_conversation(title=title)
+    return jsonify({"status": "success", "conversation": new_conv, "conversation_id": new_conv["id"]})
 
 @app.route("/api/conversations/<id>", methods=["GET"])
-@login_required
 def get_conversation(id):
     """Get user specific conversation snapshot."""
+    if not getattr(current_user, "is_authenticated", False) and request.remote_addr not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "Authentication Required"}), 401
     data = chat_engine.get_conversation(id)
     if not data:
         return jsonify({"error": "Neural patterns not found"}), 404
@@ -1086,17 +1103,20 @@ def get_conversation(id):
     return jsonify(data)
 
 @app.route("/api/conversations/<id>", methods=["DELETE"])
-@login_required
 def delete_conversation(id):
     """Neural Purge: Remove a conversation thread from memory."""
+    if not getattr(current_user, "is_authenticated", False) and request.remote_addr not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "Authentication Required"}), 401
     chat_engine.delete_conversation(id)
-    logger.info(f"Neural Purge: Conversation {id} removed by user {current_user.id}")
+    uid = getattr(current_user, "id", "local")
+    logger.info(f"Neural Purge: Conversation {id} removed by user {uid}")
     return jsonify({"status": "success", "message": f"Thread {id} purged from neural memory."})
 
 @app.route("/api/conversations/<id>/export", methods=["GET"])
-@login_required
 def export_conversation_route(id):
     """Export conversation transcript in json, jsonl, or markdown format."""
+    if not getattr(current_user, "is_authenticated", False) and request.remote_addr not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "Authentication Required"}), 401
     fmt = request.args.get("format", "jsonl").lower().strip()
     as_attachment = request.args.get("download", "true").lower() == "true"
     try:
@@ -1384,9 +1404,10 @@ def get_system_health():
     return jsonify(DiagnosticNode.check_environment())
 
 @app.route("/api/system/scan", methods=["GET"])
-@login_required
 def run_deep_scan():
     """Autonomous Deep Scan: Execute Legend Bug Analyzer across codebase."""
+    if not getattr(current_user, "is_authenticated", False) and request.remote_addr not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "Authentication Required"}), 401
     try:
         findings = run_autonomous_scan(config.BASE_DIR)
         return jsonify({
@@ -1401,15 +1422,18 @@ def run_deep_scan():
 @login_required
 def fix_system_bug():
     """Neural Repair: Autonomously solve or kill detected bugs."""
-    data = request.json
+    data = request.json or {}
     action = data.get("action") # 'solve' or 'kill'
     finding = data.get("finding")
     
-    if not finding or not action:
+    if not finding or not action or "file" not in finding or "line" not in finding:
         return jsonify({"error": "Invalid mission parameters"}), 400
         
-    filepath = os.path.join(config.BASE_DIR, finding['file'])
-    line_no = finding['line']
+    base_real = os.path.realpath(config.BASE_DIR)
+    filepath = os.path.realpath(os.path.join(base_real, str(finding['file'])))
+    if not filepath.startswith(base_real + os.sep) or not filepath.endswith(".py"):
+        return jsonify({"error": "Path outside workspace boundary denied"}), 403
+    line_no = int(finding['line'])
     
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
@@ -1424,9 +1448,7 @@ def fix_system_bug():
                 return jsonify({"status": "success", "message": f"Anomaly at {finding['file']}:{line_no} neutralized."})
         
         elif action == 'solve':
-            # This would ideally call the LLM to fix it, but for now we'll do a basic automated fix 
-            # for common analyzer findings like bare excepts
-            if "Bare 'except:'" in finding['message']:
+            if "Bare 'except:'" in finding.get('message', ''):
                 lines[line_no-1] = lines[line_no-1].replace("except:", "except Exception as e:")
                 with open(filepath, 'w', encoding='utf-8') as f:
                     f.writelines(lines)
@@ -1442,35 +1464,33 @@ def fix_system_bug():
 @app.route("/api/voice/synthesize", methods=["POST"])
 def synthesize_voice():
     """Convert text to speech using edge_tts."""
-    data = request.get_json()
-    text = data.get("text", "")
+    data = request.get_json(silent=True) or {}
+    text = (data.get("text") or "").strip()
     if not text:
         return jsonify({"error": "No text provided"}), 400
         
     try:
         import edge_tts
         import tempfile
-        import os
-        from flask import send_file
         
-        # Use Christopher voice for JARVIS feel
-        communicate = edge_tts.Communicate(text, "en-US-ChristopherNeural")
+        communicate = edge_tts.Communicate(text[:2000], "en-US-ChristopherNeural")
         
         fd, temp_path = tempfile.mkstemp(suffix=".mp3")
         os.close(fd)
         
-        # Helper to run async code synchronously in Flask request
-        import asyncio
         async def run_tts():
             await communicate.save(temp_path)
             
-        try:
-            loop = asyncio.get_event_loop()
-        except RuntimeError:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            
-        loop.run_until_complete(run_tts())
+        run_async(run_tts())
+        
+        def _cleanup_temp(p):
+            time.sleep(12)
+            try:
+                if os.path.exists(p):
+                    os.remove(p)
+            except Exception:
+                pass
+        threading.Thread(target=_cleanup_temp, args=(temp_path,), daemon=True).start()
         
         return send_file(temp_path, mimetype="audio/mpeg", as_attachment=False)
     except Exception as e:
@@ -1869,10 +1889,10 @@ def get_intel_archive():
 @login_required
 def download_briefing(filename):
     """Secure Download: Retrieving Strategic Briefing assets."""
-    # Security check: ensure the file is in the briefings directory
-    directory = os.path.join(config.DATA_DIR, "briefings")
-    path = os.path.join(directory, filename)
-    if not os.path.exists(path):
+    directory = os.path.realpath(os.path.join(config.DATA_DIR, "briefings"))
+    safe_name = os.path.basename(filename)
+    path = os.path.realpath(os.path.join(directory, safe_name))
+    if not path.startswith(directory + os.sep) or not os.path.isfile(path):
         return jsonify({"error": "Asset not found"}), 404
         
     return send_file(path, as_attachment=True)

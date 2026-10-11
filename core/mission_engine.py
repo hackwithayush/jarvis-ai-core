@@ -204,7 +204,7 @@ class MissionEngine:
                     if progress is not None:
                         project.progress = progress
                     db.session.commit()
-        except:
+        except Exception:
             pass
 
     async def _generate_script(self, topic):

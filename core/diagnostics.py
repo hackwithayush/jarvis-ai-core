@@ -56,7 +56,7 @@ class DiagnosticNode:
                 results["details"]["ollama"] = "ERROR"
             else:
                 results["details"]["ollama"] = "ONLINE"
-        except:
+        except Exception:
             msg = "Local Intelligence Node (Ollama) offline."
             if config.SERVER_MODE: results["warnings"].append(msg)
             else: results["errors"].append(msg)

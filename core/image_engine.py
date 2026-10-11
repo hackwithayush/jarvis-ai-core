@@ -92,7 +92,10 @@ class ImageGenerator:
         )
 
         framing_prefix = ""
-        if aspect == "16:9":
+        p_low_raw = text.lower()
+        if any(k in p_low_raw for k in ["full-body", "full body", "head to", "feet", "entire robot", "complete robot", "70%"]):
+            framing_prefix = "Wide pulled-back full-length camera shot showing complete subject from top of head to bottom of feet with generous empty studio floor below feet and empty space above head: "
+        elif aspect == "16:9":
             framing_prefix = "Wide-angle establishing shot with generous ceiling and floor margin around central subject: "
         elif aspect == "4:3":
             framing_prefix = "Medium-wide studio shot with clean margin around subject and stand: "
@@ -100,7 +103,7 @@ class ImageGenerator:
         if len(text) <= 220:
             cleaned = re.sub(r"[\r\n\t]+", " ", text)
             cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" ,")
-            return (framing_prefix + cleaned)[:420]
+            return (framing_prefix + cleaned)[:440]
 
         # Try ultra-fast Groq distillation (<0.4s) to preserve Subject + Lighting + Background + Camera
         if getattr(config, "GROQ_API_KEY", None):
@@ -120,7 +123,7 @@ class ImageGenerator:
                                 "content": (
                                     "Condense the user's image prompt into a single dense, vivid "
                                     "positive image-generation prompt between 180 and 320 characters. "
-                                    "CRITICAL: Put the LIGHTING and BACKGROUND color/brightness FIRST (e.g. 'Bright white studio lighting on a clean white background...' or 'Bright neutral white laboratory lighting...'), "
+                                    "CRITICAL: Put the LIGHTING, CAMERA DISTANCE (e.g. pulled-back full-body head-to-feet view with floor/ceiling margin), and BACKGROUND color/brightness FIRST, "
                                     "followed by the exact MAIN SUBJECT mechanical details, materials, stand/platform, and lens. "
                                     "Do NOT include negative 'avoid/no' words. Output ONLY plain ASCII text."
                                 ),
@@ -136,7 +139,7 @@ class ImageGenerator:
                     condensed = (r.json()["choices"][0]["message"]["content"] or "").strip().strip('"')
                     condensed = self._normalize_ascii_text(re.sub(r"[\r\n\t]+", " ", condensed))
                     if len(condensed) > 35:
-                        return (framing_prefix + condensed)[:420]
+                        return (framing_prefix + condensed)[:440]
             except Exception as e:
                 logger.debug(f"Fast prompt distillation fallback: {e}")
 
@@ -153,7 +156,7 @@ class ImageGenerator:
             )
             p_clean = re.sub(r"[\r\n\t]+", " ", p_clean).strip()
             selected.append(p_clean[:per_p].rsplit(" ", 1)[0] if len(p_clean) > per_p else p_clean)
-        return (framing_prefix + ", ".join(selected))[:420]
+        return (framing_prefix + ", ".join(selected))[:440]
 
     def _enhance_prompt(self, prompt: str, aspect: str = "1:1") -> str:
         """Enrich and condense prompts while preserving lighting, background, and mechanical specifics."""
@@ -187,6 +190,82 @@ class ImageGenerator:
         final_prompt = clean_prompt + (", " + ", ".join(modifications) if modifications else "")
         return self._normalize_ascii_text(final_prompt)
 
+    def _extend_canvas_wings(self, im: Image.Image, target_ratio: float, add_vertical_margin: bool = False) -> Image.Image:
+        """
+        Extend a square (1:1) image into a wider aspect ratio (16:9 or 4:3) by preserving 100%
+        of the vertical subject height and seamlessly extending the left/right studio wings
+        at native 1:1 pixel scale (no horizontal stretching or blur boxes) with feathered seam blending.
+        """
+        w, h = im.size
+
+        # Optional vertical headroom/footroom expansion when full-body margin is requested
+        if add_vertical_margin:
+            pad_v = max(28, int(h * 0.055))
+            blend_v = min(24, pad_v // 2)
+            strip_h = min(h // 4, pad_v + blend_v)
+
+            top_ext = im.crop((0, 0, w, strip_h)).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+            if top_ext.size != (w, pad_v + blend_v):
+                top_ext = top_ext.resize((w, pad_v + blend_v), Image.Resampling.LANCZOS)
+
+            bot_ext = im.crop((0, h - strip_h, w, h)).transpose(Image.Transpose.FLIP_TOP_BOTTOM)
+            if bot_ext.size != (w, pad_v + blend_v):
+                bot_ext = bot_ext.resize((w, pad_v + blend_v), Image.Resampling.LANCZOS)
+
+            new_h = h + 2 * pad_v
+            v_canvas = Image.new("RGB", (w, new_h))
+            v_canvas.paste(top_ext.crop((0, 0, w, pad_v)), (0, 0))
+            v_canvas.paste(bot_ext.crop((0, blend_v, w, pad_v + blend_v)), (0, pad_v + h))
+            v_canvas.paste(im, (0, pad_v))
+
+            for dy in range(blend_v):
+                alpha = (dy + 1) / float(blend_v + 1)
+                row_orig_top = im.crop((0, dy, w, dy + 1))
+                row_ext_top = top_ext.crop((0, pad_v + dy, w, pad_v + dy + 1))
+                v_canvas.paste(Image.blend(row_ext_top, row_orig_top, alpha), (0, pad_v + dy))
+
+                row_orig_bot = im.crop((0, h - blend_v + dy, w, h - blend_v + dy + 1))
+                row_ext_bot = bot_ext.crop((0, dy, w, dy + 1))
+                v_canvas.paste(Image.blend(row_orig_bot, row_ext_bot, alpha), (0, pad_v + h - blend_v + dy))
+
+            im = v_canvas
+            w, h = im.size
+
+        new_w = int(round(h * target_ratio))
+        if new_w <= w:
+            return im
+
+        pad_l = (new_w - w) // 2
+        pad_r = new_w - w - pad_l
+        blend_w = min(40, max(16, int(w * 0.035)))
+
+        # Sample outer background wings at near 1:1 scale (capped to outer 30% so central subject is never touched)
+        sample_w_l = min(int(w * 0.30), pad_l + blend_w)
+        left_sample = im.crop((0, 0, sample_w_l, h)).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        left_wing = left_sample.resize((pad_l + blend_w, h), Image.Resampling.LANCZOS)
+
+        sample_w_r = min(int(w * 0.30), pad_r + blend_w)
+        right_sample = im.crop((w - sample_w_r, 0, w, h)).transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+        right_wing = right_sample.resize((pad_r + blend_w, h), Image.Resampling.LANCZOS)
+
+        canvas = Image.new("RGB", (new_w, h))
+        canvas.paste(left_wing.crop((0, 0, pad_l, h)), (0, 0))
+        canvas.paste(right_wing.crop((blend_w, 0, pad_r + blend_w, h)), (pad_l + w, 0))
+        canvas.paste(im, (pad_l, 0))
+
+        # Smoothly feather the left and right overlap zones so there is zero visible vertical seam
+        for dx in range(blend_w):
+            alpha = (dx + 1) / float(blend_w + 1)
+            col_orig_l = im.crop((dx, 0, dx + 1, h))
+            col_wing_l = left_wing.crop((pad_l + dx, 0, pad_l + dx + 1, h))
+            canvas.paste(Image.blend(col_wing_l, col_orig_l, alpha), (pad_l + dx, 0))
+
+            col_orig_r = im.crop((w - blend_w + dx, 0, w - blend_w + dx + 1, h))
+            col_wing_r = right_wing.crop((dx, 0, dx + 1, h))
+            canvas.paste(Image.blend(col_orig_r, col_wing_r, alpha), (pad_l + w - blend_w + dx, 0))
+
+        return canvas
+
     def _post_process_image(
         self,
         img_path: str,
@@ -194,11 +273,12 @@ class ImageGenerator:
         target_w: int,
         target_h: int,
         remove_bottom_watermark: bool = False,
+        prompt_hint: str = "",
     ) -> None:
         """
         Optionally trim third-party bottom watermark band, frame proportionally to exact
-        requested aspect ratio (16:9, 4:3, 9:16, 1:1) without geometric stretching,
-        and apply high-definition Lanczos resampling + crisp micro-contrast sharpening.
+        requested aspect ratio (16:9, 4:3, 9:16, 1:1) without geometric stretching or
+        subject head/feet cropping, and apply high-definition Lanczos resampling.
         """
         try:
             with Image.open(img_path) as im:
@@ -219,11 +299,14 @@ class ImageGenerator:
                         left = max(0, (w - new_w) // 2)
                         im = im.crop((left, 0, left + new_w, h))
                     else:
-                        # Image is taller than target (e.g. 1:1 source -> 16:9 or 4:3 target):
-                        # Bias slightly downward (0.52) so pedestals/stands at bottom remain anchored
-                        new_h = int(w / target_ratio)
-                        top = max(0, min(h - new_h, int((h - new_h) * 0.52)))
-                        im = im.crop((0, top, w, top + new_h))
+                        # Image is taller/squarer than target (e.g. 1024x1024 source -> 16:9 or 4:3 target):
+                        # Preserve 100% of vertical subject height (head-to-toe / stand-to-top) and extend studio wings
+                        p_low = (prompt_hint or "").lower()
+                        needs_v_margin = any(
+                            k in p_low
+                            for k in ["full-body", "full body", "head to", "feet", "margin", "empty space", "70%", "entire"]
+                        )
+                        im = self._extend_canvas_wings(im, target_ratio, add_vertical_margin=needs_v_margin)
 
                 im = im.resize((target_w, target_h), Image.Resampling.LANCZOS)
                 im = im.filter(ImageFilter.UnsharpMask(radius=1.1, percent=110, threshold=2))
@@ -367,7 +450,7 @@ class ImageGenerator:
             if r.status_code == 200 and len(r.content) > 4096:
                 with open(dest_path, "wb") as f:
                     f.write(r.content)
-                self._post_process_image(dest_path, aspect, w_px, h_px, remove_bottom_watermark=False)
+                self._post_process_image(dest_path, aspect, w_px, h_px, remove_bottom_watermark=False, prompt_hint=prompt)
                 return f"Z-Image-Turbo + Concept Studio HD ({w_px}x{h_px} {aspect})"
         except Exception as e:
             logger.debug(f"Concept Studio HD Node A notice: {e}")
@@ -383,7 +466,7 @@ class ImageGenerator:
             if r_sse.status_code == 200 and "imageUrl" in r_sse.text:
                 m_url = re.search(r'"imageUrl"\s*:\s*"([^"]+)"', r_sse.text)
                 if m_url and self._download_to_path(m_url.group(1), dest_path):
-                    self._post_process_image(dest_path, aspect, w_px, h_px, remove_bottom_watermark=False)
+                    self._post_process_image(dest_path, aspect, w_px, h_px, remove_bottom_watermark=False, prompt_hint=prompt)
                     return f"Z-Image-Turbo + Concept Studio Relay ({w_px}x{h_px} {aspect})"
         except Exception as e:
             logger.debug(f"Concept Studio HD Node B notice: {e}")
@@ -412,7 +495,7 @@ class ImageGenerator:
                     r2 = requests.get(f"{relay_base}/gradio_api/call/infer/{eid}", headers=self.headers, timeout=25)
                     img_url = self._extract_gradio_image_url(relay_base, r2.text)
                     if img_url and self._download_to_path(img_url, dest_path):
-                        self._post_process_image(dest_path, aspect, w_px, h_px, remove_bottom_watermark=True)
+                        self._post_process_image(dest_path, aspect, w_px, h_px, remove_bottom_watermark=True, prompt_hint=prompt)
                         return f"Z-Image-Turbo - Cloud Relay Grid ({w_px}x{h_px} {aspect})"
         except Exception as e:
             logger.debug(f"Cloud Relay Grid notice: {e}")
@@ -431,7 +514,7 @@ class ImageGenerator:
                         res.raw.decode_content = True
                         shutil.copyfileobj(res.raw, f)
                     if os.path.exists(dest_path) and os.path.getsize(dest_path) > 1024:
-                        self._post_process_image(dest_path, aspect, w_px, h_px, remove_bottom_watermark=True)
+                        self._post_process_image(dest_path, aspect, w_px, h_px, remove_bottom_watermark=True, prompt_hint=prompt)
                         return f"Z-Image-Turbo - Cloud Diffusion Grid ({w_px}x{h_px} {aspect})"
                 wait_sec = 4.0 + (attempt * 2.0)
                 logger.info(f"Cloud Diffusion Grid pacing (status {res.status_code}), retrying in {wait_sec:.1f}s...")

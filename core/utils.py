@@ -82,7 +82,7 @@ def safe_json_parse(text: str, fallback: Any = None) -> Any:
             match = re.search(r'\{.*\}', text, re.DOTALL)
             if match:
                 return json.loads(match.group(0))
-        except:
+        except Exception:
             pass
             
     logger.warning(f"Failed to parse JSON from response. Falling back to default.")
