@@ -71,7 +71,7 @@ TOOLS_ENABLED = {                 # #3 Tools / Integrations
     "system_guardian": True,
     "mcp_workspace": True,
 }
-THEME_CONFIG = {                  # #11 Visual Theme & Icon Color Studio
+THEME_CONFIG = {                  # #11 Visual Theme, Icon & 3D/4K/Live Background Studio
     "preset": "omega_cyan",
     "accent": "#00f5ff",
     "secondary": "#8a5cff",
@@ -80,6 +80,12 @@ THEME_CONFIG = {                  # #11 Visual Theme & Icon Color Studio
     "icon_mode": "theme",         # "theme" | "spectrum" | "custom"
     "icon_color": "#00f5ff",
     "icon_glow": True,
+    "bg_mode": "none",            # "none" | "3d" | "live" | "photo"
+    "bg_preset": "3d_quantum_core",
+    "bg_custom_url": "",
+    "bg_custom_type": "photo",    # "photo" | "video"
+    "bg_opacity": 0.55,
+    "bg_blur": 0,
 }
 
 # ─── Telegram Bot ──────────────────────────────────────────────

@@ -1131,14 +1131,26 @@ def handle_user_settings():
             config.MODEL_TEMPERATURE = max(0.0, min(1.5, float(data["temperature"])))
         except (ValueError, TypeError):
             pass
-    # 11. Custom Theme & Icon Color Studio
+    # 11. Custom Theme, Icon Color & 3D/4K/Live Background Studio
     if isinstance(data.get("theme_config"), dict):
         cur_theme = dict(getattr(config, "THEME_CONFIG", {}))
-        for k in ("preset", "accent", "secondary", "bg", "surface", "icon_mode", "icon_color"):
+        for k in ("preset", "accent", "secondary", "bg", "surface", "icon_mode", "icon_color", "bg_mode", "bg_preset", "bg_custom_type"):
             if k in data["theme_config"] and isinstance(data["theme_config"][k], str):
-                cur_theme[k] = data["theme_config"][k].strip()[:32]
+                cur_theme[k] = data["theme_config"][k].strip()[:64]
+        if "bg_custom_url" in data["theme_config"] and isinstance(data["theme_config"]["bg_custom_url"], str):
+            cur_theme["bg_custom_url"] = data["theme_config"]["bg_custom_url"].strip()[:2048]
         if "icon_glow" in data["theme_config"]:
             cur_theme["icon_glow"] = bool(data["theme_config"]["icon_glow"])
+        if "bg_opacity" in data["theme_config"]:
+            try:
+                cur_theme["bg_opacity"] = max(0.05, min(1.0, float(data["theme_config"]["bg_opacity"])))
+            except (ValueError, TypeError):
+                pass
+        if "bg_blur" in data["theme_config"]:
+            try:
+                cur_theme["bg_blur"] = max(0, min(30, int(float(data["theme_config"]["bg_blur"]))))
+            except (ValueError, TypeError):
+                pass
         config.THEME_CONFIG = cur_theme
 
     new_personality = data.get("personality")
@@ -1167,6 +1179,36 @@ def handle_user_settings():
         "speed_profile": config.SPEED_PROFILE,
         "temperature": config.MODEL_TEMPERATURE,
         "theme_config": config.THEME_CONFIG,
+    })
+
+@app.route("/api/background/upload", methods=["POST"])
+def upload_custom_background():
+    """Upload a custom 4K Photo (.jpg, .png, .webp, .gif, .avif) or Live Video (.mp4, .webm, .mov) background."""
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+    f = request.files["file"]
+    if not f or not f.filename:
+        return jsonify({"error": "Empty filename"}), 400
+
+    ext = os.path.splitext(f.filename)[1].lower()
+    allowed_photo = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".bmp"}
+    allowed_video = {".mp4", ".webm", ".mov", ".m4v"}
+    if ext not in allowed_photo and ext not in allowed_video:
+        return jsonify({"error": f"Unsupported file format: {ext}"}), 400
+
+    bg_dir = os.path.join(app.root_path, "static", "uploads", "backgrounds")
+    os.makedirs(bg_dir, exist_ok=True)
+    safe_name = f"bg_{uuid.uuid4().hex[:12]}{ext}"
+    save_path = os.path.join(bg_dir, safe_name)
+    f.save(save_path)
+
+    media_type = "video" if ext in allowed_video else "photo"
+    url = f"/static/uploads/backgrounds/{safe_name}"
+    return jsonify({
+        "status": "success",
+        "url": url,
+        "media_type": media_type,
+        "filename": safe_name,
     })
 
 # ─── Conversations ──────────────────────────────────────────────

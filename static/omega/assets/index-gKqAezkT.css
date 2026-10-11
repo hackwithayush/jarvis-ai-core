@@ -605,3 +605,45 @@ body:before {
   border-radius: 6px;
 }
 
+/* ─── v16.19 Universal 3D / 4K Photo / Live Video Background Stage ─── */
+#jarvis-bg-stage {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+  display: none;
+  opacity: var(--jarvis-bg-opacity, 0.55);
+  filter: blur(var(--jarvis-bg-blur, 0px));
+  transition: opacity 0.3s ease, filter 0.3s ease;
+}
+
+:root[data-bg-active="true"] #jarvis-bg-stage {
+  display: block;
+}
+
+:root[data-bg-active="true"] .jarvis-app-shell {
+  background-color: transparent !important;
+}
+
+#jarvis-bg-photo,
+#jarvis-bg-video,
+#jarvis-bg-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: none;
+}
+
+#jarvis-bg-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, transparent 30%, rgba(3, 6, 16, 0.65) 100%);
+  pointer-events: none;
+}
+
+
