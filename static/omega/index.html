@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.23"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.23">
+    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.24"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.24">
   </head>
   <body>
     <div id="jarvis-bg-stage" aria-hidden="true">
@@ -21,14 +21,15 @@
     </div>
     <audio id="jarvis-music-audio" src="/static/media/audio/lofi_focus_beat.mp3" loop preload="auto"></audio>
 
-    <!-- Real Small Video & Audio Background Deck (PiP HUD) -->
-    <div id="jarvis-mini-av-player" class="jarvis-mini-av">
-      <div class="jarvis-mini-av-header">
+    <!-- Real Small Video & Audio Background Deck (Freely Draggable PiP HUD) -->
+    <div id="jarvis-mini-av-player" class="jarvis-mini-av" data-av-size="sm">
+      <div id="jarvis-mini-av-dragbar" class="jarvis-mini-av-header" title="Drag anywhere to move · Double-click to reset position">
         <div class="jarvis-mini-av-badge">
           <span id="jarvis-mini-av-dot" class="jarvis-mini-av-dot"></span>
-          <span>LIVE AV DECK</span>
+          <span>✥ LIVE AV DECK</span>
         </div>
         <div class="jarvis-mini-av-top-btns">
+          <button type="button" id="jarvis-mini-av-size-btn" class="jarvis-mini-av-iconbtn" title="Resize Small Video Screen (Small / Medium / Large)">⤢</button>
           <button type="button" id="jarvis-mini-av-bg-btn" class="jarvis-mini-av-iconbtn" title="Toggle Full-Screen Video Background">⛶</button>
           <button type="button" id="jarvis-mini-av-min-btn" class="jarvis-mini-av-iconbtn" title="Minimize / Expand Small Video Deck">—</button>
         </div>
@@ -878,11 +879,133 @@
           });
         }
 
+        const sizeBtn = document.getElementById('jarvis-mini-av-size-btn');
         if (minBtn && playerEl) {
           minBtn.addEventListener('click', function() {
             const isMin = playerEl.classList.toggle('minimized');
             minBtn.textContent = isMin ? '▢' : '—';
           });
+        }
+
+        if (sizeBtn && playerEl) {
+          const sizes = ['sm', 'md', 'lg'];
+          try {
+            const savedSize = localStorage.getItem('jarvis_mini_av_size');
+            if (savedSize && sizes.includes(savedSize)) {
+              playerEl.setAttribute('data-av-size', savedSize);
+            }
+          } catch (e) {}
+          sizeBtn.addEventListener('click', function() {
+            playerEl.classList.remove('minimized');
+            if (minBtn) minBtn.textContent = '—';
+            const cur = playerEl.getAttribute('data-av-size') || 'sm';
+            const next = sizes[(sizes.indexOf(cur) + 1) % sizes.length];
+            playerEl.setAttribute('data-av-size', next);
+            try { localStorage.setItem('jarvis_mini_av_size', next); } catch (e) {}
+            clampPlayerToViewport();
+          });
+        }
+
+        // Free 60/120fps Pointer Drag Anywhere Engine (Header + Video Screen + Body)
+        function clampPlayerToViewport() {
+          if (!playerEl || !playerEl.style.left || playerEl.style.left === 'auto') return;
+          const rect = playerEl.getBoundingClientRect();
+          const maxX = Math.max(6, window.innerWidth - rect.width - 6);
+          const maxY = Math.max(6, window.innerHeight - rect.height - 6);
+          const clampedX = Math.max(6, Math.min(maxX, parseFloat(playerEl.style.left) || rect.left));
+          const clampedY = Math.max(6, Math.min(maxY, parseFloat(playerEl.style.top) || rect.top));
+          playerEl.style.left = Math.round(clampedX) + 'px';
+          playerEl.style.top = Math.round(clampedY) + 'px';
+          playerEl.style.right = 'auto';
+          playerEl.style.bottom = 'auto';
+        }
+
+        if (playerEl) {
+          // Restore saved drag position on boot
+          try {
+            const savedPos = JSON.parse(localStorage.getItem('jarvis_mini_av_pos') || 'null');
+            if (savedPos && typeof savedPos.left === 'number' && typeof savedPos.top === 'number') {
+              playerEl.style.left = savedPos.left + 'px';
+              playerEl.style.top = savedPos.top + 'px';
+              playerEl.style.right = 'auto';
+              playerEl.style.bottom = 'auto';
+              setTimeout(clampPlayerToViewport, 60);
+            }
+          } catch (e) {}
+
+          let dragging = false;
+          let activePointerId = null;
+          let startClientX = 0;
+          let startClientY = 0;
+          let startLeft = 0;
+          let startTop = 0;
+
+          playerEl.addEventListener('pointerdown', function(e) {
+            if (e.button !== undefined && e.button !== 0) return;
+            if (e.target && e.target.closest('button, input, a, select')) return;
+            e.preventDefault();
+            const rect = playerEl.getBoundingClientRect();
+            dragging = true;
+            activePointerId = e.pointerId;
+            startClientX = e.clientX;
+            startClientY = e.clientY;
+            startLeft = rect.left;
+            startTop = rect.top;
+
+            playerEl.classList.add('dragging');
+            playerEl.style.left = Math.round(startLeft) + 'px';
+            playerEl.style.top = Math.round(startTop) + 'px';
+            playerEl.style.right = 'auto';
+            playerEl.style.bottom = 'auto';
+            try { playerEl.setPointerCapture(e.pointerId); } catch (err) {}
+          });
+
+          playerEl.addEventListener('pointermove', function(e) {
+            if (!dragging || e.pointerId !== activePointerId) return;
+            e.preventDefault();
+            const rect = playerEl.getBoundingClientRect();
+            const maxX = Math.max(6, window.innerWidth - rect.width - 6);
+            const maxY = Math.max(6, window.innerHeight - rect.height - 6);
+            const nextX = Math.max(6, Math.min(maxX, startLeft + (e.clientX - startClientX)));
+            const nextY = Math.max(6, Math.min(maxY, startTop + (e.clientY - startClientY)));
+            playerEl.style.left = Math.round(nextX) + 'px';
+            playerEl.style.top = Math.round(nextY) + 'px';
+          });
+
+          const endDrag = function(e) {
+            if (!dragging || (e && e.pointerId !== undefined && e.pointerId !== activePointerId)) return;
+            dragging = false;
+            playerEl.classList.remove('dragging');
+            try {
+              if (activePointerId !== null) playerEl.releasePointerCapture(activePointerId);
+            } catch (err) {}
+            activePointerId = null;
+            try {
+              const rect = playerEl.getBoundingClientRect();
+              localStorage.setItem('jarvis_mini_av_pos', JSON.stringify({
+                left: Math.round(rect.left),
+                top: Math.round(rect.top)
+              }));
+            } catch (err) {}
+          };
+
+          playerEl.addEventListener('pointerup', endDrag);
+          playerEl.addEventListener('pointercancel', endDrag);
+
+          // Double-click header to reset position back to default corner
+          const dragBar = document.getElementById('jarvis-mini-av-dragbar');
+          if (dragBar) {
+            dragBar.addEventListener('dblclick', function(e) {
+              if (e.target && e.target.closest('button')) return;
+              playerEl.style.left = '';
+              playerEl.style.top = '';
+              playerEl.style.right = '';
+              playerEl.style.bottom = '';
+              try { localStorage.removeItem('jarvis_mini_av_pos'); } catch (err) {}
+            });
+          }
+
+          window.addEventListener('resize', clampPlayerToViewport, { passive: true });
         }
       })();
 

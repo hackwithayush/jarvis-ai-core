@@ -657,12 +657,12 @@ body:before {
   pointer-events: none;
 }
 
-/* ─── v16.23 Real Small Video & Audio Background Deck (#jarvis-mini-av-player) ─── */
+/* ─── v16.24 Freely Movable & Resizable Small Video & Audio Background Deck (#jarvis-mini-av-player) ─── */
 .jarvis-mini-av {
   position: fixed;
   bottom: 88px;
   right: 16px;
-  z-index: 48;
+  z-index: 65;
   width: 212px;
   display: flex;
   flex-direction: column;
@@ -673,8 +673,25 @@ body:before {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   overflow: hidden;
-  transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: width 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
   user-select: none;
+  touch-action: none;
+  cursor: grab;
+}
+
+.jarvis-mini-av.dragging {
+  cursor: grabbing !important;
+  transition: none !important;
+  border-color: var(--color-omega-cyan) !important;
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.82), 0 0 28px color-mix(in srgb, var(--color-omega-cyan) 42%, transparent) !important;
+}
+
+.jarvis-mini-av[data-av-size="md"] {
+  width: 296px;
+}
+
+.jarvis-mini-av[data-av-size="lg"] {
+  width: 384px;
 }
 
 @media (min-width: 1100px) and (max-width: 1359.98px) {
@@ -695,10 +712,16 @@ body:before {
     bottom: 82px;
     right: 10px;
   }
+  .jarvis-mini-av[data-av-size="md"] {
+    width: 236px;
+  }
+  .jarvis-mini-av[data-av-size="lg"] {
+    width: 296px;
+  }
 }
 
 .jarvis-mini-av.minimized {
-  width: 158px;
+  width: 164px !important;
 }
 
 .jarvis-mini-av.minimized .jarvis-mini-av-body {
@@ -712,6 +735,12 @@ body:before {
   padding: 5px 8px;
   background: rgba(255, 255, 255, 0.03);
   border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  cursor: grab;
+}
+
+.jarvis-mini-av.dragging .jarvis-mini-av-header,
+.jarvis-mini-av.dragging .jarvis-mini-av-screen {
+  cursor: grabbing !important;
 }
 
 .jarvis-mini-av-badge {
@@ -779,11 +808,27 @@ body:before {
   height: 104px;
   background: #040711;
   overflow: hidden;
+  cursor: grab;
+  transition: height 0.2s ease;
+}
+
+.jarvis-mini-av[data-av-size="md"] .jarvis-mini-av-screen {
+  height: 156px;
+}
+
+.jarvis-mini-av[data-av-size="lg"] .jarvis-mini-av-screen {
+  height: 208px;
 }
 
 @media (max-width: 639.98px) {
   .jarvis-mini-av-screen {
     height: 84px;
+  }
+  .jarvis-mini-av[data-av-size="md"] .jarvis-mini-av-screen {
+    height: 120px;
+  }
+  .jarvis-mini-av[data-av-size="lg"] .jarvis-mini-av-screen {
+    height: 156px;
   }
 }
 
@@ -792,6 +837,7 @@ body:before {
   height: 100%;
   object-fit: cover;
   display: block;
+  pointer-events: none;
 }
 
 .jarvis-mini-av-overlay {
