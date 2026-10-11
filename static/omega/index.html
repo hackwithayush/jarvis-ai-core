@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.14"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.14">
+    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.15"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.15">
   </head>
   <body>
     <div id="root"></div>
@@ -75,6 +75,77 @@
           window.__applyJarvisTheme(JSON.parse(savedTheme));
         }
       } catch (e) {}
+
+      // 60/120fps Physics Inertia Smooth Wheel Scroller for Settings Modal & Scroll Containers
+      (function() {
+        const scrollState = new WeakMap();
+        function findScrollContainer(target) {
+          let el = target;
+          while (el && el !== document.body && el !== document.documentElement) {
+            if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+              if (el.scrollHeight > el.clientHeight) return null;
+            }
+            if (
+              el.classList && (
+                el.classList.contains('jarvis-settings-scroll') ||
+                el.classList.contains('jarvis-settings-modal') ||
+                el.classList.contains('jarvis-chat-scroll') ||
+                el.classList.contains('jarvis-left-sidebar') ||
+                el.classList.contains('jarvis-right-panel') ||
+                el.classList.contains('jarvis-welcome')
+              )
+            ) {
+              if (el.scrollHeight > el.clientHeight + 2) return el;
+            }
+            el = el.parentElement;
+          }
+          return null;
+        }
+
+        window.addEventListener('wheel', function(e) {
+          if (e.ctrlKey || e.metaKey || e.defaultPrevented) return;
+          // Only smooth discrete mouse wheel ticks (let native high-precision trackpad gestures pass through)
+          if (e.deltaMode === 0 && Math.abs(e.deltaY) < 48) return;
+          const container = findScrollContainer(e.target);
+          if (!container) return;
+
+          const maxScroll = container.scrollHeight - container.clientHeight;
+          if (maxScroll <= 0) return;
+
+          e.preventDefault();
+          let st = scrollState.get(container);
+          if (!st) {
+            st = { target: container.scrollTop, current: container.scrollTop, raf: null };
+            scrollState.set(container, st);
+          } else if (!st.raf) {
+            st.current = container.scrollTop;
+            st.target = container.scrollTop;
+          }
+
+          const step = e.deltaMode === 1 ? e.deltaY * 36 : e.deltaY * 0.92;
+          st.target = Math.max(0, Math.min(maxScroll, st.target + step));
+
+          if (!st.raf) {
+            container.style.setProperty('scroll-behavior', 'auto', 'important');
+            const tick = function() {
+              const maxNow = container.scrollHeight - container.clientHeight;
+              st.target = Math.max(0, Math.min(maxNow, st.target));
+              const diff = st.target - st.current;
+              if (Math.abs(diff) > 0.6) {
+                st.current += diff * 0.22;
+                container.scrollTop = st.current;
+                st.raf = requestAnimationFrame(tick);
+              } else {
+                container.scrollTop = st.target;
+                st.current = st.target;
+                st.raf = null;
+                container.style.removeProperty('scroll-behavior');
+              }
+            };
+            st.raf = requestAnimationFrame(tick);
+          }
+        }, { passive: false });
+      })();
 
       // Global shortcut: Cmd+N / Ctrl+N for New Thread
       window.addEventListener('keydown', function(e) {

@@ -67,18 +67,38 @@ html,
 .jarvis-left-sidebar,
 .jarvis-right-panel,
 .jarvis-settings-modal,
+.jarvis-settings-scroll,
 .overflow-y-auto,
 .overflow-x-auto,
 .overflow-auto,
 pre {
-  scroll-behavior: smooth;
+  scroll-behavior: smooth !important;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   touch-action: pan-y;
 }
 
+.jarvis-settings-modal {
+  background: color-mix(in srgb, var(--color-omega-surface) 96%, #050816) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  transform: translateZ(0);
+}
+
+.jarvis-settings-scroll {
+  scroll-behavior: smooth !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior: contain !important;
+  will-change: scroll-position;
+  transform: translateZ(0);
+  scrollbar-gutter: stable;
+  scroll-padding-top: 0.5rem;
+  scroll-padding-bottom: 1.5rem;
+}
+
 .jarvis-chat-scroll {
   scroll-padding-bottom: 1.5rem;
+  will-change: scroll-position;
 }
 
 /* Theme-reactive smooth custom scrollbars */
@@ -87,15 +107,16 @@ pre {
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--color-omega-cyan) 22%, rgba(255, 255, 255, 0.12));
+  background: color-mix(in srgb, var(--color-omega-cyan) 28%, rgba(255, 255, 255, 0.14));
   border-radius: 9999px;
   transition: background-color 0.2s ease;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: color-mix(in srgb, var(--color-omega-cyan) 55%, rgba(255, 255, 255, 0.25));
+  background: color-mix(in srgb, var(--color-omega-cyan) 65%, rgba(255, 255, 255, 0.28));
 }
 
 /* Optimize oversized body:before radial layer so mobile GPUs don't overdraw 4x viewport */
