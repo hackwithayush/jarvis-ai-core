@@ -476,10 +476,7 @@ body {
 }
 
 body:before {
-  background:
-    radial-gradient(circle at 20% 20%, color-mix(in srgb, var(--color-omega-cyan) 11%, transparent), transparent 45%),
-    radial-gradient(circle at 80% 80%, color-mix(in srgb, var(--color-omega-purple) 11%, transparent), transparent 45%),
-    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--color-omega-cyan-dim) 9%, transparent), transparent 50%) !important;
+  display: none !important;
 }
 
 .glass {
