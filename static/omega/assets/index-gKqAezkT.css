@@ -60,15 +60,42 @@ button, a, input, select, textarea {
   touch-action: manipulation;
 }
 
-/* Prevent touch-scroll lockups ("screen stuck") on mobile & tablet */
+/* Prevent touch-scroll lockups ("screen stuck") & enable buttery-smooth scrolling across all panels */
+html,
 .jarvis-welcome,
 .jarvis-chat-scroll,
 .jarvis-left-sidebar,
 .jarvis-right-panel,
-.jarvis-settings-modal {
+.jarvis-settings-modal,
+.overflow-y-auto,
+.overflow-x-auto,
+.overflow-auto,
+pre {
+  scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   touch-action: pan-y;
+}
+
+.jarvis-chat-scroll {
+  scroll-padding-bottom: 1.5rem;
+}
+
+/* Theme-reactive smooth custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--color-omega-cyan) 22%, rgba(255, 255, 255, 0.12));
+  border-radius: 9999px;
+  transition: background-color 0.2s ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--color-omega-cyan) 55%, rgba(255, 255, 255, 0.25));
 }
 
 /* Optimize oversized body:before radial layer so mobile GPUs don't overdraw 4x viewport */
