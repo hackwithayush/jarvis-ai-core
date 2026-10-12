@@ -185,11 +185,12 @@ WAKE_WORD = "jarvis"
 MIC_INDEX = None # Set to an integer (e.g. 1) to force a specific microphone
 AUDIO_GAIN_MULTIPLIER = 100.0 # Software amplification boost
 
-# ─── SaaS & Auth Foundation ────────────────────────────────────
-APP_HOST = "0.0.0.0"
-APP_PORT = 5000
+# ─── SaaS & Auth Foundation (Hardened Localhost Bind & Cryptographic Session Key) ───
+import secrets as _secrets
+APP_HOST = os.environ.get("APP_HOST", "0.0.0.0" if (SERVER_MODE or os.environ.get("PORT")) else "127.0.0.1")
+APP_PORT = int(os.environ.get("PORT", 5000))
 DEBUG = False
-SECRET_KEY = os.getenv("SECRET_KEY", "jarvis_pulse_secure")
+SECRET_KEY = os.getenv("SECRET_KEY") or _secrets.token_hex(32)
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 

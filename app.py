@@ -1147,7 +1147,9 @@ def handle_user_settings():
                 cur_theme[k] = data["theme_config"][k].strip()[:64]
         for url_k in ("bg_custom_url", "music_custom_url"):
             if url_k in data["theme_config"] and isinstance(data["theme_config"][url_k], str):
-                cur_theme[url_k] = data["theme_config"][url_k].strip()[:2048]
+                raw_u = data["theme_config"][url_k].strip()[:2048]
+                if not raw_u.lower().startswith(("javascript:", "vbscript:", "data:text/html", "file:")):
+                    cur_theme[url_k] = raw_u
         if "music_custom_title" in data["theme_config"] and isinstance(data["theme_config"]["music_custom_title"], str):
             cur_theme["music_custom_title"] = data["theme_config"]["music_custom_title"].strip()[:160]
         for bool_k in ("icon_glow", "music_enabled", "music_loop", "music_bass_boost", "bg_video_sound", "mini_av_visible"):
@@ -1198,16 +1200,26 @@ def handle_user_settings():
         "theme_config": config.THEME_CONFIG,
     })
 
+@app.after_request
+def _apply_security_headers(response):
+    """Apply baseline defensive HTTP security headers across all responses."""
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    return response
+
 @app.route("/api/background/upload", methods=["POST"])
 def upload_custom_background():
     """Upload a custom 4K Photo (.jpg, .png, .webp, .gif, .avif) or Live Video (.mp4, .webm, .mov) background."""
+    if not getattr(current_user, "is_authenticated", False) and request.remote_addr not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "Authentication Required"}), 401
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
     f = request.files["file"]
     if not f or not f.filename:
         return jsonify({"error": "Empty filename"}), 400
 
-    ext = os.path.splitext(f.filename)[1].lower()
+    ext = os.path.splitext(os.path.basename(f.filename))[1].lower()
     allowed_photo = {".jpg", ".jpeg", ".png", ".webp", ".gif", ".avif", ".bmp"}
     allowed_video = {".mp4", ".webm", ".mov", ".m4v"}
     if ext not in allowed_photo and ext not in allowed_video:
@@ -1231,20 +1243,22 @@ def upload_custom_background():
 @app.route("/api/music/upload", methods=["POST"])
 def upload_custom_music():
     """Upload a custom audio/music file (.mp3, .wav, .ogg, .m4a, .aac, .flac, .webm) for the Settings Music Studio."""
+    if not getattr(current_user, "is_authenticated", False) and request.remote_addr not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "Authentication Required"}), 401
     if "file" not in request.files:
         return jsonify({"error": "No audio file uploaded"}), 400
     f = request.files["file"]
     if not f or not f.filename:
         return jsonify({"error": "Empty filename"}), 400
 
-    ext = os.path.splitext(f.filename)[1].lower()
+    ext = os.path.splitext(os.path.basename(f.filename))[1].lower()
     allowed_audio = {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".webm", ".mp4"}
     if ext not in allowed_audio:
         return jsonify({"error": f"Unsupported audio format: {ext}"}), 400
 
     music_dir = os.path.join(app.root_path, "static", "uploads", "music")
     os.makedirs(music_dir, exist_ok=True)
-    clean_base = re.sub(r"[^a-zA-Z0-9_\-\s]", "", os.path.splitext(f.filename)[0]).strip()[:40] or "track"
+    clean_base = re.sub(r"[^a-zA-Z0-9_\-\s]", "", os.path.splitext(os.path.basename(f.filename))[0]).strip()[:40] or "track"
     safe_name = f"music_{uuid.uuid4().hex[:8]}_{clean_base.replace(' ', '_')}{ext}"
     save_path = os.path.join(music_dir, safe_name)
     f.save(save_path)
@@ -1260,6 +1274,8 @@ def upload_custom_music():
 @app.route("/api/music/library", methods=["GET"])
 def list_music_library():
     """Return uploaded music tracks from static/uploads/music."""
+    if not getattr(current_user, "is_authenticated", False) and request.remote_addr not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "Authentication Required"}), 401
     music_dir = os.path.join(app.root_path, "static", "uploads", "music")
     if not os.path.exists(music_dir):
         return jsonify({"tracks": []})
@@ -1278,6 +1294,8 @@ def list_music_library():
 @app.route("/api/theme", methods=["GET", "POST"])
 def api_theme_sync():
     """Quick sync endpoint for the Small Video & Audio Background Deck (#jarvis-mini-av-player)."""
+    if not getattr(current_user, "is_authenticated", False) and request.remote_addr not in ("127.0.0.1", "::1"):
+        return jsonify({"error": "Authentication Required"}), 401
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
         cur_theme = dict(getattr(config, "THEME_CONFIG", {}))
@@ -1286,7 +1304,9 @@ def api_theme_sync():
                 cur_theme[k] = data[k].strip()[:64]
         for url_k in ("bg_custom_url", "music_custom_url"):
             if url_k in data and isinstance(data[url_k], str):
-                cur_theme[url_k] = data[url_k].strip()[:2048]
+                raw_u = data[url_k].strip()[:2048]
+                if not raw_u.lower().startswith(("javascript:", "vbscript:", "data:text/html", "file:")):
+                    cur_theme[url_k] = raw_u
         for bool_k in ("icon_glow", "music_enabled", "music_loop", "music_bass_boost", "bg_video_sound", "mini_av_visible"):
             if bool_k in data:
                 cur_theme[bool_k] = bool(data[bool_k])
