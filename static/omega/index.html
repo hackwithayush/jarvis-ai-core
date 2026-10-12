@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.27"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.27">
+    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.30"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.30">
   </head>
   <body>
     <div id="jarvis-bg-stage" aria-hidden="true">
@@ -21,15 +21,19 @@
     </div>
     <audio id="jarvis-music-audio" src="/static/media/audio/lofi_focus_beat.mp3" loop preload="auto"></audio>
 
+    <button type="button" id="jarvis-mini-av-restore-pill" style="display:none;position:fixed;right:18px;bottom:82px;z-index:9999;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:rgba(10,15,30,0.92);border:1.5px solid rgba(255,23,68,0.65);color:#fff;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.7),0 0 14px rgba(255,23,68,0.35);backdrop-filter:blur(12px);" title="Open YouTube Music & Small AV Deck">
+      <span>🔴 YT Music • ❤️ Liked</span>
+    </button>
+
     <!-- Real Small Video & Audio Background Deck + YouTube Music & Liked Playlist Hub (Freely Draggable PiP HUD) -->
-    <div id="jarvis-mini-av-player" class="jarvis-mini-av" data-av-size="sm">
+    <div id="jarvis-mini-av-player" class="jarvis-mini-av" data-av-size="md">
       <div id="jarvis-mini-av-dragbar" class="jarvis-mini-av-header" title="Drag anywhere to move · Double-click to reset position">
         <div class="jarvis-mini-av-badge">
           <span id="jarvis-mini-av-dot" class="jarvis-mini-av-dot"></span>
           <span>✥ LIVE AV DECK</span>
         </div>
         <div class="jarvis-mini-av-top-btns">
-          <button type="button" id="jarvis-mini-ytm-btn" class="jarvis-mini-av-iconbtn jarvis-ytm-badge-btn" title="Open YouTube Music & ❤️ Liked Playlist">🔴 YT Music</button>
+          <button type="button" id="jarvis-mini-ytm-btn" class="jarvis-mini-av-iconbtn jarvis-ytm-badge-btn active" title="Toggle YouTube Music & ❤️ Liked Playlist Drawer">🔴 YT Music</button>
           <button type="button" id="jarvis-mini-av-size-btn" class="jarvis-mini-av-iconbtn" title="Resize Small Video Screen (Small / Medium / Large)">⤢</button>
           <button type="button" id="jarvis-mini-av-bg-btn" class="jarvis-mini-av-iconbtn" title="Toggle Full-Screen Video Background">⛶</button>
           <button type="button" id="jarvis-mini-av-min-btn" class="jarvis-mini-av-iconbtn" title="Minimize / Expand Small Video Deck">—</button>
@@ -58,8 +62,8 @@
             <button type="button" id="jarvis-mini-liked-btn" class="jarvis-mini-av-btn jarvis-liked-heart-btn" title="Play My YouTube Music ❤️ Liked Playlist">❤️</button>
           </div>
         </div>
-        <!-- Collapsible YouTube Music & ❤️ Liked Playlist Drawer -->
-        <div id="jarvis-mini-ytm-drawer" class="jarvis-mini-ytm-drawer" style="display:none;">
+        <!-- Collapsible YouTube Music & ❤️ Liked Playlist Drawer (Open by default so Liked & Search are immediately visible) -->
+        <div id="jarvis-mini-ytm-drawer" class="jarvis-mini-ytm-drawer" style="display:flex;">
           <div class="jarvis-ytm-drawer-top">
             <span id="jarvis-ytm-account-badge" class="jarvis-ytm-account-badge">🔴 YouTube Music • ❤️ Liked Playlist</span>
             <div class="jarvis-ytm-drawer-actions">
@@ -73,7 +77,7 @@
             <button type="button" id="jarvis-ytm-import-btn" class="jarvis-ytm-action-btn" title="Import YouTube Music Playlist URL or Song into ❤️ Liked">📥 Import</button>
           </div>
           <div class="jarvis-ytm-tabs">
-            <button type="button" id="jarvis-ytm-tab-liked" class="jarvis-ytm-tab active">❤️ Liked Songs (<span id="jarvis-ytm-liked-count">6</span>)</button>
+            <button type="button" id="jarvis-ytm-tab-liked" class="jarvis-ytm-tab active">❤️ Liked Songs (<span id="jarvis-ytm-liked-count">8</span>)</button>
             <button type="button" id="jarvis-ytm-tab-search" class="jarvis-ytm-tab">🔍 Search Results</button>
           </div>
           <div id="jarvis-ytm-track-list" class="jarvis-ytm-track-list"></div>
@@ -443,8 +447,12 @@
               ? '🎬 Custom Live Video'
               : window.__JARVIS_VIDEOS['vid_stark_hud'].title);
 
+        const restorePillEl = document.getElementById('jarvis-mini-av-restore-pill');
         if (miniPlayerEl) {
           miniPlayerEl.style.display = miniAvVisible ? 'flex' : 'none';
+        }
+        if (restorePillEl) {
+          restorePillEl.style.display = miniAvVisible ? 'none' : 'inline-flex';
         }
         if (miniVideoEl && miniAvVisible) {
           if (miniVideoEl.getAttribute('src') !== activeVideoUrl) {
@@ -454,7 +462,7 @@
             miniVideoEl.play().catch(function() {});
           }
         }
-        if (miniVideoLabel) {
+        if (miniVideoLabel && !(window.__jarvisYtm && window.__jarvisYtm.active)) {
           miniVideoLabel.textContent = activeVideoTitle;
         }
         if (miniBgBtn) {
@@ -1059,19 +1067,49 @@
         }
       })();
 
-      // Apply saved theme & background immediately on boot (with v16.23 AV activation upgrade)
+      // Apply saved theme & background immediately on boot (with v16.30 YT Music + AV visibility auto-heal)
       try {
         const rawSaved = localStorage.getItem('jarvis_theme_cfg');
         let bootCfg = rawSaved ? JSON.parse(rawSaved) : {};
-        if (!localStorage.getItem('jarvis_av_v16_23')) {
+        if (!localStorage.getItem('jarvis_ytm_v16_30')) {
+          localStorage.setItem('jarvis_ytm_v16_30', '1');
           localStorage.setItem('jarvis_av_v16_23', '1');
+          localStorage.setItem('jarvis_mini_av_size', 'md');
+          localStorage.removeItem('jarvis_mini_av_pos');
           bootCfg.bg_mode = 'live';
           bootCfg.bg_preset = 'vid_stark_hud';
+          bootCfg.bg_custom_url = '';
           bootCfg.music_enabled = true;
-          bootCfg.music_preset = bootCfg.music_preset || 'lofi_focus';
+          if (!bootCfg.music_preset || (bootCfg.music_preset === 'custom_audio' && !bootCfg.music_custom_url)) {
+            bootCfg.music_preset = 'lofi_focus';
+          }
           bootCfg.mini_av_visible = true;
+          const pEl = document.getElementById('jarvis-mini-av-player');
+          if (pEl) {
+            pEl.classList.remove('minimized');
+            pEl.setAttribute('data-av-size', 'md');
+            pEl.style.left = '';
+            pEl.style.top = '';
+            pEl.style.right = '';
+            pEl.style.bottom = '';
+          }
+          const dEl = document.getElementById('jarvis-mini-ytm-drawer');
+          if (dEl) dEl.style.display = 'flex';
         }
         window.__applyJarvisTheme(bootCfg);
+        const restorePill = document.getElementById('jarvis-mini-av-restore-pill');
+        if (restorePill) {
+          restorePill.addEventListener('click', function() {
+            const nextCfg = Object.assign({}, window.__jarvisCurrentThemeCfg || bootCfg, { mini_av_visible: true, music_enabled: true });
+            window.__applyJarvisTheme(nextCfg);
+            if (window.__jarvisYtm) window.__jarvisYtm.toggleDrawer(true);
+            fetch('/api/theme', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(nextCfg)
+            }).catch(function() {});
+          });
+        }
       } catch (e) {}
 
       // 60/120fps Physics Inertia Smooth Wheel Scroller for Settings Modal & Scroll Containers
