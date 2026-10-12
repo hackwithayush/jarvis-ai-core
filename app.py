@@ -1707,56 +1707,75 @@ def fix_system_bug():
 import re
 import subprocess
 
-# ─── YouTube Music & Liked Playlist Hub (v16.27) ────────────────
+# ─── YouTube Music & Liked Playlist Hub (v16.28) ────────────────
 _YTM_LIB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "memory", "ytmusic_library.json")
+
+# Ended 24/7 livestreams on YouTube permanently show "We're processing this video. Check back later."
+_BROKEN_ENDED_LIVE_IDS = {"jfKfPfyJRdk", "DWcJFNfaw9c", "5qap5aO4i9A", "4xDzrJKXOOY"}
 
 _DEFAULT_YTM_LIKED = [
     {
-        "id": "jfKfPfyJRdk",
-        "title": "lofi hip hop radio - beats to relax/study to",
-        "artist": "Lofi Girl • YouTube Music",
-        "duration": "LIVE",
-        "thumbnail": "https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg",
+        "id": "vsVwvVYlUBs",
+        "title": "Kesariya (Lofi Flip) - Brahmāstra | Arijit Singh",
+        "artist": "Sony Music India • YouTube Music",
+        "duration": "4:04",
+        "thumbnail": "https://i.ytimg.com/vi/vsVwvVYlUBs/hqdefault.jpg",
         "source": "ytmusic",
     },
     {
-        "id": "O5gwxm3NxFU",
-        "title": "Best Of Arijit Singh Hits | Chill Lofi & Acoustic Mix",
-        "artist": "Arijit Singh • YouTube Music",
-        "duration": "1:00:52",
-        "thumbnail": "https://i.ytimg.com/vi/O5gwxm3NxFU/hqdefault.jpg",
+        "id": "-1CwZ-U7UEs",
+        "title": "1 Hour Of Pure Lofi | Arijit Singh Chill Mix",
+        "artist": "Arijit Singh • One Lofi",
+        "duration": "1:03:55",
+        "thumbnail": "https://i.ytimg.com/vi/-1CwZ-U7UEs/hqdefault.jpg",
         "source": "ytmusic",
     },
     {
-        "id": "4xDzrJKXOOY",
-        "title": "Synthwave Radio - ChillSynth / Retro Future Beats",
-        "artist": "Lofi Girl Synthwave • YouTube Music",
-        "duration": "LIVE",
-        "thumbnail": "https://i.ytimg.com/vi/4xDzrJKXOOY/hqdefault.jpg",
+        "id": "rkT2c6AVbbc",
+        "title": "Apna Bana Le (Lofi Mix) - Bhediya | Arijit Singh",
+        "artist": "Zee Music Company • YouTube Music",
+        "duration": "4:43",
+        "thumbnail": "https://i.ytimg.com/vi/rkT2c6AVbbc/hqdefault.jpg",
         "source": "ytmusic",
     },
     {
-        "id": "DWcJFNfaw9c",
-        "title": "Ambient Space & Deep Focus Coding Beats",
-        "artist": "ChilledCow • YouTube Music",
-        "duration": "LIVE",
-        "thumbnail": "https://i.ytimg.com/vi/DWcJFNfaw9c/hqdefault.jpg",
+        "id": "fU-ApwDCLZs",
+        "title": "Pasoori (Slowed + Reverb) Punjabi Lofi Mix",
+        "artist": "Glim Lofi • YouTube Music",
+        "duration": "4:13",
+        "thumbnail": "https://i.ytimg.com/vi/fU-ApwDCLZs/hqdefault.jpg",
         "source": "ytmusic",
     },
     {
-        "id": "gdGUeX1i0n0",
-        "title": "Arijit Singh Late Night Soulful Jukebox",
-        "artist": "Arijit Singh • YouTube Music",
-        "duration": "56:14",
-        "thumbnail": "https://i.ytimg.com/vi/gdGUeX1i0n0/hqdefault.jpg",
+        "id": "XxYXZet1ZM8",
+        "title": "Tum Hi Ho - Hindi Lofi Chill Mix",
+        "artist": "Lofi Raatein • YouTube Music",
+        "duration": "5:17",
+        "thumbnail": "https://i.ytimg.com/vi/XxYXZet1ZM8/hqdefault.jpg",
         "source": "ytmusic",
     },
     {
-        "id": "5qap5aO4i9A",
-        "title": "Chill Study & Late Night Instrumental Mix",
-        "artist": "YouTube Music Mix",
-        "duration": "45:00",
-        "thumbnail": "https://i.ytimg.com/vi/5qap5aO4i9A/hqdefault.jpg",
+        "id": "6TEGPexTqr4",
+        "title": "NIGHTLAPSE - Cyberpunk Chill Synthwave Mix",
+        "artist": "Astral Throb • YouTube Music",
+        "duration": "43:16",
+        "thumbnail": "https://i.ytimg.com/vi/6TEGPexTqr4/hqdefault.jpg",
+        "source": "ytmusic",
+    },
+    {
+        "id": "_ynU1lm_068",
+        "title": "Study Lofi Hip Hop 🌃 Chill Beats for Deep Focus & Coding",
+        "artist": "Study Lofi Hiphop • YouTube Music",
+        "duration": "2:51:00",
+        "thumbnail": "https://i.ytimg.com/vi/_ynU1lm_068/hqdefault.jpg",
+        "source": "ytmusic",
+    },
+    {
+        "id": "eLeIJtLebZk",
+        "title": "Interstellar | Beautiful Chillstep & Space Ambient Mix",
+        "artist": "BLUME • YouTube Music",
+        "duration": "1:07:35",
+        "thumbnail": "https://i.ytimg.com/vi/eLeIJtLebZk/hqdefault.jpg",
         "source": "ytmusic",
     },
 ]
@@ -1768,6 +1787,18 @@ def _load_ytm_library() -> dict:
             with open(_YTM_LIB_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, dict) and isinstance(data.get("liked_songs"), list):
+                    # Purge any old ended livestream IDs that show "We're processing this video"
+                    cleaned = [
+                        t for t in data["liked_songs"]
+                        if t.get("id") not in _BROKEN_ENDED_LIVE_IDS and t.get("duration") != "LIVE"
+                    ]
+                    existing_ids = {t.get("id") for t in cleaned}
+                    for d_track in _DEFAULT_YTM_LIKED:
+                        if d_track["id"] not in existing_ids:
+                            cleaned.append(d_track)
+                    if len(cleaned) != len(data["liked_songs"]):
+                        data["liked_songs"] = cleaned
+                        _save_ytm_library(data)
                     return data
     except Exception as e:
         logger.debug(f"Could not read ytmusic_library.json: {e}")
@@ -1826,14 +1857,17 @@ def _search_youtube_music_tracks(query: str, limit: int = 14) -> list:
         seen = set()
         for v in renderers:
             vid = (v.get("videoId") or "").strip()
-            if not vid or vid in seen:
+            if not vid or vid in seen or vid in _BROKEN_ENDED_LIVE_IDS:
+                continue
+            # Skip livestreams/unprocessed streams that lack a concrete mm:ss duration
+            dur = (v.get("lengthText", {}).get("simpleText") or "").strip()
+            if not dur:
                 continue
             seen.add(vid)
             title_runs = v.get("title", {}).get("runs") or []
             title = (title_runs[0].get("text") if title_runs else v.get("title", {}).get("simpleText")) or "YouTube Music Track"
             owner_runs = (v.get("ownerText", {}).get("runs") or v.get("longBylineText", {}).get("runs")) or []
             artist = (owner_runs[0].get("text") if owner_runs else "YouTube Music")
-            dur = (v.get("lengthText", {}).get("simpleText") or "LIVE").strip()
             tracks.append({
                 "id": vid,
                 "title": title,
@@ -1848,6 +1882,75 @@ def _search_youtube_music_tracks(query: str, limit: int = 14) -> list:
     except Exception as e:
         logger.warning(f"YouTube Music search failed for '{q}': {e}")
         return []
+
+
+_YTM_STREAM_CACHE = {}
+
+
+def _resolve_ytm_direct_stream(video_id: str) -> dict:
+    """Resolve direct progressive MP4 / M4A audio-video stream URLs via yt-dlp with 20-min cache."""
+    now = time.time()
+    cached = _YTM_STREAM_CACHE.get(video_id)
+    if cached and (now - cached.get("ts", 0)) < 1200:
+        return cached
+    try:
+        import yt_dlp
+        ydl_opts = {
+            "format": "bestaudio[ext=m4a]/best[ext=mp4]/bestaudio/best",
+            "quiet": True,
+            "no_warnings": True,
+            "noplaylist": True,
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+            direct_url = info.get("url") or ""
+            mime = "audio/mp4" if info.get("ext") in ("m4a", "mp4") else "audio/webm"
+            if direct_url:
+                res = {"url": direct_url, "mime": mime, "ts": now}
+                _YTM_STREAM_CACHE[video_id] = res
+                return res
+    except Exception as e:
+        logger.debug(f"yt-dlp stream extraction skipped for {video_id}: {e}")
+    return {}
+
+
+@app.route("/api/ytmusic/stream/<video_id>", methods=["GET"])
+def stream_ytmusic_audio(video_id):
+    """Stream YouTube Music audio directly to HTML5 <audio> so tracks play even when YouTube blocks embeds."""
+    import requests as http_requests
+    from flask import Response, stream_with_context
+
+    vid = re.sub(r"[^a-zA-Z0-9_-]", "", video_id or "")[:16]
+    if not vid:
+        return jsonify({"error": "Invalid video ID"}), 400
+
+    info = _resolve_ytm_direct_stream(vid)
+    direct_url = info.get("url")
+    if not direct_url:
+        return jsonify({"error": "Direct stream unavailable"}), 404
+
+    req_headers = {"User-Agent": "Mozilla/5.0"}
+    if request.headers.get("Range"):
+        req_headers["Range"] = request.headers["Range"]
+
+    try:
+        upstream = http_requests.get(direct_url, headers=req_headers, stream=True, timeout=15)
+        resp_headers = {
+            "Content-Type": upstream.headers.get("Content-Type") or info.get("mime", "audio/mp4"),
+            "Accept-Ranges": "bytes",
+        }
+        for h_key in ("Content-Length", "Content-Range"):
+            if upstream.headers.get(h_key):
+                resp_headers[h_key] = upstream.headers[h_key]
+
+        return Response(
+            stream_with_context(upstream.iter_content(chunk_size=32768)),
+            status=upstream.status_code,
+            headers=resp_headers,
+        )
+    except Exception as e:
+        logger.warning(f"YouTube Music stream proxy error for {vid}: {e}")
+        return jsonify({"error": str(e)}), 502
 
 
 def _extract_youtube_playlist_tracks(playlist_id: str, limit: int = 50) -> tuple:
@@ -1881,7 +1984,7 @@ def _extract_youtube_playlist_tracks(playlist_id: str, limit: int = 50) -> tuple
         seen = set()
         for v in renderers:
             vid = (v.get("videoId") or "").strip()
-            if not vid or vid in seen:
+            if not vid or vid in seen or vid in _BROKEN_ENDED_LIVE_IDS:
                 continue
             seen.add(vid)
             title_runs = v.get("title", {}).get("runs") or []

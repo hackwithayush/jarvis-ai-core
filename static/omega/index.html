@@ -1629,7 +1629,7 @@
               self.player = new window.YT.Player('jarvis-yt-player-host', {
                 width: '100%',
                 height: '100%',
-                videoId: self.pendingVideoId || 'jfKfPfyJRdk',
+                videoId: self.pendingVideoId || 'vsVwvVYlUBs',
                 playerVars: {
                   autoplay: 1,
                   controls: 1,
@@ -1658,22 +1658,9 @@
                       self.isPlaying = false;
                     }
                   },
-                  onError: function(ev) {
-                    // Error 101 or 150 = official label blocked embed; auto-resolve playable audio stream
-                    if ((ev.data === 101 || ev.data === 150) && self.currentTrack && !self.currentTrack._retriedAudio) {
-                      self.currentTrack._retriedAudio = true;
-                      const q = (self.currentTrack.title + ' ' + (self.currentTrack.artist || '') + ' audio lyric').trim();
-                      fetch('/api/ytmusic/search?q=' + encodeURIComponent(q))
-                        .then(r => r.json())
-                        .then(d => {
-                          const alt = (d.tracks || []).find(t => t.id !== self.currentTrack.id);
-                          if (alt && self.player) {
-                            self.player.loadVideoById(alt.id);
-                          } else {
-                            self.nextTrack();
-                          }
-                        })
-                        .catch(() => self.nextTrack());
+                  onError: function() {
+                    if (self.currentTrack) {
+                      self.playDirectAudioStream(self.currentTrack);
                     }
                   }
                 }
@@ -1697,6 +1684,42 @@
             }
           },
 
+          playDirectAudioStream: function(track) {
+            if (!track || !track.id) return;
+            const self = this;
+            const audioEl = document.getElementById('jarvis-music-audio');
+            if (!audioEl) return;
+            try {
+              if (this.player && typeof this.player.stopVideo === 'function') {
+                this.player.stopVideo();
+              }
+            } catch (e) {}
+            audioEl.loop = false;
+            audioEl.muted = false;
+            const vol = (window.__jarvisCurrentThemeCfg && window.__jarvisCurrentThemeCfg.music_volume !== undefined)
+              ? Number(window.__jarvisCurrentThemeCfg.music_volume)
+              : 0.7;
+            audioEl.volume = Math.max(0.1, Math.min(1, vol));
+            audioEl.src = '/api/ytmusic/stream/' + encodeURIComponent(track.id);
+            audioEl.onended = function() {
+              if (self.active) self.nextTrack();
+            };
+            audioEl.play().catch(function() {
+              // If direct stream unavailable, search for alternative playable Lofi/Audio track
+              if (!track._retriedAlt) {
+                track._retriedAlt = true;
+                const q = (track.title + ' ' + (track.artist || '') + ' lofi audio').trim();
+                fetch('/api/ytmusic/search?q=' + encodeURIComponent(q))
+                  .then(r => r.json())
+                  .then(d => {
+                    const alt = (d.tracks || []).find(t => t.id !== track.id);
+                    if (alt) self.playTrack(alt, self.currentIndex);
+                  })
+                  .catch(() => {});
+              }
+            });
+          },
+
           playTrack: function(track, idx) {
             if (!track || !track.id) return;
             const self = this;
@@ -1708,7 +1731,10 @@
 
             // Pause built-in MP3 loop so YouTube Music plays cleanly
             const audioEl = document.getElementById('jarvis-music-audio');
-            if (audioEl) { try { audioEl.pause(); } catch (e) {} }
+            if (audioEl) {
+              audioEl.onended = null;
+              try { audioEl.pause(); } catch (e) {}
+            }
             if (window.__jarvisMusicEngine) {
               window.__jarvisMusicEngine.stopSynth();
             }
@@ -1736,7 +1762,9 @@
                   self.player.loadVideoById(track.id);
                   self.player.playVideo();
                 }
-              } catch (e) {}
+              } catch (e) {
+                self.playDirectAudioStream(track);
+              }
             });
           },
 
@@ -1760,11 +1788,19 @@
                 this.player.pauseVideo();
               }
             } catch (e) {}
+            const audioEl = document.getElementById('jarvis-music-audio');
+            if (audioEl && !audioEl.paused) {
+              try { audioEl.pause(); } catch (e) {}
+            }
           },
 
           resume: function() {
             if (!this.active) return;
             this.isPlaying = true;
+            const audioEl = document.getElementById('jarvis-music-audio');
+            if (audioEl && audioEl.src && audioEl.src.includes('/api/ytmusic/stream/')) {
+              try { audioEl.play().catch(() => {}); return; } catch (e) {}
+            }
             try {
               if (this.player && typeof this.player.playVideo === 'function') {
                 this.player.playVideo();
