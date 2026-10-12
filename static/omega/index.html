@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.24"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.24">
+    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.26"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.26">
   </head>
   <body>
     <div id="jarvis-bg-stage" aria-hidden="true">
@@ -1110,6 +1110,212 @@
           }, 60);
         }
       });
+
+      // 🎙️🔊 JARVIS Neural Voice Intelligence Controller (v16.26)
+      // 1) Auto-pauses background music while Mic is recording so speaker audio never causes Whisper to hallucinate "Thank you."
+      // 2) Cleans short greeting hallucinations ("hyy" -> never "Thank you.")
+      // 3) Speaks JARVIS responses out loud via /api/voice/synthesize (edge-tts ChristopherNeural) + Web Speech fallback
+      (function() {
+        window.__jarvisWasMusicPlayingBeforeMic = false;
+        window.__jarvisVoiceInputUsed = false;
+        window.__jarvisIsSpeaking = false;
+        window.__jarvisTtsAudio = null;
+        try {
+          const savedVr = localStorage.getItem('jarvis_voice_reply_enabled');
+          window.__jarvisVoiceReplyEnabled = savedVr === null ? true : savedVr === '1';
+        } catch (e) {
+          window.__jarvisVoiceReplyEnabled = true;
+        }
+
+        window.__jarvisUpdateVoiceButtons = function() {
+          const btns = document.querySelectorAll('[data-jarvis-voice-reply-btn]');
+          btns.forEach(btn => {
+            const active = !!window.__jarvisVoiceReplyEnabled;
+            const speaking = !!window.__jarvisIsSpeaking;
+            btn.setAttribute('data-active', active ? '1' : '0');
+            btn.title = speaking
+              ? 'JARVIS is speaking — Click to stop voice playback'
+              : active
+                ? 'JARVIS Voice Reply: ON (Click to mute voice replies)'
+                : 'JARVIS Voice Reply: OFF (Click to enable spoken replies)';
+            const labelEl = btn.querySelector('[data-jarvis-voice-label]');
+            if (labelEl) {
+              labelEl.textContent = speaking ? '🔊 Speaking...' : active ? '🔊 Voice ON' : '🔇 Voice OFF';
+            }
+          });
+        };
+
+        window.__jarvisStopSpeaking = function() {
+          try {
+            if (window.__jarvisTtsAudio) {
+              window.__jarvisTtsAudio.pause();
+              window.__jarvisTtsAudio.currentTime = 0;
+              window.__jarvisTtsAudio = null;
+            }
+          } catch (e) {}
+          try {
+            if (window.speechSynthesis) {
+              window.speechSynthesis.cancel();
+            }
+          } catch (e) {}
+          window.__jarvisIsSpeaking = false;
+          // Restore background music volume if it was ducked during TTS
+          try {
+            const musicEl = document.getElementById('jarvis-music-audio');
+            if (musicEl && typeof window.__jarvisPreTtsMusicVol === 'number') {
+              musicEl.volume = window.__jarvisPreTtsMusicVol;
+              window.__jarvisPreTtsMusicVol = null;
+            }
+          } catch (e) {}
+          window.__jarvisUpdateVoiceButtons();
+        };
+
+        window.__jarvisToggleVoiceReply = function() {
+          if (window.__jarvisIsSpeaking) {
+            window.__jarvisStopSpeaking();
+            return window.__jarvisVoiceReplyEnabled;
+          }
+          window.__jarvisVoiceReplyEnabled = !window.__jarvisVoiceReplyEnabled;
+          try {
+            localStorage.setItem('jarvis_voice_reply_enabled', window.__jarvisVoiceReplyEnabled ? '1' : '0');
+          } catch (e) {}
+          window.__jarvisUpdateVoiceButtons();
+          return window.__jarvisVoiceReplyEnabled;
+        };
+
+        window.__jarvisSetMicDucking = function(isRecording) {
+          const musicEl = document.getElementById('jarvis-music-audio');
+          const bgVid = document.getElementById('jarvis-bg-video');
+          const miniVid = document.getElementById('jarvis-mini-av-video');
+          if (isRecording) {
+            window.__jarvisStopSpeaking();
+            if (bgVid) bgVid.muted = true;
+            if (miniVid) miniVid.muted = true;
+            if (musicEl && !musicEl.paused) {
+              window.__jarvisWasMusicPlayingBeforeMic = true;
+              try { musicEl.pause(); } catch (e) {}
+            }
+          } else {
+            if (window.__jarvisWasMusicPlayingBeforeMic && musicEl) {
+              window.__jarvisWasMusicPlayingBeforeMic = false;
+              setTimeout(() => {
+                try {
+                  if (window.__jarvisThemeState && window.__jarvisThemeState.music_enabled) {
+                    musicEl.play().catch(() => {});
+                  }
+                } catch (e) {}
+              }, 300);
+            }
+          }
+        };
+
+        window.__jarvisCleanSpeechInput = function(rawText, elapsedMs) {
+          let t = String(rawText || '').trim();
+          if (!t) return '';
+          const low = t.toLowerCase().replace(/[^\w\s]/g, '').trim();
+          const subtitleHallucinations = [
+            'thanks for watching',
+            'thank you for watching',
+            'subtitles by',
+            'amaraorg',
+            'please subscribe'
+          ];
+          for (let i = 0; i < subtitleHallucinations.length; i++) {
+            if (low.includes(subtitleHallucinations[i])) return '';
+          }
+          // Fix Whisper & browser STT acoustic hallucination where saying "hyy" / "hi" is misheard as "Thank you."
+          if (
+            low === 'thank you' ||
+            low === 'thank you very much' ||
+            low === 'thanks' ||
+            low === 'thank you so much' ||
+            low === 'you'
+          ) {
+            if (!elapsedMs || elapsedMs < 4800) {
+              return 'hyy';
+            }
+          }
+          return t;
+        };
+
+        window.__jarvisSpeak = async function(rawText, forceSpeak) {
+          if (!forceSpeak && !window.__jarvisVoiceReplyEnabled && !window.__jarvisVoiceInputUsed) return;
+          let clean = String(rawText || '')
+            .replace(/```[\s\S]*?```/g, ' I have prepared the code on your screen. ')
+            .replace(/`([^`]+)`/g, '$1')
+            .replace(/https?:\/\/\S+/g, '')
+            .replace(/^[#>*\-+|]+\s*/gm, '')
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/\*([^*]+)\*/g, '$1')
+            .replace(/\s+/g, ' ')
+            .trim();
+          if (!clean || clean.startsWith('⚠')) return;
+          if (clean.length > 900) {
+            clean = clean.slice(0, 900) + '...';
+          }
+
+          window.__jarvisStopSpeaking();
+          window.__jarvisIsSpeaking = true;
+          window.__jarvisUpdateVoiceButtons();
+
+          // Softly duck background music while JARVIS speaks
+          const musicEl = document.getElementById('jarvis-music-audio');
+          if (musicEl && !musicEl.paused) {
+            window.__jarvisPreTtsMusicVol = musicEl.volume;
+            musicEl.volume = Math.min(musicEl.volume, 0.12);
+          }
+
+          try {
+            const resp = await fetch('/api/voice/synthesize', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ text: clean })
+            });
+            if (resp.ok) {
+              const blob = await resp.blob();
+              if (blob && blob.size > 200) {
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+                window.__jarvisTtsAudio = audio;
+                audio.onended = function() {
+                  URL.revokeObjectURL(url);
+                  window.__jarvisStopSpeaking();
+                };
+                audio.onerror = function() {
+                  URL.revokeObjectURL(url);
+                  window.__jarvisStopSpeaking();
+                };
+                await audio.play();
+                return;
+              }
+            }
+          } catch (err) {
+            console.warn('Edge-TTS fallback to browser speechSynthesis:', err);
+          }
+
+          // Fallback to Web Speech API synthesis if backend audio playback was blocked or unavailable
+          try {
+            if (window.speechSynthesis) {
+              const utter = new SpeechSynthesisUtterance(clean);
+              utter.lang = 'en-US';
+              utter.rate = 1.03;
+              utter.onend = function() { window.__jarvisStopSpeaking(); };
+              utter.onerror = function() { window.__jarvisStopSpeaking(); };
+              window.speechSynthesis.speak(utter);
+              return;
+            }
+          } catch (e) {}
+          window.__jarvisStopSpeaking();
+        };
+
+        window.__jarvisOnReplyComplete = function(replyText) {
+          const shouldSpeak = !!window.__jarvisVoiceInputUsed || !!window.__jarvisVoiceReplyEnabled;
+          window.__jarvisVoiceInputUsed = false;
+          if (shouldSpeak && replyText) {
+            window.__jarvisSpeak(replyText, true);
+          }
+        };
+      })();
     </script>
   </body>
 </html>

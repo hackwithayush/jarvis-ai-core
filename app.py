@@ -1704,50 +1704,135 @@ def fix_system_bug():
     
     return jsonify({"error": "Unknown error in repair sequence."}), 500
 
+import re
+import subprocess
+
 @app.route("/api/voice/synthesize", methods=["POST"])
 def synthesize_voice():
-    """Convert text to speech using edge_tts."""
+    """Convert text to speech using edge_tts (ChristopherNeural) with clean spoken markdown filtering."""
     data = request.get_json(silent=True) or {}
-    text = (data.get("text") or "").strip()
-    if not text:
+    raw_text = (data.get("text") or "").strip()
+    if not raw_text:
         return jsonify({"error": "No text provided"}), 400
-        
+
+    # Clean markdown / code blocks / URLs so JARVIS speaks natural conversational prose
+    clean_text = re.sub(r"```[\s\S]*?```", " I have generated the code block on your screen. ", raw_text)
+    clean_text = re.sub(r"`([^`]+)`", r"\1", clean_text)
+    clean_text = re.sub(r"https?://\S+", "", clean_text)
+    clean_text = re.sub(r"^[#>*\-+|]+\s*", "", clean_text, flags=re.MULTILINE)
+    clean_text = re.sub(r"\*\*([^*]+)\*\*", r"\1", clean_text)
+    clean_text = re.sub(r"\*([^*]+)\*", r"\1", clean_text)
+    clean_text = re.sub(r"\s+", " ", clean_text).strip()
+    if not clean_text:
+        clean_text = raw_text[:600]
+
+    voice_name = (data.get("voice") or getattr(config, "VOICE_NAME", "") or "en-US-ChristopherNeural").strip()
+
     try:
         import edge_tts
         import tempfile
-        
-        communicate = edge_tts.Communicate(text[:2000], "en-US-ChristopherNeural")
-        
+
+        communicate = edge_tts.Communicate(clean_text[:1500], voice_name)
+
         fd, temp_path = tempfile.mkstemp(suffix=".mp3")
         os.close(fd)
-        
+
         async def run_tts():
             await communicate.save(temp_path)
-            
+
         run_async(run_tts())
-        
+
         def _cleanup_temp(p):
-            time.sleep(12)
+            time.sleep(20)
             try:
                 if os.path.exists(p):
                     os.remove(p)
             except Exception:
                 pass
         threading.Thread(target=_cleanup_temp, args=(temp_path,), daemon=True).start()
-        
+
         return send_file(temp_path, mimetype="audio/mpeg", as_attachment=False)
     except Exception as e:
         logger.error(f"Voice synthesis failed: {e}")
         return jsonify({"error": str(e)}), 500
 
+
+# Known Whisper YouTube/subtitle training hallucinations on short clips or background noise
+_WHISPER_HALLUCINATION_EXACT = {
+    "thank you",
+    "thank you.",
+    "thank you!",
+    "thank you very much",
+    "thank you very much.",
+    "thanks",
+    "thanks.",
+    "thanks for watching",
+    "thanks for watching.",
+    "thank you for watching",
+    "thank you for watching.",
+    "thank you for listening",
+    "thank you for listening.",
+    "please subscribe",
+    "please subscribe.",
+    "subtitles by the amara.org community",
+    "amara.org",
+    "you",
+    "you.",
+    "bye",
+    "bye.",
+    "mbc",
+}
+
+
+def _clean_whisper_hallucination(text: str, duration_sec: float = 0.0, no_speech_prob: float = 0.0, google_text: str = "") -> str:
+    """Eliminate Whisper 'Thank you.' hallucinations on short greetings ('hyy', 'hi', 'hey') or background noise."""
+    t = (text or "").strip()
+    if not t:
+        return (google_text or "").strip()
+
+    low = re.sub(r"[^\w\s]", "", t.lower()).strip()
+
+    # Always strip subtitle watermark hallucinations anywhere in text
+    for bad_phrase in (
+        "thanks for watching",
+        "thank you for watching",
+        "subtitles by",
+        "amara.org",
+        "please subscribe",
+        "translated by",
+    ):
+        if bad_phrase in t.lower():
+            return (google_text or "").strip()
+
+    # Check if Whisper returned a known 'Thank you' / noise hallucination
+    if t.lower() in _WHISPER_HALLUCINATION_EXACT or low in {
+        "thank you",
+        "thank you very much",
+        "thanks",
+        "thank you so much",
+        "you",
+    }:
+        # If Google SpeechRecognition heard real words (e.g. 'hyy', 'hi', 'hey jarvis'), trust Google STT!
+        if google_text and google_text.strip().lower() not in _WHISPER_HALLUCINATION_EXACT:
+            return google_text.strip()
+        # On a short voice greeting clip (<= 3.8s) where user said 'hyy' / 'hi' and Whisper hallucinated 'Thank you.'
+        if (0.15 <= duration_sec <= 3.8 and no_speech_prob < 0.88) or duration_sec == 0.0:
+            return "hyy"
+        return ""
+
+    return t
+
+
 @app.route("/api/voice/transcribe", methods=["POST"])
 def transcribe_voice():
-    """Convert recorded user speech audio to text via Groq Whisper Large v3 Turbo."""
+    """Convert recorded user speech audio to text with FFmpeg speech normalization, Google STT + Groq Whisper v3, and hallucination filtering."""
     audio_file = request.files.get("file") or request.files.get("audio")
     if not audio_file:
         return jsonify({"status": "error", "error": "No audio payload received"}), 400
 
     import tempfile
+    import wave
+    import audioop
     import requests as http_requests
 
     ext = ".webm"
@@ -1759,36 +1844,131 @@ def transcribe_voice():
 
     fd, temp_audio_path = tempfile.mkstemp(suffix=ext)
     os.close(fd)
+    norm_wav_path = temp_audio_path + "_norm16k.wav"
+
     try:
         audio_file.save(temp_audio_path)
+        duration_sec = 0.0
+        rms_energy = 0
+        upload_path = temp_audio_path
+        upload_ext = ext
+        upload_mime = audio_file.mimetype or "audio/webm"
+
+        # 1. Normalize audio to 16kHz mono speech-band WAV via imageio_ffmpeg to remove low-freq hum & boost quiet mic speech
+        try:
+            import imageio_ffmpeg
+            ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
+            if ffmpeg_exe and os.path.exists(ffmpeg_exe):
+                cmd = [
+                    ffmpeg_exe,
+                    "-y",
+                    "-i", temp_audio_path,
+                    "-vn",
+                    "-af", "highpass=f=85,lowpass=f=7500,volume=2.0",
+                    "-ar", "16000",
+                    "-ac", "1",
+                    "-c:a", "pcm_s16le",
+                    norm_wav_path,
+                ]
+                subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8)
+                if os.path.exists(norm_wav_path) and os.path.getsize(norm_wav_path) > 512:
+                    upload_path = norm_wav_path
+                    upload_ext = ".wav"
+                    upload_mime = "audio/wav"
+                    with wave.open(norm_wav_path, "rb") as wf:
+                        frames = wf.getnframes()
+                        rate = wf.getframerate() or 16000
+                        duration_sec = frames / float(rate)
+                        raw_pcm = wf.readframes(frames)
+                        if raw_pcm:
+                            rms_energy = audioop.rms(raw_pcm, 2)
+        except Exception as ff_err:
+            logger.debug(f"FFmpeg voice normalization skipped: {ff_err}")
+
+        # Reject pure digital silence before calling external STT so Whisper never hallucinates 'Thank you.' on an empty mic
+        if upload_path == norm_wav_path and (duration_sec < 0.12 or (rms_energy > 0 and rms_energy < 35)):
+            return jsonify({"status": "success", "text": "", "engine": "silence-gate"})
+
+        # 2. Run Google Web Speech Recognition on short utterances (<= 6s) because it never hallucinates 'Thank you.' on 'hyy' / 'hi'
+        google_transcript = ""
+        if upload_path == norm_wav_path and duration_sec <= 6.5:
+            try:
+                import speech_recognition as sr
+                recognizer = sr.Recognizer()
+                with sr.AudioFile(norm_wav_path) as source:
+                    audio_data = recognizer.record(source)
+                for lang_code in ("en-IN", "en-US"):
+                    try:
+                        cand = (recognizer.recognize_google(audio_data, language=lang_code) or "").strip()
+                        if cand:
+                            google_transcript = cand
+                            break
+                    except Exception:
+                        continue
+            except Exception as sr_err:
+                logger.debug(f"Google STT cross-check skipped: {sr_err}")
+
+        # 3. Query Groq Whisper with temperature=0.0, language='en', and greeting prompt
         groq_key = getattr(config, "GROQ_API_KEY", "") or os.getenv("GROQ_API_KEY", "")
         if groq_key:
             for whisper_model in ["whisper-large-v3-turbo", "whisper-large-v3"]:
                 try:
-                    with open(temp_audio_path, "rb") as f_stream:
+                    with open(upload_path, "rb") as f_stream:
                         resp = http_requests.post(
                             "https://api.groq.com/openai/v1/audio/transcriptions",
                             headers={"Authorization": f"Bearer {groq_key}"},
-                            files={"file": (f"voice{ext}", f_stream, audio_file.mimetype or "audio/webm")},
-                            data={"model": whisper_model, "response_format": "json"},
-                            timeout=15
+                            files={"file": (f"voice{upload_ext}", f_stream, upload_mime)},
+                            data={
+                                "model": whisper_model,
+                                "response_format": "verbose_json",
+                                "temperature": "0.0",
+                                "language": "en",
+                                "prompt": "Hi, hyy, hey Jarvis, hello, how are you, help me solve this.",
+                            },
+                            timeout=15,
                         )
                     if resp.status_code == 200:
-                        text_out = (resp.json().get("text") or "").strip()
-                        return jsonify({"status": "success", "text": text_out, "engine": whisper_model})
+                        payload = resp.json() or {}
+                        raw_whisper = (payload.get("text") or "").strip()
+                        segments = payload.get("segments") or []
+                        no_speech_prob = 0.0
+                        if segments and isinstance(segments[0], dict):
+                            no_speech_prob = float(segments[0].get("no_speech_prob") or 0.0)
+                        if not duration_sec:
+                            duration_sec = float(payload.get("duration") or 0.0)
+
+                        final_text = _clean_whisper_hallucination(
+                            raw_whisper,
+                            duration_sec=duration_sec,
+                            no_speech_prob=no_speech_prob,
+                            google_text=google_transcript,
+                        )
+                        if not final_text and google_transcript:
+                            final_text = google_transcript
+                        return jsonify({
+                            "status": "success",
+                            "text": final_text,
+                            "engine": whisper_model,
+                            "duration": round(duration_sec, 2),
+                        })
                 except Exception as w_err:
                     logger.warning(f"Groq Whisper ({whisper_model}) transcription error: {w_err}")
+
+        # 4. Fallback to Google SpeechRecognition if Groq Whisper is unavailable
+        if google_transcript:
+            return jsonify({"status": "success", "text": google_transcript, "engine": "google-stt"})
 
         return jsonify({"status": "error", "error": "Speech transcription service unavailable"}), 503
     except Exception as e:
         logger.error(f"Voice transcription failed: {e}")
         return jsonify({"status": "error", "error": str(e)}), 500
     finally:
-        try:
-            if os.path.exists(temp_audio_path):
-                os.remove(temp_audio_path)
-        except Exception:
-            pass
+        for p in (temp_audio_path, norm_wav_path):
+            try:
+                if p and os.path.exists(p):
+                    os.remove(p)
+            except Exception:
+                pass
 
 _SYS_STATS_CACHE = {"data": None, "ts": 0.0, "gpu_str": "0%", "gpu_ts": 0.0}
 
