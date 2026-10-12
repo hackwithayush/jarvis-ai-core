@@ -682,7 +682,7 @@
                 ? ('🎵 ' + (customTitle || 'Custom Audio Track'))
                 : (builtinTrack ? builtinTrack.title : '🎧 Stark Lo-Fi Focus Beat');
 
-              if (miniAudioLabel) {
+              if (miniAudioLabel && !(window.__jarvisYtm && window.__jarvisYtm.active)) {
                 miniAudioLabel.textContent = enabled ? trackTitle : ('🔇 ' + trackTitle.replace(/^[^\s]+\s/, '') + ' (Muted)');
               }
               if (miniMuteBtn) {
@@ -700,7 +700,22 @@
                 this.bassFilter.gain.setValueAtTime(bass ? 9.5 : 0, this.ctx.currentTime);
               }
 
-              if (!enabled || window.__jarvisAvPaused || (window.__jarvisYtm && window.__jarvisYtm.active)) {
+              if (window.__jarvisYtm && window.__jarvisYtm.active) {
+                this.playing = false;
+                this.stopSynth();
+                if (audioEl) {
+                  audioEl.volume = Math.max(0.1, Math.min(1, vol));
+                  audioEl.muted = !enabled;
+                  if (!enabled || window.__jarvisAvPaused) {
+                    audioEl.pause();
+                  } else if (window.__jarvisYtm.isPlaying && audioEl.paused) {
+                    audioEl.play().catch(function() {});
+                  }
+                }
+                return;
+              }
+
+              if (!enabled || window.__jarvisAvPaused) {
                 this.playing = false;
                 this.stopSynth();
                 if (audioEl) { audioEl.pause(); }
@@ -959,6 +974,7 @@
           } catch (e) {}
 
           let dragging = false;
+          let dragStarted = false;
           let activePointerId = null;
           let startClientX = 0;
           let startClientY = 0;
@@ -967,51 +983,60 @@
 
           playerEl.addEventListener('pointerdown', function(e) {
             if (e.button !== undefined && e.button !== 0) return;
-            if (e.target && e.target.closest('button, input, a, select')) return;
-            e.preventDefault();
+            if (e.target && e.target.closest('button, input, a, select, #jarvis-mini-ytm-drawer, .jarvis-ytm-track-item')) return;
             const rect = playerEl.getBoundingClientRect();
             dragging = true;
+            dragStarted = false;
             activePointerId = e.pointerId;
             startClientX = e.clientX;
             startClientY = e.clientY;
             startLeft = rect.left;
             startTop = rect.top;
-
-            playerEl.classList.add('dragging');
-            playerEl.style.left = Math.round(startLeft) + 'px';
-            playerEl.style.top = Math.round(startTop) + 'px';
-            playerEl.style.right = 'auto';
-            playerEl.style.bottom = 'auto';
-            try { playerEl.setPointerCapture(e.pointerId); } catch (err) {}
           });
 
           playerEl.addEventListener('pointermove', function(e) {
             if (!dragging || e.pointerId !== activePointerId) return;
+            const dx = e.clientX - startClientX;
+            const dy = e.clientY - startClientY;
+            if (!dragStarted) {
+              if (Math.hypot(dx, dy) < 5) return;
+              dragStarted = true;
+              playerEl.classList.add('dragging');
+              playerEl.style.left = Math.round(startLeft) + 'px';
+              playerEl.style.top = Math.round(startTop) + 'px';
+              playerEl.style.right = 'auto';
+              playerEl.style.bottom = 'auto';
+              try { playerEl.setPointerCapture(e.pointerId); } catch (err) {}
+            }
             e.preventDefault();
             const rect = playerEl.getBoundingClientRect();
             const maxX = Math.max(6, window.innerWidth - rect.width - 6);
             const maxY = Math.max(6, window.innerHeight - rect.height - 6);
-            const nextX = Math.max(6, Math.min(maxX, startLeft + (e.clientX - startClientX)));
-            const nextY = Math.max(6, Math.min(maxY, startTop + (e.clientY - startClientY)));
+            const nextX = Math.max(6, Math.min(maxX, startLeft + dx));
+            const nextY = Math.max(6, Math.min(maxY, startTop + dy));
             playerEl.style.left = Math.round(nextX) + 'px';
             playerEl.style.top = Math.round(nextY) + 'px';
           });
 
           const endDrag = function(e) {
             if (!dragging || (e && e.pointerId !== undefined && e.pointerId !== activePointerId)) return;
+            const wasDragging = dragStarted;
             dragging = false;
+            dragStarted = false;
             playerEl.classList.remove('dragging');
             try {
-              if (activePointerId !== null) playerEl.releasePointerCapture(activePointerId);
+              if (wasDragging && activePointerId !== null) playerEl.releasePointerCapture(activePointerId);
             } catch (err) {}
             activePointerId = null;
-            try {
-              const rect = playerEl.getBoundingClientRect();
-              localStorage.setItem('jarvis_mini_av_pos', JSON.stringify({
-                left: Math.round(rect.left),
-                top: Math.round(rect.top)
-              }));
-            } catch (err) {}
+            if (wasDragging) {
+              try {
+                const rect = playerEl.getBoundingClientRect();
+                localStorage.setItem('jarvis_mini_av_pos', JSON.stringify({
+                  left: Math.round(rect.left),
+                  top: Math.round(rect.top)
+                }));
+              } catch (err) {}
+            }
           };
 
           playerEl.addEventListener('pointerup', endDrag);
@@ -1615,107 +1640,59 @@
               });
           },
 
-          ensureYouTubeApi: function(cb) {
-            const self = this;
-            if (window.YT && window.YT.Player && self.player && typeof self.player.loadVideoById === 'function') {
-              cb();
-              return;
-            }
-            const createPlayer = function() {
-              if (self.player && typeof self.player.loadVideoById === 'function') {
-                cb();
-                return;
-              }
-              self.player = new window.YT.Player('jarvis-yt-player-host', {
-                width: '100%',
-                height: '100%',
-                videoId: self.pendingVideoId || 'vsVwvVYlUBs',
-                playerVars: {
-                  autoplay: 1,
-                  controls: 1,
-                  rel: 0,
-                  modestbranding: 1,
-                  playsinline: 1,
-                  origin: window.location.origin
-                },
-                events: {
-                  onReady: function(ev) {
-                    self.apiReady = true;
-                    const vol = (window.__jarvisCurrentThemeCfg && window.__jarvisCurrentThemeCfg.music_volume !== undefined)
-                      ? Math.round(Number(window.__jarvisCurrentThemeCfg.music_volume) * 100)
-                      : 70;
-                    try { ev.target.setVolume(vol); } catch (e) {}
-                    cb();
-                  },
-                  onStateChange: function(ev) {
-                    if (ev.data === window.YT.PlayerState.ENDED) {
-                      self.nextTrack();
-                    } else if (ev.data === window.YT.PlayerState.PLAYING) {
-                      self.isPlaying = true;
-                      const eq = document.getElementById('jarvis-mini-eq');
-                      if (eq) eq.classList.remove('paused');
-                    } else if (ev.data === window.YT.PlayerState.PAUSED) {
-                      self.isPlaying = false;
-                    }
-                  },
-                  onError: function() {
-                    if (self.currentTrack) {
-                      self.playDirectAudioStream(self.currentTrack);
-                    }
-                  }
-                }
-              });
-            };
-
-            if (window.YT && window.YT.Player) {
-              createPlayer();
-              return;
-            }
-            const prevReady = window.onYouTubeIframeAPIReady;
-            window.onYouTubeIframeAPIReady = function() {
-              if (typeof prevReady === 'function') prevReady();
-              createPlayer();
-            };
-            if (!document.getElementById('jarvis-yt-iframe-api-script')) {
-              const s = document.createElement('script');
-              s.id = 'jarvis-yt-iframe-api-script';
-              s.src = 'https://www.youtube.com/iframe_api';
-              document.head.appendChild(s);
-            }
+          renderNowPlayingScreen: function(track) {
+            const ytWrap = document.getElementById('jarvis-yt-player-wrap');
+            if (!ytWrap || !track) return;
+            const thumb = track.thumbnail || (track.id && !track.id.startsWith('ytm_') ? ('https://i.ytimg.com/vi/' + track.id + '/hqdefault.jpg') : '');
+            ytWrap.style.display = 'block';
+            ytWrap.innerHTML = `
+              <div style="position:relative;width:100%;height:100%;overflow:hidden;display:flex;align-items:center;gap:10px;padding:8px 12px;box-sizing:border-box;background:#060914;">
+                <div style="position:absolute;inset:-14px;background-image:url('${thumb}');background-size:cover;background-position:center;filter:blur(16px) brightness(0.36);transform:scale(1.15);pointer-events:none;"></div>
+                <img src="${thumb}" alt="" style="position:relative;z-index:2;width:62px;height:62px;border-radius:10px;object-fit:cover;border:1.5px solid rgba(0,245,255,0.55);box-shadow:0 4px 16px rgba(0,0,0,0.65);flex-shrink:0;" />
+                <div style="position:relative;z-index:2;min-width:0;flex:1;display:flex;flex-direction:column;justify-content:center;gap:3px;">
+                  <div style="display:inline-flex;align-items:center;gap:5px;font-size:8.5px;font-family:'Orbitron',monospace;color:#ff4e6a;letter-spacing:0.08em;font-weight:700;">
+                    <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#ff1744;box-shadow:0 0 8px #ff1744;"></span>
+                    YOUTUBE MUSIC • 320KBPS HD
+                  </div>
+                  <div style="font-size:11.5px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px rgba(0,0,0,0.8);">${track.title || 'YouTube Music Track'}</div>
+                  <div style="font-size:9.5px;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track.artist || 'YouTube Music'}${track.duration ? ' • ' + track.duration : ''}</div>
+                </div>
+              </div>
+            `;
           },
 
-          playDirectAudioStream: function(track) {
-            if (!track || !track.id) return;
+          startAudioElement: function(streamUrl, track) {
             const self = this;
             const audioEl = document.getElementById('jarvis-music-audio');
-            if (!audioEl) return;
-            try {
-              if (this.player && typeof this.player.stopVideo === 'function') {
-                this.player.stopVideo();
-              }
-            } catch (e) {}
+            if (!audioEl || !streamUrl) return;
+            window.__jarvisAvPaused = false;
             audioEl.loop = false;
             audioEl.muted = false;
             const vol = (window.__jarvisCurrentThemeCfg && window.__jarvisCurrentThemeCfg.music_volume !== undefined)
               ? Number(window.__jarvisCurrentThemeCfg.music_volume)
-              : 0.7;
-            audioEl.volume = Math.max(0.1, Math.min(1, vol));
-            audioEl.src = '/api/ytmusic/stream/' + encodeURIComponent(track.id);
+              : 0.75;
+            audioEl.volume = Math.max(0.15, Math.min(1, vol));
+            if (audioEl.getAttribute('src') !== streamUrl) {
+              audioEl.setAttribute('src', streamUrl);
+            }
             audioEl.onended = function() {
               if (self.active) self.nextTrack();
             };
+            audioEl.onplay = function() {
+              self.isPlaying = true;
+              const eq = document.getElementById('jarvis-mini-eq');
+              if (eq) eq.classList.remove('paused');
+              const playBtn = document.getElementById('jarvis-mini-play-btn');
+              if (playBtn) { playBtn.textContent = '⏸'; playBtn.classList.add('active'); }
+            };
             audioEl.play().catch(function() {
-              // If direct stream unavailable, search for alternative playable Lofi/Audio track
-              if (!track._retriedAlt) {
-                track._retriedAlt = true;
-                const q = (track.title + ' ' + (track.artist || '') + ' lofi audio').trim();
-                fetch('/api/ytmusic/search?q=' + encodeURIComponent(q))
-                  .then(r => r.json())
-                  .then(d => {
-                    const alt = (d.tracks || []).find(t => t.id !== track.id);
-                    if (alt) self.playTrack(alt, self.currentIndex);
-                  })
-                  .catch(() => {});
+              // Fallback to backend stream proxy if direct URL fails
+              const proxyUrl = '/api/ytmusic/stream/' + encodeURIComponent(track.id) +
+                '?title=' + encodeURIComponent(track.title || '') +
+                '&artist=' + encodeURIComponent(track.artist || '');
+              if (streamUrl !== proxyUrl) {
+                audioEl.setAttribute('src', proxyUrl);
+                audioEl.play().catch(function() {});
               }
             });
           },
@@ -1723,49 +1700,67 @@
           playTrack: function(track, idx) {
             if (!track || !track.id) return;
             const self = this;
+            window.__jarvisAvPaused = false;
             this.active = true;
             this.isPlaying = true;
             this.currentTrack = track;
             this.pendingVideoId = track.id;
             if (typeof idx === 'number') this.currentIndex = idx;
 
-            // Pause built-in MP3 loop so YouTube Music plays cleanly
-            const audioEl = document.getElementById('jarvis-music-audio');
-            if (audioEl) {
-              audioEl.onended = null;
-              try { audioEl.pause(); } catch (e) {}
-            }
             if (window.__jarvisMusicEngine) {
+              window.__jarvisMusicEngine.playing = false;
               window.__jarvisMusicEngine.stopSynth();
             }
 
-            const ytWrap = document.getElementById('jarvis-yt-player-wrap');
-            if (ytWrap) ytWrap.style.display = 'block';
+            this.renderNowPlayingScreen(track);
 
             const vidLabel = document.getElementById('jarvis-mini-video-label');
             const audLabel = document.getElementById('jarvis-mini-audio-label');
             const playBtn = document.getElementById('jarvis-mini-play-btn');
+            const muteBtn = document.getElementById('jarvis-mini-mute-btn');
             const likedBtn = document.getElementById('jarvis-mini-liked-btn');
             const ytmBtn = document.getElementById('jarvis-mini-ytm-btn');
+            const eq = document.getElementById('jarvis-mini-eq');
             if (vidLabel) vidLabel.textContent = '🔴 YT Music: ' + track.title;
             if (audLabel) audLabel.textContent = '❤️ ' + track.title + ' — ' + (track.artist || 'YouTube Music');
             if (playBtn) { playBtn.textContent = '⏸'; playBtn.classList.add('active'); }
+            if (muteBtn) { muteBtn.textContent = '🔊'; muteBtn.classList.add('active'); }
             if (likedBtn) likedBtn.classList.add('active');
             if (ytmBtn) ytmBtn.classList.add('active');
+            if (eq) eq.classList.remove('paused');
 
             this.renderDrawer();
             window.dispatchEvent(new CustomEvent('jarvis-ytm-updated'));
 
-            this.ensureYouTubeApi(function() {
-              try {
-                if (self.player && typeof self.player.loadVideoById === 'function') {
-                  self.player.loadVideoById(track.id);
-                  self.player.playVideo();
-                }
-              } catch (e) {
-                self.playDirectAudioStream(track);
-              }
-            });
+            if (track.audio_url) {
+              this.startAudioElement(track.audio_url, track);
+            } else {
+              fetch('/api/ytmusic/resolve?id=' + encodeURIComponent(track.id) +
+                    '&title=' + encodeURIComponent(track.title || '') +
+                    '&artist=' + encodeURIComponent(track.artist || ''))
+                .then(r => r.json())
+                .then(d => {
+                  if (d && d.audio_url) {
+                    track.audio_url = d.audio_url;
+                    if (d.thumbnail && !track.thumbnail) {
+                      track.thumbnail = d.thumbnail;
+                      self.renderNowPlayingScreen(track);
+                    }
+                    self.startAudioElement(d.audio_url, track);
+                  } else {
+                    const proxyUrl = '/api/ytmusic/stream/' + encodeURIComponent(track.id) +
+                      '?title=' + encodeURIComponent(track.title || '') +
+                      '&artist=' + encodeURIComponent(track.artist || '');
+                    self.startAudioElement(proxyUrl, track);
+                  }
+                })
+                .catch(() => {
+                  const proxyUrl = '/api/ytmusic/stream/' + encodeURIComponent(track.id) +
+                    '?title=' + encodeURIComponent(track.title || '') +
+                    '&artist=' + encodeURIComponent(track.artist || '');
+                  self.startAudioElement(proxyUrl, track);
+                });
+            }
           },
 
           playLikedPlaylist: function() {
@@ -1775,7 +1770,9 @@
           },
 
           nextTrack: function() {
-            const list = this.likedSongs || [];
+            const list = this.currentTab === 'search' && (this.searchResults || []).length > 0
+              ? this.searchResults
+              : (this.likedSongs || []);
             if (list.length === 0) return;
             const nextIdx = (this.currentIndex + 1) % list.length;
             this.playTrack(list[nextIdx], nextIdx);
@@ -1783,29 +1780,26 @@
 
           pause: function() {
             this.isPlaying = false;
-            try {
-              if (this.player && typeof this.player.pauseVideo === 'function') {
-                this.player.pauseVideo();
-              }
-            } catch (e) {}
             const audioEl = document.getElementById('jarvis-music-audio');
             if (audioEl && !audioEl.paused) {
               try { audioEl.pause(); } catch (e) {}
             }
+            const eq = document.getElementById('jarvis-mini-eq');
+            if (eq) eq.classList.add('paused');
           },
 
           resume: function() {
             if (!this.active) return;
             this.isPlaying = true;
+            window.__jarvisAvPaused = false;
             const audioEl = document.getElementById('jarvis-music-audio');
-            if (audioEl && audioEl.src && audioEl.src.includes('/api/ytmusic/stream/')) {
-              try { audioEl.play().catch(() => {}); return; } catch (e) {}
+            if (audioEl && audioEl.src) {
+              try { audioEl.play().catch(() => {}); } catch (e) {}
+            } else if (this.currentTrack) {
+              this.playTrack(this.currentTrack, this.currentIndex);
             }
-            try {
-              if (this.player && typeof this.player.playVideo === 'function') {
-                this.player.playVideo();
-              }
-            } catch (e) {}
+            const eq = document.getElementById('jarvis-mini-eq');
+            if (eq) eq.classList.remove('paused');
           },
 
           stopYtmMode: function() {
@@ -2041,12 +2035,20 @@
               }, true);
             }
             if (playBtn) {
-              playBtn.addEventListener('click', function() {
+              playBtn.addEventListener('click', function(e) {
                 if (self.active) {
-                  if (self.isPlaying) self.pause();
-                  else self.resume();
+                  e.stopImmediatePropagation();
+                  if (self.isPlaying) {
+                    self.pause();
+                    playBtn.textContent = '▶';
+                    playBtn.classList.remove('active');
+                  } else {
+                    self.resume();
+                    playBtn.textContent = '⏸';
+                    playBtn.classList.add('active');
+                  }
                 }
-              });
+              }, true);
             }
           }
         };

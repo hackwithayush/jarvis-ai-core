@@ -1707,75 +1707,88 @@ def fix_system_bug():
 import re
 import subprocess
 
-# ─── YouTube Music & Liked Playlist Hub (v16.28) ────────────────
+# ─── YouTube Music & Liked Playlist Hub (v16.29 Direct 320kbps + YT Hybrid) ────────────────
 _YTM_LIB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "memory", "ytmusic_library.json")
 
-# Ended 24/7 livestreams on YouTube permanently show "We're processing this video. Check back later."
-_BROKEN_ENDED_LIVE_IDS = {"jfKfPfyJRdk", "DWcJFNfaw9c", "5qap5aO4i9A", "4xDzrJKXOOY"}
+# Ended 24/7 livestreams or legacy IDs without direct audio
+_BROKEN_ENDED_LIVE_IDS = {
+    "jfKfPfyJRdk", "DWcJFNfaw9c", "5qap5aO4i9A", "4xDzrJKXOOY",
+    "vsVwvVYlUBs", "-1CwZ-U7UEs", "rkT2c6AVbbc", "fU-ApwDCLZs",
+    "XxYXZet1ZM8", "6TEGPexTqr4", "_ynU1lm_068", "eLeIJtLebZk",
+    "BddP6PYo2gs", "SlPhMPnQ58k", "Umqb9KENgmk", "5Eqb_-j3FDA",
+}
 
 _DEFAULT_YTM_LIKED = [
     {
-        "id": "vsVwvVYlUBs",
-        "title": "Kesariya (Lofi Flip) - Brahmāstra | Arijit Singh",
-        "artist": "Sony Music India • YouTube Music",
-        "duration": "4:04",
-        "thumbnail": "https://i.ytimg.com/vi/vsVwvVYlUBs/hqdefault.jpg",
+        "id": "ytm_rjkrTnma",
+        "title": "Kesariya (Brahmāstra)",
+        "artist": "Pritam, Arijit Singh",
+        "duration": "4:28",
+        "thumbnail": "https://c.saavncdn.com/871/Brahmastra-Original-Motion-Picture-Soundtrack-Hindi-2022-20221006155213-500x500.jpg",
+        "audio_url": "https://aac.saavncdn.com/871/c2febd353f3a076a406fa37510f31f9f_320.mp4",
         "source": "ytmusic",
     },
     {
-        "id": "-1CwZ-U7UEs",
-        "title": "1 Hour Of Pure Lofi | Arijit Singh Chill Mix",
-        "artist": "Arijit Singh • One Lofi",
-        "duration": "1:03:55",
-        "thumbnail": "https://i.ytimg.com/vi/-1CwZ-U7UEs/hqdefault.jpg",
+        "id": "ytm_lnig1Z0j",
+        "title": "Apna Bana Le (Bhediya)",
+        "artist": "Arijit Singh, Sachin-Jigar",
+        "duration": "4:21",
+        "thumbnail": "https://c.saavncdn.com/221/Soulful-Hits-Hindi-2026-20260529163806-500x500.jpg",
+        "audio_url": "https://aac.saavncdn.com/221/bd21ae43c005057abd232535e5d2173b_320.mp4",
         "source": "ytmusic",
     },
     {
-        "id": "rkT2c6AVbbc",
-        "title": "Apna Bana Le (Lofi Mix) - Bhediya | Arijit Singh",
-        "artist": "Zee Music Company • YouTube Music",
-        "duration": "4:43",
-        "thumbnail": "https://i.ytimg.com/vi/rkT2c6AVbbc/hqdefault.jpg",
+        "id": "ytm_4mHUvJ4u",
+        "title": "Satranga (From \"ANIMAL\")",
+        "artist": "Arijit Singh, Shreyas Puranik",
+        "duration": "4:31",
+        "thumbnail": "https://c.saavncdn.com/092/ANIMAL-Hindi-2023-20260724191152-500x500.jpg",
+        "audio_url": "https://aac.saavncdn.com/092/86b1368e104225e0bfbc69cda4ab8580_320.mp4",
         "source": "ytmusic",
     },
     {
-        "id": "fU-ApwDCLZs",
-        "title": "Pasoori (Slowed + Reverb) Punjabi Lofi Mix",
-        "artist": "Glim Lofi • YouTube Music",
-        "duration": "4:13",
-        "thumbnail": "https://i.ytimg.com/vi/fU-ApwDCLZs/hqdefault.jpg",
+        "id": "ytm_wcsDiSsA",
+        "title": "O Maahi (From \"Dunki\")",
+        "artist": "Pritam, Arijit Singh",
+        "duration": "3:53",
+        "thumbnail": "https://c.saavncdn.com/139/Dunki-Hindi-2023-20231220211003-500x500.jpg",
+        "audio_url": "https://aac.saavncdn.com/139/61036495c7ba45adf72a856b60f054fd_320.mp4",
         "source": "ytmusic",
     },
     {
-        "id": "XxYXZet1ZM8",
-        "title": "Tum Hi Ho - Hindi Lofi Chill Mix",
-        "artist": "Lofi Raatein • YouTube Music",
-        "duration": "5:17",
-        "thumbnail": "https://i.ytimg.com/vi/XxYXZet1ZM8/hqdefault.jpg",
+        "id": "ytm_1e0En7YX",
+        "title": "Pehle Bhi Main",
+        "artist": "Vishal Mishra, Raj Shekhar",
+        "duration": "4:10",
+        "thumbnail": "https://c.saavncdn.com/092/ANIMAL-Hindi-2023-20260724191152-500x500.jpg",
+        "audio_url": "https://aac.saavncdn.com/092/81b52beea90f186f27cf5c5eead972c8_320.mp4",
         "source": "ytmusic",
     },
     {
-        "id": "6TEGPexTqr4",
-        "title": "NIGHTLAPSE - Cyberpunk Chill Synthwave Mix",
-        "artist": "Astral Throb • YouTube Music",
-        "duration": "43:16",
-        "thumbnail": "https://i.ytimg.com/vi/6TEGPexTqr4/hqdefault.jpg",
+        "id": "ytm_yDnFw7my",
+        "title": "Chaleya (From \"Jawan\")",
+        "artist": "Anirudh Ravichander, Arijit Singh",
+        "duration": "3:20",
+        "thumbnail": "https://c.saavncdn.com/179/World-Music-Day-Best-Of-Bollywood-Hits-Hindi-2026-20260622111029-500x500.jpg",
+        "audio_url": "https://aac.saavncdn.com/179/1be373323edc90024d93873d85f644ec_320.mp4",
         "source": "ytmusic",
     },
     {
-        "id": "_ynU1lm_068",
-        "title": "Study Lofi Hip Hop 🌃 Chill Beats for Deep Focus & Coding",
-        "artist": "Study Lofi Hiphop • YouTube Music",
-        "duration": "2:51:00",
-        "thumbnail": "https://i.ytimg.com/vi/_ynU1lm_068/hqdefault.jpg",
+        "id": "ytm_aRZbUYD7",
+        "title": "Tum Hi Ho (Aashiqui 2)",
+        "artist": "Mithoon, Arijit Singh",
+        "duration": "4:22",
+        "thumbnail": "https://c.saavncdn.com/430/Aashiqui-2-Hindi-2013-500x500.jpg",
+        "audio_url": "https://aac.saavncdn.com/430/5c5ea5cc00e3bff45616013226f376fe_320.mp4",
         "source": "ytmusic",
     },
     {
-        "id": "eLeIJtLebZk",
-        "title": "Interstellar | Beautiful Chillstep & Space Ambient Mix",
-        "artist": "BLUME • YouTube Music",
-        "duration": "1:07:35",
-        "thumbnail": "https://i.ytimg.com/vi/eLeIJtLebZk/hqdefault.jpg",
+        "id": "ytm_PfcG4gJU",
+        "title": "Excuses",
+        "artist": "AP Dhillon, Gurinder Gill",
+        "duration": "2:57",
+        "thumbnail": "https://c.saavncdn.com/890/Excuses-English-2021-20210930112054-500x500.jpg",
+        "audio_url": "https://aac.saavncdn.com/890/a18aabc4681dc6c334d5d29b67e84a0f_320.mp4",
         "source": "ytmusic",
     },
 ]
@@ -1787,7 +1800,6 @@ def _load_ytm_library() -> dict:
             with open(_YTM_LIB_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 if isinstance(data, dict) and isinstance(data.get("liked_songs"), list):
-                    # Purge any old ended livestream IDs that show "We're processing this video"
                     cleaned = [
                         t for t in data["liked_songs"]
                         if t.get("id") not in _BROKEN_ENDED_LIVE_IDS and t.get("duration") != "LIVE"
@@ -1796,13 +1808,13 @@ def _load_ytm_library() -> dict:
                     for d_track in _DEFAULT_YTM_LIKED:
                         if d_track["id"] not in existing_ids:
                             cleaned.append(d_track)
-                    if len(cleaned) != len(data["liked_songs"]):
+                    if cleaned != data["liked_songs"]:
                         data["liked_songs"] = cleaned
                         _save_ytm_library(data)
                     return data
     except Exception as e:
         logger.debug(f"Could not read ytmusic_library.json: {e}")
-    return {
+    default_lib = {
         "connected": False,
         "account_name": "YouTube Music (Local + Cloud Sync)",
         "liked_songs": list(_DEFAULT_YTM_LIKED),
@@ -1810,6 +1822,8 @@ def _load_ytm_library() -> dict:
             {"id": "LM", "title": "❤️ Your Likes (YouTube Music)", "count": len(_DEFAULT_YTM_LIKED)},
         ],
     }
+    _save_ytm_library(default_lib)
+    return default_lib
 
 
 def _save_ytm_library(lib: dict):
@@ -1832,11 +1846,71 @@ def _walk_yt_renderers(obj, target_key: str, out: list):
             _walk_yt_renderers(item, target_key, out)
 
 
+def _search_hd_audio_cdn(query: str, limit: int = 12) -> list:
+    """Search official 320kbps AAC/MP4 direct audio streams with 500x500 HD album artwork."""
+    import html as html_lib
+    import requests as http_requests
+
+    q = (query or "").strip()
+    if not q:
+        return []
+    try:
+        resp = http_requests.get(
+            "https://saavn.sumit.co/api/search/songs",
+            params={"query": q, "limit": limit},
+            timeout=8,
+        )
+        if resp.status_code != 200:
+            return []
+        results = resp.json().get("data", {}).get("results") or []
+        tracks = []
+        seen = set()
+        for r in results:
+            sid = (r.get("id") or "").strip()
+            dl_urls = r.get("downloadUrl") or []
+            if not sid or not dl_urls:
+                continue
+            audio_url = (dl_urls[-1].get("url") or "").strip()
+            if not audio_url or sid in seen:
+                continue
+            seen.add(sid)
+            imgs = r.get("image") or []
+            thumb = (imgs[-1].get("url") if imgs else "") or ""
+            dur_sec = int(r.get("duration") or 0)
+            dur_str = f"{dur_sec // 60}:{dur_sec % 60:02d}" if dur_sec > 0 else ""
+            primary_artists = r.get("artists", {}).get("primary") or []
+            artist_names = ", ".join([a.get("name", "") for a in primary_artists if a.get("name")][:2])
+            if not artist_names:
+                artist_names = r.get("label") or "YouTube Music"
+            tracks.append({
+                "id": f"ytm_{sid}",
+                "title": html_lib.unescape(r.get("name") or "Music Track"),
+                "artist": html_lib.unescape(artist_names),
+                "duration": dur_str,
+                "thumbnail": thumb,
+                "audio_url": audio_url,
+                "source": "ytmusic",
+            })
+            if len(tracks) >= limit:
+                break
+        return tracks
+    except Exception as e:
+        logger.debug(f"HD audio CDN search fallback for '{q}': {e}")
+        return []
+
+
 def _search_youtube_music_tracks(query: str, limit: int = 14) -> list:
     import requests as http_requests
     q = (query or "").strip()
     if not q:
         return []
+
+    # 1. Primary: Direct 320kbps AAC/MP4 CDN streams (100% instant playback on Localhost + Render Cloud, no iframe blocks)
+    tracks = _search_hd_audio_cdn(q, limit=limit)
+    if len(tracks) >= 6:
+        return tracks[:limit]
+
+    # 2. Secondary fallback: YouTube search results
     try:
         resp = http_requests.get(
             "https://www.youtube.com/results",
@@ -1849,17 +1923,15 @@ def _search_youtube_music_tracks(query: str, limit: int = 14) -> list:
         )
         m = re.search(r"var ytInitialData\s*=\s*(\{.*?\});</script>", resp.text)
         if not m:
-            return []
+            return tracks
         data = json.loads(m.group(1))
         renderers = []
         _walk_yt_renderers(data, "videoRenderer", renderers)
-        tracks = []
-        seen = set()
+        seen = {t.get("id") for t in tracks}
         for v in renderers:
             vid = (v.get("videoId") or "").strip()
             if not vid or vid in seen or vid in _BROKEN_ENDED_LIVE_IDS:
                 continue
-            # Skip livestreams/unprocessed streams that lack a concrete mm:ss duration
             dur = (v.get("lengthText", {}).get("simpleText") or "").strip()
             if not dur:
                 continue
@@ -1881,37 +1953,85 @@ def _search_youtube_music_tracks(query: str, limit: int = 14) -> list:
         return tracks
     except Exception as e:
         logger.warning(f"YouTube Music search failed for '{q}': {e}")
-        return []
+        return tracks
 
 
 _YTM_STREAM_CACHE = {}
 
 
-def _resolve_ytm_direct_stream(video_id: str) -> dict:
-    """Resolve direct progressive MP4 / M4A audio-video stream URLs via yt-dlp with 20-min cache."""
+def _resolve_ytm_direct_stream(video_id: str, title_hint: str = "", artist_hint: str = "") -> dict:
+    """Resolve direct 320kbps MP4/M4A stream URL via HD Audio CDN or yt-dlp with 20-min cache."""
     now = time.time()
-    cached = _YTM_STREAM_CACHE.get(video_id)
+    cache_key = f"{video_id}:{title_hint}"
+    cached = _YTM_STREAM_CACHE.get(cache_key)
     if cached and (now - cached.get("ts", 0)) < 1200:
         return cached
-    try:
-        import yt_dlp
-        ydl_opts = {
-            "format": "bestaudio[ext=m4a]/best[ext=mp4]/bestaudio/best",
-            "quiet": True,
-            "no_warnings": True,
-            "noplaylist": True,
-        }
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-            direct_url = info.get("url") or ""
-            mime = "audio/mp4" if info.get("ext") in ("m4a", "mp4") else "audio/webm"
-            if direct_url:
-                res = {"url": direct_url, "mime": mime, "ts": now}
-                _YTM_STREAM_CACHE[video_id] = res
-                return res
-    except Exception as e:
-        logger.debug(f"yt-dlp stream extraction skipped for {video_id}: {e}")
+
+    # 1. If we have a title/artist hint (or can fetch title via YouTube oEmbed), match 320kbps CDN stream first
+    search_q = f"{title_hint} {artist_hint}".strip()
+    if not search_q and video_id and not video_id.startswith("ytm_"):
+        try:
+            import requests as http_requests
+            oe = http_requests.get(
+                "https://www.youtube.com/oembed",
+                params={"url": f"https://www.youtube.com/watch?v={video_id}", "format": "json"},
+                timeout=5,
+            )
+            if oe.status_code == 200:
+                oj = oe.json()
+                search_q = re.sub(r"\(.*?\)|\[.*?\]|official.*?video|lyric.*?video|full.*?song", "", oj.get("title") or "", flags=re.I).strip()
+        except Exception:
+            pass
+
+    if search_q:
+        cdn_matches = _search_hd_audio_cdn(search_q, limit=1)
+        if cdn_matches and cdn_matches[0].get("audio_url"):
+            res = {
+                "url": cdn_matches[0]["audio_url"],
+                "thumbnail": cdn_matches[0].get("thumbnail") or "",
+                "mime": "audio/mp4",
+                "ts": now,
+            }
+            _YTM_STREAM_CACHE[cache_key] = res
+            return res
+
+    # 2. Fallback: yt-dlp direct audio extraction
+    if video_id and not video_id.startswith("ytm_"):
+        try:
+            import yt_dlp
+            ydl_opts = {
+                "format": "bestaudio[ext=m4a]/best[ext=mp4]/bestaudio/best",
+                "quiet": True,
+                "no_warnings": True,
+                "noplaylist": True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                direct_url = info.get("url") or ""
+                mime = "audio/mp4" if info.get("ext") in ("m4a", "mp4") else "audio/webm"
+                if direct_url:
+                    res = {"url": direct_url, "mime": mime, "ts": now}
+                    _YTM_STREAM_CACHE[cache_key] = res
+                    return res
+        except Exception as e:
+            logger.debug(f"yt-dlp stream extraction skipped for {video_id}: {e}")
     return {}
+
+
+@app.route("/api/ytmusic/resolve", methods=["GET"])
+def resolve_ytmusic_track():
+    """Return a direct playable 320kbps audio URL for any track ID or title."""
+    vid = (request.args.get("id") or "").strip()
+    title = (request.args.get("title") or "").strip()
+    artist = (request.args.get("artist") or "").strip()
+    info = _resolve_ytm_direct_stream(vid, title_hint=title, artist_hint=artist)
+    if info.get("url"):
+        return jsonify({
+            "status": "success",
+            "audio_url": info["url"],
+            "thumbnail": info.get("thumbnail") or "",
+        })
+    return jsonify({"status": "error", "error": "Could not resolve direct stream"}), 404
 
 
 @app.route("/api/ytmusic/stream/<video_id>", methods=["GET"])
@@ -1920,11 +2040,13 @@ def stream_ytmusic_audio(video_id):
     import requests as http_requests
     from flask import Response, stream_with_context
 
-    vid = re.sub(r"[^a-zA-Z0-9_-]", "", video_id or "")[:16]
+    vid = re.sub(r"[^a-zA-Z0-9_-]", "", video_id or "")[:24]
     if not vid:
         return jsonify({"error": "Invalid video ID"}), 400
 
-    info = _resolve_ytm_direct_stream(vid)
+    title_hint = (request.args.get("title") or "").strip()
+    artist_hint = (request.args.get("artist") or "").strip()
+    info = _resolve_ytm_direct_stream(vid, title_hint=title_hint, artist_hint=artist_hint)
     direct_url = info.get("url")
     if not direct_url:
         return jsonify({"error": "Direct stream unavailable"}), 404
@@ -2049,7 +2171,8 @@ def update_ytmusic_liked():
             "title": (track.get("title") or "YouTube Music Track").strip(),
             "artist": (track.get("artist") or "YouTube Music").strip(),
             "duration": (track.get("duration") or "").strip(),
-            "thumbnail": track.get("thumbnail") or f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+            "thumbnail": track.get("thumbnail") or (f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg" if not vid.startswith("ytm_") else ""),
+            "audio_url": (track.get("audio_url") or "").strip(),
             "source": track.get("source") or "ytmusic_liked",
         }
         if existing_idx >= 0:
@@ -2107,12 +2230,14 @@ def import_ytmusic_playlist_or_url():
                 artist = oj.get("author_name") or artist
         except Exception:
             pass
+        resolved = _resolve_ytm_direct_stream(vid, title_hint=title, artist_hint=artist)
         imported_tracks = [{
             "id": vid,
             "title": title,
             "artist": artist,
             "duration": "",
-            "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+            "thumbnail": resolved.get("thumbnail") or f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+            "audio_url": resolved.get("url") or "",
             "source": "ytmusic_url",
         }]
         source_label = title
