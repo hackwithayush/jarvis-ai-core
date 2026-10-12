@@ -1707,6 +1707,460 @@ def fix_system_bug():
 import re
 import subprocess
 
+# ─── YouTube Music & Liked Playlist Hub (v16.27) ────────────────
+_YTM_LIB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "memory", "ytmusic_library.json")
+
+_DEFAULT_YTM_LIKED = [
+    {
+        "id": "jfKfPfyJRdk",
+        "title": "lofi hip hop radio - beats to relax/study to",
+        "artist": "Lofi Girl • YouTube Music",
+        "duration": "LIVE",
+        "thumbnail": "https://i.ytimg.com/vi/jfKfPfyJRdk/hqdefault.jpg",
+        "source": "ytmusic",
+    },
+    {
+        "id": "O5gwxm3NxFU",
+        "title": "Best Of Arijit Singh Hits | Chill Lofi & Acoustic Mix",
+        "artist": "Arijit Singh • YouTube Music",
+        "duration": "1:00:52",
+        "thumbnail": "https://i.ytimg.com/vi/O5gwxm3NxFU/hqdefault.jpg",
+        "source": "ytmusic",
+    },
+    {
+        "id": "4xDzrJKXOOY",
+        "title": "Synthwave Radio - ChillSynth / Retro Future Beats",
+        "artist": "Lofi Girl Synthwave • YouTube Music",
+        "duration": "LIVE",
+        "thumbnail": "https://i.ytimg.com/vi/4xDzrJKXOOY/hqdefault.jpg",
+        "source": "ytmusic",
+    },
+    {
+        "id": "DWcJFNfaw9c",
+        "title": "Ambient Space & Deep Focus Coding Beats",
+        "artist": "ChilledCow • YouTube Music",
+        "duration": "LIVE",
+        "thumbnail": "https://i.ytimg.com/vi/DWcJFNfaw9c/hqdefault.jpg",
+        "source": "ytmusic",
+    },
+    {
+        "id": "gdGUeX1i0n0",
+        "title": "Arijit Singh Late Night Soulful Jukebox",
+        "artist": "Arijit Singh • YouTube Music",
+        "duration": "56:14",
+        "thumbnail": "https://i.ytimg.com/vi/gdGUeX1i0n0/hqdefault.jpg",
+        "source": "ytmusic",
+    },
+    {
+        "id": "5qap5aO4i9A",
+        "title": "Chill Study & Late Night Instrumental Mix",
+        "artist": "YouTube Music Mix",
+        "duration": "45:00",
+        "thumbnail": "https://i.ytimg.com/vi/5qap5aO4i9A/hqdefault.jpg",
+        "source": "ytmusic",
+    },
+]
+
+
+def _load_ytm_library() -> dict:
+    try:
+        if os.path.exists(_YTM_LIB_PATH):
+            with open(_YTM_LIB_PATH, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                if isinstance(data, dict) and isinstance(data.get("liked_songs"), list):
+                    return data
+    except Exception as e:
+        logger.debug(f"Could not read ytmusic_library.json: {e}")
+    return {
+        "connected": False,
+        "account_name": "YouTube Music (Local + Cloud Sync)",
+        "liked_songs": list(_DEFAULT_YTM_LIKED),
+        "playlists": [
+            {"id": "LM", "title": "❤️ Your Likes (YouTube Music)", "count": len(_DEFAULT_YTM_LIKED)},
+        ],
+    }
+
+
+def _save_ytm_library(lib: dict):
+    try:
+        os.makedirs(os.path.dirname(_YTM_LIB_PATH), exist_ok=True)
+        with open(_YTM_LIB_PATH, "w", encoding="utf-8") as f:
+            json.dump(lib, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        logger.warning(f"Could not save ytmusic_library.json: {e}")
+
+
+def _walk_yt_renderers(obj, target_key: str, out: list):
+    if isinstance(obj, dict):
+        if target_key in obj and isinstance(obj[target_key], dict):
+            out.append(obj[target_key])
+        for v in obj.values():
+            _walk_yt_renderers(v, target_key, out)
+    elif isinstance(obj, list):
+        for item in obj:
+            _walk_yt_renderers(item, target_key, out)
+
+
+def _search_youtube_music_tracks(query: str, limit: int = 14) -> list:
+    import requests as http_requests
+    q = (query or "").strip()
+    if not q:
+        return []
+    try:
+        resp = http_requests.get(
+            "https://www.youtube.com/results",
+            params={"search_query": q},
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "Accept-Language": "en-US,en;q=0.9",
+            },
+            timeout=10,
+        )
+        m = re.search(r"var ytInitialData\s*=\s*(\{.*?\});</script>", resp.text)
+        if not m:
+            return []
+        data = json.loads(m.group(1))
+        renderers = []
+        _walk_yt_renderers(data, "videoRenderer", renderers)
+        tracks = []
+        seen = set()
+        for v in renderers:
+            vid = (v.get("videoId") or "").strip()
+            if not vid or vid in seen:
+                continue
+            seen.add(vid)
+            title_runs = v.get("title", {}).get("runs") or []
+            title = (title_runs[0].get("text") if title_runs else v.get("title", {}).get("simpleText")) or "YouTube Music Track"
+            owner_runs = (v.get("ownerText", {}).get("runs") or v.get("longBylineText", {}).get("runs")) or []
+            artist = (owner_runs[0].get("text") if owner_runs else "YouTube Music")
+            dur = (v.get("lengthText", {}).get("simpleText") or "LIVE").strip()
+            tracks.append({
+                "id": vid,
+                "title": title,
+                "artist": artist,
+                "duration": dur,
+                "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+                "source": "ytmusic",
+            })
+            if len(tracks) >= limit:
+                break
+        return tracks
+    except Exception as e:
+        logger.warning(f"YouTube Music search failed for '{q}': {e}")
+        return []
+
+
+def _extract_youtube_playlist_tracks(playlist_id: str, limit: int = 50) -> tuple:
+    import requests as http_requests
+    pid = (playlist_id or "").strip()
+    if not pid:
+        return ("Playlist", [])
+    try:
+        resp = http_requests.get(
+            "https://www.youtube.com/playlist",
+            params={"list": pid},
+            headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "Accept-Language": "en-US,en;q=0.9",
+            },
+            timeout=12,
+        )
+        m = re.search(r"var ytInitialData\s*=\s*(\{.*?\});</script>", resp.text)
+        if not m:
+            return ("YouTube Music Playlist", [])
+        data = json.loads(m.group(1))
+        pl_title = (
+            data.get("metadata", {})
+            .get("playlistMetadataRenderer", {})
+            .get("title")
+            or "Imported YouTube Music Playlist"
+        )
+        renderers = []
+        _walk_yt_renderers(data, "playlistVideoRenderer", renderers)
+        tracks = []
+        seen = set()
+        for v in renderers:
+            vid = (v.get("videoId") or "").strip()
+            if not vid or vid in seen:
+                continue
+            seen.add(vid)
+            title_runs = v.get("title", {}).get("runs") or []
+            title = (title_runs[0].get("text") if title_runs else v.get("title", {}).get("simpleText")) or "Track"
+            byline_runs = v.get("shortBylineText", {}).get("runs") or []
+            artist = (byline_runs[0].get("text") if byline_runs else "YouTube Music")
+            dur = (v.get("lengthText", {}).get("simpleText") or "").strip()
+            tracks.append({
+                "id": vid,
+                "title": title,
+                "artist": artist,
+                "duration": dur,
+                "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+                "source": "ytmusic_playlist",
+            })
+            if len(tracks) >= limit:
+                break
+        return (pl_title, tracks)
+    except Exception as e:
+        logger.warning(f"Playlist extraction failed for '{pid}': {e}")
+        return ("YouTube Music Playlist", [])
+
+
+@app.route("/api/ytmusic/library", methods=["GET"])
+def get_ytmusic_library():
+    """Return the user's synced YouTube Music Liked Songs playlist & connection state."""
+    lib = _load_ytm_library()
+    return jsonify({"status": "success", **lib})
+
+
+@app.route("/api/ytmusic/search", methods=["GET"])
+def search_ytmusic():
+    """Live search YouTube Music tracks without requiring an API key."""
+    q = (request.args.get("q") or "").strip()
+    if not q:
+        return jsonify({"status": "error", "error": "Missing search query 'q'"}), 400
+    tracks = _search_youtube_music_tracks(q, limit=14)
+    return jsonify({"status": "success", "query": q, "tracks": tracks})
+
+
+@app.route("/api/ytmusic/like", methods=["POST"])
+def update_ytmusic_liked():
+    """Add, remove, or toggle a track in the user's YouTube Music Liked Playlist."""
+    data = request.get_json(silent=True) or {}
+    action = (data.get("action") or "toggle").lower().strip()
+    track = data.get("track") or {}
+    vid = (track.get("id") or data.get("id") or "").strip()
+    if not vid:
+        return jsonify({"status": "error", "error": "Missing track video ID"}), 400
+
+    lib = _load_ytm_library()
+    liked = lib.get("liked_songs") or []
+    existing_idx = next((i for i, t in enumerate(liked) if t.get("id") == vid), -1)
+
+    if action == "remove" or (action == "toggle" and existing_idx >= 0):
+        if existing_idx >= 0:
+            liked.pop(existing_idx)
+        liked_state = False
+    else:
+        new_entry = {
+            "id": vid,
+            "title": (track.get("title") or "YouTube Music Track").strip(),
+            "artist": (track.get("artist") or "YouTube Music").strip(),
+            "duration": (track.get("duration") or "").strip(),
+            "thumbnail": track.get("thumbnail") or f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+            "source": track.get("source") or "ytmusic_liked",
+        }
+        if existing_idx >= 0:
+            liked[existing_idx] = new_entry
+        else:
+            liked.insert(0, new_entry)
+        liked_state = True
+
+    lib["liked_songs"] = liked
+    _save_ytm_library(lib)
+    return jsonify({
+        "status": "success",
+        "liked": liked_state,
+        "liked_songs": liked,
+        "count": len(liked),
+    })
+
+
+@app.route("/api/ytmusic/import", methods=["POST"])
+def import_ytmusic_playlist_or_url():
+    """Import a YouTube Music Playlist URL, Song URL, or Artist mix directly into the user's Liked Playlist."""
+    import requests as http_requests
+    data = request.get_json(silent=True) or {}
+    raw_input = (data.get("url") or data.get("query") or "").strip()
+    replace_existing = bool(data.get("replace", False))
+    if not raw_input:
+        return jsonify({"status": "error", "error": "Paste a YouTube Music playlist URL, song link, or artist name"}), 400
+
+    # Extract playlist list=... or video v=...
+    list_match = re.search(r"[?&]list=([a-zA-Z0-9_-]+)", raw_input)
+    vid_match = re.search(r"(?:[?&]v=|youtu\.be/|/embed/|/shorts/)([a-zA-Z0-9_-]{11})", raw_input)
+
+    imported_tracks = []
+    source_label = "YouTube Music Import"
+
+    if list_match and not list_match.group(1).startswith("RD"):
+        pid = list_match.group(1)
+        source_label, imported_tracks = _extract_youtube_playlist_tracks(pid, limit=50)
+    elif re.match(r"^(PL|OLAK5uy_|UU|FL|LP)[a-zA-Z0-9_-]{8,}$", raw_input):
+        source_label, imported_tracks = _extract_youtube_playlist_tracks(raw_input, limit=50)
+
+    if not imported_tracks and vid_match:
+        vid = vid_match.group(1)
+        title = "YouTube Music Track"
+        artist = "YouTube Music"
+        try:
+            oe = http_requests.get(
+                "https://www.youtube.com/oembed",
+                params={"url": f"https://www.youtube.com/watch?v={vid}", "format": "json"},
+                timeout=8,
+            )
+            if oe.status_code == 200:
+                oj = oe.json()
+                title = oj.get("title") or title
+                artist = oj.get("author_name") or artist
+        except Exception:
+            pass
+        imported_tracks = [{
+            "id": vid,
+            "title": title,
+            "artist": artist,
+            "duration": "",
+            "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+            "source": "ytmusic_url",
+        }]
+        source_label = title
+
+    if not imported_tracks:
+        # Treat as artist/playlist search query on YouTube Music
+        imported_tracks = _search_youtube_music_tracks(raw_input, limit=10)
+        source_label = f"YT Music: {raw_input}"
+
+    if not imported_tracks:
+        return jsonify({"status": "error", "error": "Could not find tracks for that YouTube Music link/query. Make sure the playlist is Public or Unlisted."}), 404
+
+    lib = _load_ytm_library()
+    existing = [] if replace_existing else (lib.get("liked_songs") or [])
+    existing_ids = {t.get("id") for t in existing}
+    added_count = 0
+    merged = list(imported_tracks)
+    for t in existing:
+        if t.get("id") not in {x.get("id") for x in merged}:
+            merged.append(t)
+    for t in imported_tracks:
+        if t.get("id") not in existing_ids:
+            added_count += 1
+
+    lib["liked_songs"] = merged[:120]
+    lib["connected"] = True
+    lib["account_name"] = f"YouTube Music • {source_label[:36]}"
+    _save_ytm_library(lib)
+
+    return jsonify({
+        "status": "success",
+        "source": source_label,
+        "added": len(imported_tracks),
+        "liked_songs": lib["liked_songs"],
+        "account_name": lib["account_name"],
+    })
+
+
+@app.route("/api/ytmusic/oauth/start", methods=["GET"])
+def ytmusic_oauth_start():
+    """Start Google OAuth 2.0 flow for syncing the user's real YouTube Music Liked Songs & Playlists."""
+    if not config.GOOGLE_CLIENT_ID or not config.GOOGLE_CLIENT_SECRET:
+        return jsonify({"status": "error", "error": "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not configured"}), 400
+    try:
+        from requests_oauthlib import OAuth2Session
+        redirect_uri = request.url_root.rstrip("/") + "/api/ytmusic/oauth/callback"
+        google = OAuth2Session(
+            config.GOOGLE_CLIENT_ID,
+            redirect_uri=redirect_uri,
+            scope=[
+                "https://www.googleapis.com/auth/youtube.readonly",
+                "openid",
+                "https://www.googleapis.com/auth/userinfo.profile",
+            ],
+        )
+        authorization_url, _ = google.authorization_url(
+            GOOGLE_AUTHORIZATION_BASE_URL,
+            access_type="offline",
+            prompt="consent",
+        )
+        return redirect(authorization_url)
+    except Exception as e:
+        logger.error(f"YouTube Music OAuth start failed: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/ytmusic/oauth/callback", methods=["GET"])
+def ytmusic_oauth_callback():
+    """Receive Google OAuth token, fetch the user's YouTube Music Liked Songs (myRating=like) & Playlists, and save to JARVIS."""
+    import requests as http_requests
+    try:
+        from requests_oauthlib import OAuth2Session
+        redirect_uri = request.url_root.rstrip("/") + "/api/ytmusic/oauth/callback"
+        google = OAuth2Session(config.GOOGLE_CLIENT_ID, redirect_uri=redirect_uri)
+        auth_response = request.url.replace("http://", "https://") if not request.url.startswith("https") else request.url
+        token = google.fetch_token(
+            GOOGLE_TOKEN_URL,
+            client_secret=config.GOOGLE_CLIENT_SECRET,
+            authorization_response=auth_response,
+        )
+        access_token = token.get("access_token", "")
+        headers = {"Authorization": f"Bearer {access_token}"}
+
+        # 1. Fetch user profile name
+        account_name = "YouTube Music Connected"
+        try:
+            u_resp = http_requests.get("https://www.googleapis.com/oauth2/v2/userinfo", headers=headers, timeout=8)
+            if u_resp.status_code == 200:
+                u_name = u_resp.json().get("name") or u_resp.json().get("email")
+                if u_name:
+                    account_name = f"{u_name} • YouTube Music"
+        except Exception:
+            pass
+
+        # 2. Fetch Liked Videos / Music tracks (myRating=like)
+        liked_tracks = []
+        r_likes = http_requests.get(
+            "https://www.googleapis.com/youtube/v3/videos",
+            params={"myRating": "like", "part": "snippet,contentDetails", "maxResults": 50},
+            headers=headers,
+            timeout=12,
+        )
+        if r_likes.status_code == 200:
+            for item in r_likes.json().get("items") or []:
+                vid = item.get("id")
+                snip = item.get("snippet") or {}
+                if not vid:
+                    continue
+                liked_tracks.append({
+                    "id": vid,
+                    "title": snip.get("title") or "Liked Song",
+                    "artist": snip.get("channelTitle") or "YouTube Music",
+                    "duration": "",
+                    "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+                    "source": "ytmusic_oauth_liked",
+                })
+
+        lib = _load_ytm_library()
+        if liked_tracks:
+            existing = lib.get("liked_songs") or []
+            seen = {t["id"] for t in liked_tracks}
+            lib["liked_songs"] = liked_tracks + [t for t in existing if t.get("id") not in seen]
+        lib["connected"] = True
+        lib["account_name"] = account_name
+        _save_ytm_library(lib)
+
+        return """
+        <!doctype html>
+        <html>
+        <head><title>YouTube Music Connected</title></head>
+        <body style="background:#050811;color:#00f5ff;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;">
+          <div style="text-align:center;padding:24px;border:1px solid rgba(0,245,255,0.3);border-radius:16px;">
+            <h2>❤️ YouTube Music Liked Playlist Synced!</h2>
+            <p>Returning to JARVIS OMEGA...</p>
+          </div>
+          <script>
+            try {
+              if (window.opener) {
+                window.opener.postMessage({ type: 'jarvis_ytmusic_synced' }, '*');
+              }
+            } catch (e) {}
+            setTimeout(() => window.close(), 800);
+          </script>
+        </body>
+        </html>
+        """
+    except Exception as e:
+        logger.error(f"YouTube Music OAuth callback error: {e}")
+        return f"YouTube Music OAuth failed: {e}. Tip: You can also paste any YouTube Music Playlist URL or search directly inside JARVIS!", 400
+
+
 @app.route("/api/health", methods=["GET"])
 def api_health_alias():
     """Health check alias for local and cloud monitors."""

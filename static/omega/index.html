@@ -9,8 +9,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.26"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.26">
+    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.27"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.27">
   </head>
   <body>
     <div id="jarvis-bg-stage" aria-hidden="true">
@@ -21,7 +21,7 @@
     </div>
     <audio id="jarvis-music-audio" src="/static/media/audio/lofi_focus_beat.mp3" loop preload="auto"></audio>
 
-    <!-- Real Small Video & Audio Background Deck (Freely Draggable PiP HUD) -->
+    <!-- Real Small Video & Audio Background Deck + YouTube Music & Liked Playlist Hub (Freely Draggable PiP HUD) -->
     <div id="jarvis-mini-av-player" class="jarvis-mini-av" data-av-size="sm">
       <div id="jarvis-mini-av-dragbar" class="jarvis-mini-av-header" title="Drag anywhere to move · Double-click to reset position">
         <div class="jarvis-mini-av-badge">
@@ -29,6 +29,7 @@
           <span>✥ LIVE AV DECK</span>
         </div>
         <div class="jarvis-mini-av-top-btns">
+          <button type="button" id="jarvis-mini-ytm-btn" class="jarvis-mini-av-iconbtn jarvis-ytm-badge-btn" title="Open YouTube Music & ❤️ Liked Playlist">🔴 YT Music</button>
           <button type="button" id="jarvis-mini-av-size-btn" class="jarvis-mini-av-iconbtn" title="Resize Small Video Screen (Small / Medium / Large)">⤢</button>
           <button type="button" id="jarvis-mini-av-bg-btn" class="jarvis-mini-av-iconbtn" title="Toggle Full-Screen Video Background">⛶</button>
           <button type="button" id="jarvis-mini-av-min-btn" class="jarvis-mini-av-iconbtn" title="Minimize / Expand Small Video Deck">—</button>
@@ -37,6 +38,9 @@
       <div id="jarvis-mini-av-body" class="jarvis-mini-av-body">
         <div class="jarvis-mini-av-screen">
           <video id="jarvis-mini-video" src="/static/media/videos/stark_hud_core.mp4" autoplay loop muted playsinline></video>
+          <div id="jarvis-yt-player-wrap" class="jarvis-yt-player-wrap" style="display:none;">
+            <div id="jarvis-yt-player-host"></div>
+          </div>
           <div class="jarvis-mini-av-overlay">
             <span id="jarvis-mini-video-label" class="jarvis-mini-video-label">🎬 Stark Arc Reactor HUD</span>
             <div id="jarvis-mini-eq" class="jarvis-mini-eq">
@@ -50,8 +54,29 @@
             <button type="button" id="jarvis-mini-play-btn" class="jarvis-mini-av-btn active" title="Play / Pause Video & Audio">⏸</button>
             <button type="button" id="jarvis-mini-mute-btn" class="jarvis-mini-av-btn active" title="Toggle Audio On / Mute">🔊</button>
             <button type="button" id="jarvis-mini-next-vid-btn" class="jarvis-mini-av-btn" title="Next Background Video (.mp4)">🎬⏭</button>
-            <button type="button" id="jarvis-mini-next-aud-btn" class="jarvis-mini-av-btn" title="Next Music Track (.mp3)">🎵⏭</button>
+            <button type="button" id="jarvis-mini-next-aud-btn" class="jarvis-mini-av-btn" title="Next Music Track / Next YT Liked Song">🎵⏭</button>
+            <button type="button" id="jarvis-mini-liked-btn" class="jarvis-mini-av-btn jarvis-liked-heart-btn" title="Play My YouTube Music ❤️ Liked Playlist">❤️</button>
           </div>
+        </div>
+        <!-- Collapsible YouTube Music & ❤️ Liked Playlist Drawer -->
+        <div id="jarvis-mini-ytm-drawer" class="jarvis-mini-ytm-drawer" style="display:none;">
+          <div class="jarvis-ytm-drawer-top">
+            <span id="jarvis-ytm-account-badge" class="jarvis-ytm-account-badge">🔴 YouTube Music • ❤️ Liked Playlist</span>
+            <div class="jarvis-ytm-drawer-actions">
+              <button type="button" id="jarvis-ytm-oauth-btn" class="jarvis-ytm-action-btn" title="Connect Google Account to sync real YouTube Music Liked Songs">🔗 Connect Google</button>
+              <button type="button" id="jarvis-ytm-playall-btn" class="jarvis-ytm-action-btn primary" title="Play all songs in your ❤️ Liked Playlist">▶ Play Liked</button>
+            </div>
+          </div>
+          <div class="jarvis-ytm-search-row">
+            <input type="text" id="jarvis-ytm-input" class="jarvis-ytm-input" placeholder="Search YT Music song/artist OR paste Playlist URL..." />
+            <button type="button" id="jarvis-ytm-search-btn" class="jarvis-ytm-action-btn" title="Search YouTube Music">🔍</button>
+            <button type="button" id="jarvis-ytm-import-btn" class="jarvis-ytm-action-btn" title="Import YouTube Music Playlist URL or Song into ❤️ Liked">📥 Import</button>
+          </div>
+          <div class="jarvis-ytm-tabs">
+            <button type="button" id="jarvis-ytm-tab-liked" class="jarvis-ytm-tab active">❤️ Liked Songs (<span id="jarvis-ytm-liked-count">6</span>)</button>
+            <button type="button" id="jarvis-ytm-tab-search" class="jarvis-ytm-tab">🔍 Search Results</button>
+          </div>
+          <div id="jarvis-ytm-track-list" class="jarvis-ytm-track-list"></div>
         </div>
       </div>
     </div>
@@ -675,7 +700,7 @@
                 this.bassFilter.gain.setValueAtTime(bass ? 9.5 : 0, this.ctx.currentTime);
               }
 
-              if (!enabled || window.__jarvisAvPaused) {
+              if (!enabled || window.__jarvisAvPaused || (window.__jarvisYtm && window.__jarvisYtm.active)) {
                 this.playing = false;
                 this.stopSynth();
                 if (audioEl) { audioEl.pause(); }
@@ -1186,7 +1211,7 @@
         window.__jarvisSetMicDucking = function(isRecording) {
           const musicEl = document.getElementById('jarvis-music-audio');
           const bgVid = document.getElementById('jarvis-bg-video');
-          const miniVid = document.getElementById('jarvis-mini-av-video');
+          const miniVid = document.getElementById('jarvis-mini-video');
           if (isRecording) {
             window.__jarvisStopSpeaking();
             if (bgVid) bgVid.muted = true;
@@ -1195,12 +1220,23 @@
               window.__jarvisWasMusicPlayingBeforeMic = true;
               try { musicEl.pause(); } catch (e) {}
             }
+            if (window.__jarvisYtm && window.__jarvisYtm.isPlaying) {
+              window.__jarvisWasYtmPlayingBeforeMic = true;
+              try { window.__jarvisYtm.pause(); } catch (e) {}
+            }
           } else {
-            if (window.__jarvisWasMusicPlayingBeforeMic && musicEl) {
+            if (window.__jarvisWasYtmPlayingBeforeMic && window.__jarvisYtm) {
+              window.__jarvisWasYtmPlayingBeforeMic = false;
+              setTimeout(() => {
+                try { window.__jarvisYtm.resume(); } catch (e) {}
+              }, 300);
+              return;
+            }
+            if (window.__jarvisWasMusicPlayingBeforeMic && musicEl && !(window.__jarvisYtm && window.__jarvisYtm.active)) {
               window.__jarvisWasMusicPlayingBeforeMic = false;
               setTimeout(() => {
                 try {
-                  if (window.__jarvisThemeState && window.__jarvisThemeState.music_enabled) {
+                  if (window.__jarvisCurrentThemeCfg && window.__jarvisCurrentThemeCfg.music_enabled) {
                     musicEl.play().catch(() => {});
                   }
                 } catch (e) {}
@@ -1315,6 +1351,676 @@
             window.__jarvisSpeak(replyText, true);
           }
         };
+      })();
+
+      // 🔴❤️ JARVIS YouTube Music & Liked Playlist Hub (v16.27)
+      (function() {
+        const ytmStyle = document.createElement('style');
+        ytmStyle.textContent = `
+          .jarvis-ytm-badge-btn {
+            width: auto !important;
+            padding: 0 7px !important;
+            font-size: 9.5px !important;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 600;
+            color: #ff4e6a !important;
+            border-color: rgba(255, 59, 92, 0.45) !important;
+            background: rgba(255, 59, 92, 0.14) !important;
+          }
+          .jarvis-ytm-badge-btn:hover, .jarvis-ytm-badge-btn.active {
+            background: rgba(255, 59, 92, 0.28) !important;
+            border-color: #ff3b5c !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 10px rgba(255, 59, 92, 0.35);
+          }
+          .jarvis-liked-heart-btn {
+            border-color: rgba(255, 59, 92, 0.4) !important;
+            background: rgba(255, 59, 92, 0.12) !important;
+          }
+          .jarvis-liked-heart-btn.active {
+            background: rgba(255, 59, 92, 0.3) !important;
+            border-color: #ff3b5c !important;
+            box-shadow: 0 0 10px rgba(255, 59, 92, 0.35);
+          }
+          .jarvis-yt-player-wrap {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            background: #050814;
+          }
+          .jarvis-yt-player-wrap iframe {
+            width: 100% !important;
+            height: 100% !important;
+            border: 0 !important;
+            display: block;
+          }
+          .jarvis-mini-av-overlay {
+            z-index: 3;
+            pointer-events: none;
+          }
+          .jarvis-mini-ytm-drawer {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(0, 245, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+          }
+          .jarvis-ytm-drawer-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 4px;
+            flex-wrap: wrap;
+          }
+          .jarvis-ytm-account-badge {
+            font-size: 9.5px;
+            font-family: 'JetBrains Mono', monospace;
+            color: #ff6b81;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 145px;
+          }
+          .jarvis-ytm-drawer-actions {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          }
+          .jarvis-ytm-action-btn {
+            padding: 3px 7px;
+            border-radius: 6px;
+            font-size: 9.5px;
+            font-family: 'JetBrains Mono', monospace;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            white-space: nowrap;
+          }
+          .jarvis-ytm-action-btn:hover {
+            border-color: var(--color-omega-cyan, #00f5ff);
+            color: var(--color-omega-cyan, #00f5ff);
+            background: rgba(0, 245, 255, 0.12);
+          }
+          .jarvis-ytm-action-btn.primary {
+            background: rgba(255, 59, 92, 0.22);
+            border-color: rgba(255, 59, 92, 0.55);
+            color: #fff;
+          }
+          .jarvis-ytm-action-btn.primary:hover {
+            background: rgba(255, 59, 92, 0.38);
+          }
+          .jarvis-ytm-search-row {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+          }
+          .jarvis-ytm-input {
+            flex: 1;
+            min-width: 0;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(0, 245, 255, 0.25);
+            border-radius: 6px;
+            padding: 4px 7px;
+            font-size: 10px;
+            font-family: 'JetBrains Mono', monospace;
+            color: #f8fafc;
+            outline: none;
+          }
+          .jarvis-ytm-input:focus {
+            border-color: #ff3b5c;
+          }
+          .jarvis-ytm-tabs {
+            display: flex;
+            gap: 4px;
+          }
+          .jarvis-ytm-tab {
+            flex: 1;
+            padding: 3px 6px;
+            font-size: 9.5px;
+            font-family: 'JetBrains Mono', monospace;
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #94a3b8;
+            cursor: pointer;
+          }
+          .jarvis-ytm-tab.active {
+            background: rgba(255, 59, 92, 0.18);
+            border-color: rgba(255, 59, 92, 0.45);
+            color: #ffffff;
+          }
+          .jarvis-ytm-track-list {
+            max-height: 155px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-right: 2px;
+          }
+          .jarvis-ytm-track-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 6px;
+            border-radius: 7px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.07);
+            cursor: pointer;
+            transition: all 0.15s ease;
+          }
+          .jarvis-ytm-track-item:hover, .jarvis-ytm-track-item.playing {
+            background: rgba(255, 59, 92, 0.14);
+            border-color: rgba(255, 59, 92, 0.45);
+          }
+          .jarvis-ytm-thumb {
+            width: 28px;
+            height: 28px;
+            border-radius: 5px;
+            object-fit: cover;
+            flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+          }
+          .jarvis-ytm-info {
+            flex: 1;
+            min-width: 0;
+          }
+          .jarvis-ytm-title {
+            font-size: 10px;
+            font-weight: 600;
+            color: #f1f5f9;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .jarvis-ytm-artist {
+            font-size: 8.5px;
+            color: #94a3b8;
+            font-family: 'JetBrains Mono', monospace;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .jarvis-ytm-like-icon {
+            background: transparent;
+            border: none;
+            font-size: 11px;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            flex-shrink: 0;
+          }
+          .jarvis-ytm-like-icon:hover {
+            background: rgba(255, 255, 255, 0.1);
+          }
+        `;
+        document.head.appendChild(ytmStyle);
+
+        const ytm = {
+          active: false,
+          isPlaying: false,
+          player: null,
+          apiReady: false,
+          pendingVideoId: null,
+          currentTab: 'liked',
+          currentIndex: 0,
+          currentTrack: null,
+          accountName: 'YouTube Music • ❤️ Liked Playlist',
+          likedSongs: [],
+          searchResults: [],
+
+          init: function() {
+            const self = this;
+            fetch('/api/ytmusic/library')
+              .then(r => r.json())
+              .then(data => {
+                if (data && Array.isArray(data.liked_songs)) {
+                  self.likedSongs = data.liked_songs;
+                  if (data.account_name) self.accountName = data.account_name;
+                  self.renderDrawer();
+                  window.dispatchEvent(new CustomEvent('jarvis-ytm-updated'));
+                }
+              })
+              .catch(() => {});
+
+            window.addEventListener('message', function(ev) {
+              if (ev.data && ev.data.type === 'jarvis_ytmusic_synced') {
+                self.refreshLibrary(true);
+              }
+            });
+
+            this.bindUI();
+          },
+
+          refreshLibrary: function(autoPlayFirst) {
+            const self = this;
+            return fetch('/api/ytmusic/library')
+              .then(r => r.json())
+              .then(data => {
+                if (data && Array.isArray(data.liked_songs)) {
+                  self.likedSongs = data.liked_songs;
+                  if (data.account_name) self.accountName = data.account_name;
+                  self.renderDrawer();
+                  window.dispatchEvent(new CustomEvent('jarvis-ytm-updated'));
+                  if (autoPlayFirst && self.likedSongs.length > 0) {
+                    self.playTrack(self.likedSongs[0], 0);
+                  }
+                }
+                return data;
+              });
+          },
+
+          ensureYouTubeApi: function(cb) {
+            const self = this;
+            if (window.YT && window.YT.Player && self.player && typeof self.player.loadVideoById === 'function') {
+              cb();
+              return;
+            }
+            const createPlayer = function() {
+              if (self.player && typeof self.player.loadVideoById === 'function') {
+                cb();
+                return;
+              }
+              self.player = new window.YT.Player('jarvis-yt-player-host', {
+                width: '100%',
+                height: '100%',
+                videoId: self.pendingVideoId || 'jfKfPfyJRdk',
+                playerVars: {
+                  autoplay: 1,
+                  controls: 1,
+                  rel: 0,
+                  modestbranding: 1,
+                  playsinline: 1,
+                  origin: window.location.origin
+                },
+                events: {
+                  onReady: function(ev) {
+                    self.apiReady = true;
+                    const vol = (window.__jarvisCurrentThemeCfg && window.__jarvisCurrentThemeCfg.music_volume !== undefined)
+                      ? Math.round(Number(window.__jarvisCurrentThemeCfg.music_volume) * 100)
+                      : 70;
+                    try { ev.target.setVolume(vol); } catch (e) {}
+                    cb();
+                  },
+                  onStateChange: function(ev) {
+                    if (ev.data === window.YT.PlayerState.ENDED) {
+                      self.nextTrack();
+                    } else if (ev.data === window.YT.PlayerState.PLAYING) {
+                      self.isPlaying = true;
+                      const eq = document.getElementById('jarvis-mini-eq');
+                      if (eq) eq.classList.remove('paused');
+                    } else if (ev.data === window.YT.PlayerState.PAUSED) {
+                      self.isPlaying = false;
+                    }
+                  },
+                  onError: function(ev) {
+                    // Error 101 or 150 = official label blocked embed; auto-resolve playable audio stream
+                    if ((ev.data === 101 || ev.data === 150) && self.currentTrack && !self.currentTrack._retriedAudio) {
+                      self.currentTrack._retriedAudio = true;
+                      const q = (self.currentTrack.title + ' ' + (self.currentTrack.artist || '') + ' audio lyric').trim();
+                      fetch('/api/ytmusic/search?q=' + encodeURIComponent(q))
+                        .then(r => r.json())
+                        .then(d => {
+                          const alt = (d.tracks || []).find(t => t.id !== self.currentTrack.id);
+                          if (alt && self.player) {
+                            self.player.loadVideoById(alt.id);
+                          } else {
+                            self.nextTrack();
+                          }
+                        })
+                        .catch(() => self.nextTrack());
+                    }
+                  }
+                }
+              });
+            };
+
+            if (window.YT && window.YT.Player) {
+              createPlayer();
+              return;
+            }
+            const prevReady = window.onYouTubeIframeAPIReady;
+            window.onYouTubeIframeAPIReady = function() {
+              if (typeof prevReady === 'function') prevReady();
+              createPlayer();
+            };
+            if (!document.getElementById('jarvis-yt-iframe-api-script')) {
+              const s = document.createElement('script');
+              s.id = 'jarvis-yt-iframe-api-script';
+              s.src = 'https://www.youtube.com/iframe_api';
+              document.head.appendChild(s);
+            }
+          },
+
+          playTrack: function(track, idx) {
+            if (!track || !track.id) return;
+            const self = this;
+            this.active = true;
+            this.isPlaying = true;
+            this.currentTrack = track;
+            this.pendingVideoId = track.id;
+            if (typeof idx === 'number') this.currentIndex = idx;
+
+            // Pause built-in MP3 loop so YouTube Music plays cleanly
+            const audioEl = document.getElementById('jarvis-music-audio');
+            if (audioEl) { try { audioEl.pause(); } catch (e) {} }
+            if (window.__jarvisMusicEngine) {
+              window.__jarvisMusicEngine.stopSynth();
+            }
+
+            const ytWrap = document.getElementById('jarvis-yt-player-wrap');
+            if (ytWrap) ytWrap.style.display = 'block';
+
+            const vidLabel = document.getElementById('jarvis-mini-video-label');
+            const audLabel = document.getElementById('jarvis-mini-audio-label');
+            const playBtn = document.getElementById('jarvis-mini-play-btn');
+            const likedBtn = document.getElementById('jarvis-mini-liked-btn');
+            const ytmBtn = document.getElementById('jarvis-mini-ytm-btn');
+            if (vidLabel) vidLabel.textContent = '🔴 YT Music: ' + track.title;
+            if (audLabel) audLabel.textContent = '❤️ ' + track.title + ' — ' + (track.artist || 'YouTube Music');
+            if (playBtn) { playBtn.textContent = '⏸'; playBtn.classList.add('active'); }
+            if (likedBtn) likedBtn.classList.add('active');
+            if (ytmBtn) ytmBtn.classList.add('active');
+
+            this.renderDrawer();
+            window.dispatchEvent(new CustomEvent('jarvis-ytm-updated'));
+
+            this.ensureYouTubeApi(function() {
+              try {
+                if (self.player && typeof self.player.loadVideoById === 'function') {
+                  self.player.loadVideoById(track.id);
+                  self.player.playVideo();
+                }
+              } catch (e) {}
+            });
+          },
+
+          playLikedPlaylist: function() {
+            if (!this.likedSongs || this.likedSongs.length === 0) return;
+            this.currentTab = 'liked';
+            this.playTrack(this.likedSongs[0], 0);
+          },
+
+          nextTrack: function() {
+            const list = this.likedSongs || [];
+            if (list.length === 0) return;
+            const nextIdx = (this.currentIndex + 1) % list.length;
+            this.playTrack(list[nextIdx], nextIdx);
+          },
+
+          pause: function() {
+            this.isPlaying = false;
+            try {
+              if (this.player && typeof this.player.pauseVideo === 'function') {
+                this.player.pauseVideo();
+              }
+            } catch (e) {}
+          },
+
+          resume: function() {
+            if (!this.active) return;
+            this.isPlaying = true;
+            try {
+              if (this.player && typeof this.player.playVideo === 'function') {
+                this.player.playVideo();
+              }
+            } catch (e) {}
+          },
+
+          stopYtmMode: function() {
+            this.active = false;
+            this.isPlaying = false;
+            this.pause();
+            const ytWrap = document.getElementById('jarvis-yt-player-wrap');
+            if (ytWrap) ytWrap.style.display = 'none';
+            const likedBtn = document.getElementById('jarvis-mini-liked-btn');
+            if (likedBtn) likedBtn.classList.remove('active');
+          },
+
+          toggleLike: function(track) {
+            const self = this;
+            return fetch('/api/ytmusic/like', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ action: 'toggle', track: track })
+            })
+              .then(r => r.json())
+              .then(data => {
+                if (data && Array.isArray(data.liked_songs)) {
+                  self.likedSongs = data.liked_songs;
+                  self.renderDrawer();
+                  window.dispatchEvent(new CustomEvent('jarvis-ytm-updated'));
+                }
+                return data;
+              });
+          },
+
+          search: function(query) {
+            const self = this;
+            const q = String(query || '').trim();
+            if (!q) return Promise.resolve([]);
+            this.currentTab = 'search';
+            this.renderDrawer('Searching YouTube Music...');
+            return fetch('/api/ytmusic/search?q=' + encodeURIComponent(q))
+              .then(r => r.json())
+              .then(data => {
+                self.searchResults = (data && data.tracks) || [];
+                self.renderDrawer();
+                window.dispatchEvent(new CustomEvent('jarvis-ytm-updated'));
+                return self.searchResults;
+              });
+          },
+
+          importUrl: function(urlOrQuery) {
+            const self = this;
+            const val = String(urlOrQuery || '').trim();
+            if (!val) return Promise.resolve(null);
+            this.currentTab = 'liked';
+            this.renderDrawer('Importing from YouTube Music...');
+            return fetch('/api/ytmusic/import', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: val })
+            })
+              .then(r => r.json())
+              .then(data => {
+                if (data && data.status === 'success' && Array.isArray(data.liked_songs)) {
+                  self.likedSongs = data.liked_songs;
+                  if (data.account_name) self.accountName = data.account_name;
+                  self.renderDrawer();
+                  window.dispatchEvent(new CustomEvent('jarvis-ytm-updated'));
+                  if (self.likedSongs.length > 0) {
+                    self.playTrack(self.likedSongs[0], 0);
+                  }
+                } else {
+                  self.renderDrawer();
+                }
+                return data;
+              });
+          },
+
+          connectOAuth: function() {
+            window.open('/api/ytmusic/oauth/start', 'jarvis_ytmusic_oauth', 'width=560,height=680');
+          },
+
+          toggleDrawer: function(forceOpen) {
+            const drawer = document.getElementById('jarvis-mini-ytm-drawer');
+            const playerEl = document.getElementById('jarvis-mini-av-player');
+            if (!drawer) return;
+            const show = forceOpen !== undefined ? !!forceOpen : drawer.style.display === 'none';
+            drawer.style.display = show ? 'flex' : 'none';
+            if (show && playerEl) {
+              playerEl.classList.remove('minimized');
+              if ((playerEl.getAttribute('data-av-size') || 'sm') === 'sm') {
+                playerEl.setAttribute('data-av-size', 'md');
+              }
+            }
+            this.renderDrawer();
+          },
+
+          renderDrawer: function(statusMsg) {
+            const self = this;
+            const badgeEl = document.getElementById('jarvis-ytm-account-badge');
+            const countEl = document.getElementById('jarvis-ytm-liked-count');
+            const tabLiked = document.getElementById('jarvis-ytm-tab-liked');
+            const tabSearch = document.getElementById('jarvis-ytm-tab-search');
+            const listEl = document.getElementById('jarvis-ytm-track-list');
+            if (badgeEl) badgeEl.textContent = '🔴 ' + (this.accountName || 'YouTube Music • ❤️ Liked');
+            if (countEl) countEl.textContent = String((this.likedSongs || []).length);
+            if (tabLiked) tabLiked.classList.toggle('active', this.currentTab === 'liked');
+            if (tabSearch) tabSearch.classList.toggle('active', this.currentTab === 'search');
+            if (!listEl) return;
+
+            if (statusMsg) {
+              listEl.innerHTML = `<div style="padding:10px;text-align:center;font-size:10px;color:#00f5ff;font-family:monospace;">${statusMsg}</div>`;
+              return;
+            }
+
+            const items = this.currentTab === 'search' ? (this.searchResults || []) : (this.likedSongs || []);
+            if (items.length === 0) {
+              listEl.innerHTML = `<div style="padding:10px;text-align:center;font-size:10px;color:#94a3b8;font-family:monospace;">${this.currentTab === 'search' ? 'Type a song or artist above & click 🔍' : 'No liked songs yet — search or import a playlist!'}</div>`;
+              return;
+            }
+
+            const likedIds = new Set((this.likedSongs || []).map(t => t.id));
+            listEl.innerHTML = '';
+            items.forEach((track, i) => {
+              const row = document.createElement('div');
+              const isCur = self.currentTrack && self.currentTrack.id === track.id && self.active;
+              row.className = 'jarvis-ytm-track-item' + (isCur ? ' playing' : '');
+              const isLiked = likedIds.has(track.id);
+              row.innerHTML = `
+                <img class="jarvis-ytm-thumb" src="${track.thumbnail || ('https://i.ytimg.com/vi/' + track.id + '/hqdefault.jpg')}" alt="" />
+                <div class="jarvis-ytm-info">
+                  <div class="jarvis-ytm-title">${isCur ? '▶ ' : ''}${track.title || 'YouTube Music Track'}</div>
+                  <div class="jarvis-ytm-artist">${track.artist || 'YouTube Music'}${track.duration ? ' • ' + track.duration : ''}</div>
+                </div>
+                <button type="button" class="jarvis-ytm-like-icon" title="${isLiked ? 'Remove from ❤️ Liked Playlist' : 'Add to ❤️ Liked Playlist'}">${isLiked ? '❤️' : '🤍'}</button>
+              `;
+              row.addEventListener('click', function(ev) {
+                if (ev.target && ev.target.closest('.jarvis-ytm-like-icon')) return;
+                self.playTrack(track, i);
+              });
+              const likeBtn = row.querySelector('.jarvis-ytm-like-icon');
+              if (likeBtn) {
+                likeBtn.addEventListener('click', function(ev) {
+                  ev.stopPropagation();
+                  self.toggleLike(track);
+                });
+              }
+              listEl.appendChild(row);
+            });
+          },
+
+          bindUI: function() {
+            const self = this;
+            const ytmBtn = document.getElementById('jarvis-mini-ytm-btn');
+            const likedBtn = document.getElementById('jarvis-mini-liked-btn');
+            const oauthBtn = document.getElementById('jarvis-ytm-oauth-btn');
+            const playAllBtn = document.getElementById('jarvis-ytm-playall-btn');
+            const searchBtn = document.getElementById('jarvis-ytm-search-btn');
+            const importBtn = document.getElementById('jarvis-ytm-import-btn');
+            const inputEl = document.getElementById('jarvis-ytm-input');
+            const tabLiked = document.getElementById('jarvis-ytm-tab-liked');
+            const tabSearch = document.getElementById('jarvis-ytm-tab-search');
+            const nextAudBtn = document.getElementById('jarvis-mini-next-aud-btn');
+            const playBtn = document.getElementById('jarvis-mini-play-btn');
+
+            if (ytmBtn) {
+              ytmBtn.addEventListener('click', function() {
+                self.toggleDrawer();
+              });
+            }
+            if (likedBtn) {
+              likedBtn.addEventListener('click', function() {
+                self.toggleDrawer(true);
+                self.playLikedPlaylist();
+              });
+            }
+            if (oauthBtn) {
+              oauthBtn.addEventListener('click', function() {
+                self.connectOAuth();
+              });
+            }
+            if (playAllBtn) {
+              playAllBtn.addEventListener('click', function() {
+                self.playLikedPlaylist();
+              });
+            }
+            if (searchBtn && inputEl) {
+              searchBtn.addEventListener('click', function() {
+                const val = inputEl.value.trim();
+                if (!val) return;
+                if (val.includes('youtube.com/') || val.includes('youtu.be/') || val.includes('list=')) {
+                  self.importUrl(val);
+                } else {
+                  self.search(val);
+                }
+              });
+            }
+            if (importBtn && inputEl) {
+              importBtn.addEventListener('click', function() {
+                const val = inputEl.value.trim();
+                if (!val) return;
+                self.importUrl(val);
+              });
+            }
+            if (inputEl) {
+              inputEl.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  const val = inputEl.value.trim();
+                  if (!val) return;
+                  if (val.includes('youtube.com/') || val.includes('youtu.be/') || val.includes('list=')) {
+                    self.importUrl(val);
+                  } else {
+                    self.search(val);
+                  }
+                }
+              });
+            }
+            if (tabLiked) {
+              tabLiked.addEventListener('click', function() {
+                self.currentTab = 'liked';
+                self.renderDrawer();
+              });
+            }
+            if (tabSearch) {
+              tabSearch.addEventListener('click', function() {
+                self.currentTab = 'search';
+                self.renderDrawer();
+              });
+            }
+            if (nextAudBtn) {
+              nextAudBtn.addEventListener('click', function(e) {
+                if (self.active) {
+                  e.stopImmediatePropagation();
+                  self.nextTrack();
+                }
+              }, true);
+            }
+            if (playBtn) {
+              playBtn.addEventListener('click', function() {
+                if (self.active) {
+                  if (self.isPlaying) self.pause();
+                  else self.resume();
+                }
+              });
+            }
+          }
+        };
+
+        window.__jarvisYtm = ytm;
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', () => ytm.init());
+        } else {
+          ytm.init();
+        }
       })();
     </script>
   </body>
