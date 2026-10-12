@@ -1707,9 +1707,15 @@ def fix_system_bug():
 import re
 import subprocess
 
+@app.route("/api/health", methods=["GET"])
+def api_health_alias():
+    """Health check alias for local and cloud monitors."""
+    return jsonify({"status": "healthy", "service": "JARVIS AI 24/7", "version": "16.26"}), 200
+
+
 @app.route("/api/voice/synthesize", methods=["POST"])
 def synthesize_voice():
-    """Convert text to speech using edge_tts (ChristopherNeural) with clean spoken markdown filtering."""
+    """Convert text to speech using edge_tts (ChristopherNeural) with automatic Cloud TTS fallback for Render/AWS IPs."""
     data = request.get_json(silent=True) or {}
     raw_text = (data.get("text") or "").strip()
     if not raw_text:
@@ -1728,33 +1734,77 @@ def synthesize_voice():
 
     voice_name = (data.get("voice") or getattr(config, "VOICE_NAME", "") or "en-US-ChristopherNeural").strip()
 
+    import tempfile
+    import requests as http_requests
+
+    fd, temp_path = tempfile.mkstemp(suffix=".mp3")
+    os.close(fd)
+
+    def _schedule_cleanup(p):
+        def _cleanup_temp(target):
+            time.sleep(20)
+            try:
+                if os.path.exists(target):
+                    os.remove(target)
+            except Exception:
+                pass
+        threading.Thread(target=_cleanup_temp, args=(p,), daemon=True).start()
+
+    # 1. Try Microsoft Edge Neural TTS (ChristopherNeural) first
     try:
         import edge_tts
-        import tempfile
-
         communicate = edge_tts.Communicate(clean_text[:1500], voice_name)
-
-        fd, temp_path = tempfile.mkstemp(suffix=".mp3")
-        os.close(fd)
 
         async def run_tts():
             await communicate.save(temp_path)
 
         run_async(run_tts())
+        if os.path.exists(temp_path) and os.path.getsize(temp_path) > 256:
+            _schedule_cleanup(temp_path)
+            return send_file(temp_path, mimetype="audio/mpeg", as_attachment=False)
+    except Exception as edge_err:
+        logger.warning(f"Edge-TTS unavailable (switching to Cloud TTS fallback): {edge_err}")
 
-        def _cleanup_temp(p):
-            time.sleep(20)
-            try:
-                if os.path.exists(p):
-                    os.remove(p)
-            except Exception:
-                pass
-        threading.Thread(target=_cleanup_temp, args=(temp_path,), daemon=True).start()
+    # 2. Cloud Datacenter Fallback (Render / AWS / Docker where Bing WS returns 403)
+    try:
+        words = clean_text[:900].split()
+        chunks = []
+        cur = ""
+        for w in words:
+            if len(cur) + len(w) + 1 <= 175:
+                cur = f"{cur} {w}".strip()
+            else:
+                if cur:
+                    chunks.append(cur)
+                cur = w
+        if cur:
+            chunks.append(cur)
 
-        return send_file(temp_path, mimetype="audio/mpeg", as_attachment=False)
-    except Exception as e:
-        logger.error(f"Voice synthesis failed: {e}")
-        return jsonify({"error": str(e)}), 500
+        mp3_bytes = bytearray()
+        for chunk in chunks[:6]:
+            r = http_requests.get(
+                "https://translate.google.com/translate_tts",
+                params={"ie": "UTF-8", "client": "tw-ob", "tl": "en", "q": chunk},
+                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=10,
+            )
+            if r.status_code == 200 and r.content:
+                mp3_bytes.extend(r.content)
+
+        if len(mp3_bytes) > 256:
+            with open(temp_path, "wb") as f_out:
+                f_out.write(mp3_bytes)
+            _schedule_cleanup(temp_path)
+            return send_file(temp_path, mimetype="audio/mpeg", as_attachment=False)
+    except Exception as g_err:
+        logger.error(f"Cloud TTS fallback failed: {g_err}")
+
+    try:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+    except Exception:
+        pass
+    return jsonify({"error": "Voice synthesis unavailable"}), 500
 
 
 # Known Whisper YouTube/subtitle training hallucinations on short clips or background noise
