@@ -1720,6 +1720,14 @@ _BROKEN_ENDED_LIVE_IDS = {
 
 _DEFAULT_YTM_LIKED = [
     {
+        "id": "fRh_vgS2dFE",
+        "title": "Justin Bieber - Sorry (PURPOSE : The Movement)",
+        "artist": "Justin Bieber",
+        "duration": "3:26",
+        "thumbnail": "https://i.ytimg.com/vi/fRh_vgS2dFE/hqdefault.jpg",
+        "source": "youtube",
+    },
+    {
         "id": "ytm_rjkrTnma",
         "title": "Kesariya (Brahmāstra)",
         "artist": "Pritam, Arijit Singh",
@@ -1905,69 +1913,111 @@ def _search_youtube_music_tracks(query: str, limit: int = 14) -> list:
     if not q:
         return []
 
-    # 1. Primary: Direct 320kbps AAC/MP4 CDN streams (100% instant playback on Localhost + Render Cloud, no iframe blocks)
-    tracks = _search_hd_audio_cdn(q, limit=limit)
-    if len(tracks) >= 6:
-        return tracks[:limit]
+    # Normalize user typos commonly found in song/artist searches
+    q_norm = re.sub(r"\bbibiber\b", "bieber", q, flags=re.I)
+    q_norm = re.sub(r"\bjustin\s+bibiber\b", "justin bieber", q_norm, flags=re.I)
 
-    # 2. Secondary fallback: YouTube search results
+    # 1. Primary: Direct YouTube Search for REAL music videos & tracks
+    tracks = []
+    seen = set()
     try:
         resp = http_requests.get(
             "https://www.youtube.com/results",
-            params={"search_query": q},
+            params={"search_query": q_norm},
             headers={
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
                 "Accept-Language": "en-US,en;q=0.9",
             },
             timeout=10,
         )
-        m = re.search(r"var ytInitialData\s*=\s*(\{.*?\});</script>", resp.text)
-        if not m:
-            return tracks
-        data = json.loads(m.group(1))
-        renderers = []
-        _walk_yt_renderers(data, "videoRenderer", renderers)
-        seen = {t.get("id") for t in tracks}
-        for v in renderers:
-            vid = (v.get("videoId") or "").strip()
-            if not vid or vid in seen or vid in _BROKEN_ENDED_LIVE_IDS:
-                continue
-            dur = (v.get("lengthText", {}).get("simpleText") or "").strip()
-            if not dur:
-                continue
-            seen.add(vid)
-            title_runs = v.get("title", {}).get("runs") or []
-            title = (title_runs[0].get("text") if title_runs else v.get("title", {}).get("simpleText")) or "YouTube Music Track"
-            owner_runs = (v.get("ownerText", {}).get("runs") or v.get("longBylineText", {}).get("runs")) or []
-            artist = (owner_runs[0].get("text") if owner_runs else "YouTube Music")
-            tracks.append({
-                "id": vid,
-                "title": title,
-                "artist": artist,
-                "duration": dur,
-                "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
-                "source": "ytmusic",
-            })
+        if resp.status_code == 200:
+            m = re.search(r"var ytInitialData\s*=\s*(\{.*?\});</script>", resp.text)
+            if m:
+                data = json.loads(m.group(1))
+                renderers = []
+                _walk_yt_renderers(data, "videoRenderer", renderers)
+                for v in renderers:
+                    vid = (v.get("videoId") or "").strip()
+                    if not vid or vid in seen or vid in _BROKEN_ENDED_LIVE_IDS:
+                        continue
+                    dur = (v.get("lengthText", {}).get("simpleText") or "").strip()
+                    if not dur:
+                        continue
+                    seen.add(vid)
+                    title_runs = v.get("title", {}).get("runs") or []
+                    title = (title_runs[0].get("text") if title_runs else v.get("title", {}).get("simpleText")) or "YouTube Music Track"
+                    owner_runs = (v.get("ownerText", {}).get("runs") or v.get("longBylineText", {}).get("runs")) or []
+                    artist = (owner_runs[0].get("text") if owner_runs else "YouTube")
+                    tracks.append({
+                        "id": vid,
+                        "title": title,
+                        "artist": artist,
+                        "duration": dur,
+                        "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
+                        "source": "youtube",
+                    })
+                    if len(tracks) >= limit:
+                        break
+    except Exception as e:
+        logger.warning(f"YouTube search failed for '{q}': {e}")
+
+    # If YouTube search gave us results, return them immediately
+    if len(tracks) >= 1:
+        return tracks[:limit]
+
+    # 2. Secondary fallback: HD Audio CDN (JioSaavn) only if YouTube is unreachable
+    try:
+        cdn_tracks = _search_hd_audio_cdn(q_norm, limit=limit)
+        for ct in cdn_tracks:
+            if ct.get("id") not in seen:
+                seen.add(ct.get("id"))
+                tracks.append(ct)
             if len(tracks) >= limit:
                 break
-        return tracks
     except Exception as e:
-        logger.warning(f"YouTube Music search failed for '{q}': {e}")
-        return tracks
+        logger.debug(f"CDN fallback error for '{q}': {e}")
+
+    return tracks[:limit]
 
 
 _YTM_STREAM_CACHE = {}
 
 
 def _resolve_ytm_direct_stream(video_id: str, title_hint: str = "", artist_hint: str = "") -> dict:
-    """Resolve direct 320kbps MP4/M4A stream URL via HD Audio CDN or yt-dlp with 20-min cache."""
+    """Resolve direct 320kbps MP4/M4A stream URL via yt-dlp or HD Audio CDN with 20-min cache."""
     now = time.time()
     cache_key = f"{video_id}:{title_hint}"
     cached = _YTM_STREAM_CACHE.get(cache_key)
     if cached and (now - cached.get("ts", 0)) < 1200:
         return cached
 
-    # 1. If we have a title/artist hint (or can fetch title via YouTube oEmbed), match 320kbps CDN stream first
+    # 1. Primary for real YouTube videos: extract stream via yt-dlp
+    if video_id and not video_id.startswith("ytm_"):
+        try:
+            import yt_dlp
+            ydl_opts = {
+                "format": "bestaudio[ext=m4a]/best[ext=mp4]/bestaudio/best",
+                "quiet": True,
+                "no_warnings": True,
+                "noplaylist": True,
+            }
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
+                direct_url = info.get("url") or ""
+                mime = "audio/mp4" if info.get("ext") in ("m4a", "mp4") else "audio/webm"
+                if direct_url:
+                    res = {
+                        "url": direct_url,
+                        "thumbnail": f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
+                        "mime": mime,
+                        "ts": now,
+                    }
+                    _YTM_STREAM_CACHE[cache_key] = res
+                    return res
+        except Exception as e:
+            logger.debug(f"yt-dlp stream extraction skipped for {video_id}: {e}")
+
+    # 2. Fallback or for ytm_ CDN tracks: HD Audio CDN
     search_q = f"{title_hint} {artist_hint}".strip()
     if not search_q and video_id and not video_id.startswith("ytm_"):
         try:
@@ -1995,26 +2045,6 @@ def _resolve_ytm_direct_stream(video_id: str, title_hint: str = "", artist_hint:
             _YTM_STREAM_CACHE[cache_key] = res
             return res
 
-    # 2. Fallback: yt-dlp direct audio extraction
-    if video_id and not video_id.startswith("ytm_"):
-        try:
-            import yt_dlp
-            ydl_opts = {
-                "format": "bestaudio[ext=m4a]/best[ext=mp4]/bestaudio/best",
-                "quiet": True,
-                "no_warnings": True,
-                "noplaylist": True,
-            }
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-                direct_url = info.get("url") or ""
-                mime = "audio/mp4" if info.get("ext") in ("m4a", "mp4") else "audio/webm"
-                if direct_url:
-                    res = {"url": direct_url, "mime": mime, "ts": now}
-                    _YTM_STREAM_CACHE[cache_key] = res
-                    return res
-        except Exception as e:
-            logger.debug(f"yt-dlp stream extraction skipped for {video_id}: {e}")
     return {}
 
 

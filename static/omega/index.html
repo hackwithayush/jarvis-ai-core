@@ -19,24 +19,27 @@
       <canvas id="jarvis-bg-canvas"></canvas>
       <div id="jarvis-bg-vignette"></div>
     </div>
-    <audio id="jarvis-music-audio" src="/static/media/audio/lofi_focus_beat.mp3" loop preload="auto"></audio>
+    <audio id="jarvis-music-audio" src="/static/media/audio/lofi_focus_beat.mp3" loop preload="none"></audio>
 
-    <button type="button" id="jarvis-mini-av-restore-pill" style="display:none;position:fixed;right:18px;bottom:82px;z-index:9999;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:rgba(10,15,30,0.92);border:1.5px solid rgba(255,23,68,0.65);color:#fff;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.7),0 0 14px rgba(255,23,68,0.35);backdrop-filter:blur(12px);" title="Open YouTube Music & Small AV Deck">
-      <span>🔴 YT Music • ❤️ Liked</span>
+    <button type="button" id="jarvis-mini-av-restore-pill" style="display:inline-flex;position:fixed;right:18px;bottom:82px;z-index:9999;align-items:center;gap:6px;padding:7px 13px;border-radius:999px;background:rgba(10,15,30,0.92);border:1.5px solid rgba(255,23,68,0.65);color:#fff;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,0.7),0 0 14px rgba(255,23,68,0.35);backdrop-filter:blur(12px);" title="Open YouTube Music & Video Deck">
+      <span>🔴 YT Music • Video Deck</span>
     </button>
 
     <!-- Real Small Video & Audio Background Deck + YouTube Music & Liked Playlist Hub (Freely Draggable PiP HUD) -->
-    <div id="jarvis-mini-av-player" class="jarvis-mini-av" data-av-size="md">
+    <div id="jarvis-mini-av-player" class="jarvis-mini-av" data-av-size="md" style="display:none;">
       <div id="jarvis-mini-av-dragbar" class="jarvis-mini-av-header" title="Drag anywhere to move · Double-click to reset position">
         <div class="jarvis-mini-av-badge">
           <span id="jarvis-mini-av-dot" class="jarvis-mini-av-dot"></span>
           <span>✥ LIVE AV DECK</span>
         </div>
         <div class="jarvis-mini-av-top-btns">
+          <a id="jarvis-mini-yt-link" href="#" target="_blank" rel="noopener noreferrer" class="jarvis-mini-av-iconbtn" title="Open Video on YouTube" style="display:none;text-decoration:none;align-items:center;justify-content:center;color:#ff4e6a;font-weight:700;">↗</a>
           <button type="button" id="jarvis-mini-ytm-btn" class="jarvis-mini-av-iconbtn jarvis-ytm-badge-btn active" title="Toggle YouTube Music & ❤️ Liked Playlist Drawer">🔴 YT Music</button>
           <button type="button" id="jarvis-mini-av-size-btn" class="jarvis-mini-av-iconbtn" title="Resize Small Video Screen (Small / Medium / Large)">⤢</button>
-          <button type="button" id="jarvis-mini-av-bg-btn" class="jarvis-mini-av-iconbtn" title="Toggle Full-Screen Video Background">⛶</button>
+          <button type="button" id="jarvis-mini-av-bg-btn" class="jarvis-mini-av-iconbtn" title="Toggle Full-Screen Background (4K Image / Live Video / Off)">🖼️</button>
+          <button type="button" id="jarvis-mini-av-fs-btn" class="jarvis-mini-av-iconbtn" title="Fullscreen Mini Video Screen">⛶</button>
           <button type="button" id="jarvis-mini-av-min-btn" class="jarvis-mini-av-iconbtn" title="Minimize / Expand Small Video Deck">—</button>
+          <button type="button" id="jarvis-mini-av-close-btn" class="jarvis-mini-av-iconbtn jarvis-mini-av-close-btn" title="Close Mini Video Player">✕</button>
         </div>
       </div>
       <div id="jarvis-mini-av-body" class="jarvis-mini-av-body">
@@ -47,17 +50,18 @@
           </div>
           <div class="jarvis-mini-av-overlay">
             <span id="jarvis-mini-video-label" class="jarvis-mini-video-label">🎬 Stark Arc Reactor HUD</span>
-            <div id="jarvis-mini-eq" class="jarvis-mini-eq">
+            <div id="jarvis-mini-eq" class="jarvis-mini-eq paused">
               <span></span><span></span><span></span><span></span>
             </div>
           </div>
         </div>
         <div class="jarvis-mini-av-meta">
-          <div id="jarvis-mini-audio-label" class="jarvis-mini-audio-label">🎵 Stark Lo-Fi Focus Beat</div>
+          <div id="jarvis-mini-audio-label" class="jarvis-mini-audio-label">🔇 Stark Lo-Fi Focus Beat (Paused)</div>
           <div class="jarvis-mini-av-controls">
-            <button type="button" id="jarvis-mini-play-btn" class="jarvis-mini-av-btn active" title="Play / Pause Video & Audio">⏸</button>
-            <button type="button" id="jarvis-mini-mute-btn" class="jarvis-mini-av-btn active" title="Toggle Audio On / Mute">🔊</button>
-            <button type="button" id="jarvis-mini-next-vid-btn" class="jarvis-mini-av-btn" title="Next Background Video (.mp4)">🎬⏭</button>
+            <button type="button" id="jarvis-mini-play-btn" class="jarvis-mini-av-btn" title="Play / Pause Video & Audio">▶</button>
+            <button type="button" id="jarvis-mini-mute-btn" class="jarvis-mini-av-btn" title="Toggle Audio On / Mute">🔇</button>
+            <button type="button" id="jarvis-mini-next-photo-btn" class="jarvis-mini-av-btn" title="Next 4K Wallpaper (Sets 4K Image Background)">🖼️⏭</button>
+            <button type="button" id="jarvis-mini-next-vid-btn" class="jarvis-mini-av-btn" title="Next Background Video (Sets Live Video Background)">🎬⏭</button>
             <button type="button" id="jarvis-mini-next-aud-btn" class="jarvis-mini-av-btn" title="Next Music Track / Next YT Liked Song">🎵⏭</button>
             <button type="button" id="jarvis-mini-liked-btn" class="jarvis-mini-av-btn jarvis-liked-heart-btn" title="Play My YouTube Music ❤️ Liked Playlist">❤️</button>
           </div>
@@ -114,10 +118,11 @@
       };
 
       window.__JARVIS_4K_WALLPAPERS = {
-        '4k_quantum_lab':    'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=3840&q=90',
-        '4k_cyber_city':     'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=3840&q=90',
-        '4k_deep_cosmos':    'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=3840&q=90',
-        '4k_obsidian_waves': 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=3840&q=90'
+        '4k_deep_cosmos':    { url: 'https://images.unsplash.com/photo-1462331940025-496dfbfc7564?auto=format&fit=crop&w=3840&q=90', title: 'Deep Cosmos Nebula 4K' },
+        '4k_quantum_lab':    { url: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=3840&q=90', title: 'Quantum Tech Micro 4K' },
+        '4k_cyber_city':     { url: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=3840&q=90', title: 'Cyberpunk Neon City 4K' },
+        '4k_obsidian_waves': { url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=3840&q=90', title: 'Obsidian Liquid Waves 4K' },
+        '4k_custom_dark':    { url: '/static/uploads/backgrounds/bg_e6ae863c1c39.jpg', title: 'Dark Cyber Matrix 4K' }
       };
 
       // 3D & Live Canvas Engine State
@@ -415,13 +420,13 @@
         root.style.setProperty('--jarvis-icon-glow', (iconMode === 'custom' ? iconColor : accent) + '66');
 
         // Universal 3D / 4K Photo / Live Video Background Engine
-        const bgMode = cfg.bg_mode || 'live';
-        const bgPreset = cfg.bg_preset || 'vid_stark_hud';
+        const bgMode = cfg.bg_mode || 'photo';
+        const bgPreset = cfg.bg_preset || (bgMode === 'live' ? 'vid_stark_hud' : '4k_deep_cosmos');
         const bgCustomUrl = cfg.bg_custom_url || '';
         const bgCustomType = cfg.bg_custom_type || 'photo';
         const bgOpacity = cfg.bg_opacity !== undefined ? Number(cfg.bg_opacity) : 0.88;
         const bgBlur = cfg.bg_blur !== undefined ? Number(cfg.bg_blur) : 0;
-        const miniAvVisible = cfg.mini_av_visible !== undefined ? !!cfg.mini_av_visible : true;
+        const miniAvVisible = cfg.mini_av_visible !== undefined ? !!cfg.mini_av_visible : false;
 
         root.style.setProperty('--jarvis-bg-opacity', String(bgOpacity));
         root.style.setProperty('--jarvis-bg-blur', String(bgBlur) + 'px');
@@ -447,6 +452,15 @@
               ? '🎬 Custom Live Video'
               : window.__JARVIS_VIDEOS['vid_stark_hud'].title);
 
+        // Determine active 4K Wallpaper URL & title
+        const rawWp = window.__JARVIS_4K_WALLPAPERS[bgPreset];
+        const activeWpUrl = (typeof rawWp === 'object' && rawWp !== null)
+          ? rawWp.url
+          : (rawWp || bgCustomUrl || (window.__JARVIS_4K_WALLPAPERS['4k_deep_cosmos'] ? window.__JARVIS_4K_WALLPAPERS['4k_deep_cosmos'].url : ''));
+        const activeWpTitle = (typeof rawWp === 'object' && rawWp !== null && rawWp.title)
+          ? rawWp.title
+          : (bgPreset === 'custom_photo' || bgCustomUrl ? 'Custom 4K Wallpaper' : '4K Wallpaper');
+
         const restorePillEl = document.getElementById('jarvis-mini-av-restore-pill');
         if (miniPlayerEl) {
           miniPlayerEl.style.display = miniAvVisible ? 'flex' : 'none';
@@ -454,19 +468,39 @@
         if (restorePillEl) {
           restorePillEl.style.display = miniAvVisible ? 'none' : 'inline-flex';
         }
-        if (miniVideoEl && miniAvVisible) {
-          if (miniVideoEl.getAttribute('src') !== activeVideoUrl) {
-            miniVideoEl.setAttribute('src', activeVideoUrl);
-          }
-          if (!window.__jarvisAvPaused) {
-            miniVideoEl.play().catch(function() {});
+        if (miniVideoEl) {
+          if (miniAvVisible) {
+            if (miniVideoEl.getAttribute('src') !== activeVideoUrl) {
+              miniVideoEl.setAttribute('src', activeVideoUrl);
+            }
+            if (!window.__jarvisAvPaused && (!window.__jarvisYtm || !window.__jarvisYtm.active)) {
+              miniVideoEl.play().catch(function() {});
+            }
+          } else {
+            miniVideoEl.pause();
           }
         }
         if (miniVideoLabel && !(window.__jarvisYtm && window.__jarvisYtm.active)) {
-          miniVideoLabel.textContent = activeVideoTitle;
+          if (bgMode === 'photo') {
+            miniVideoLabel.textContent = '🖼️ 4K: ' + activeWpTitle;
+          } else if (bgMode === 'live') {
+            miniVideoLabel.textContent = activeVideoTitle;
+          } else {
+            miniVideoLabel.textContent = '🚫 Clean Background (Off)';
+          }
         }
         if (miniBgBtn) {
           miniBgBtn.classList.toggle('active', bgMode !== 'none');
+          if (bgMode === 'photo') {
+            miniBgBtn.textContent = '🖼️';
+            miniBgBtn.title = 'Background: 4K Image (' + activeWpTitle + ') · Click to remove/switch background';
+          } else if (bgMode === 'live') {
+            miniBgBtn.textContent = '🎬';
+            miniBgBtn.title = 'Background: Live Video (' + activeVideoTitle + ') · Click to remove video and set 4K Image';
+          } else {
+            miniBgBtn.textContent = '🚫';
+            miniBgBtn.title = 'Background: Off (Clean Dark) · Click to set 4K Image';
+          }
         }
 
         if (bgMode === 'none') {
@@ -510,9 +544,7 @@
             if (videoEl) { videoEl.pause(); videoEl.style.display = 'none'; }
             if (canvasEl) canvasEl.style.display = 'none';
             if (photoEl) {
-              const url = (bgPreset === 'custom_photo' && bgCustomUrl)
-                ? bgCustomUrl
-                : (window.__JARVIS_4K_WALLPAPERS[bgPreset] || bgCustomUrl || window.__JARVIS_4K_WALLPAPERS['4k_quantum_lab']);
+              const url = (bgPreset === 'custom_photo' && bgCustomUrl) ? bgCustomUrl : activeWpUrl;
               if (photoEl.getAttribute('src') !== url) {
                 photoEl.setAttribute('src', url);
               }
@@ -743,36 +775,16 @@
                 if (audioEl.getAttribute('src') !== targetAudioUrl) {
                   audioEl.setAttribute('src', targetAudioUrl);
                 }
-                const self = this;
                 const playPromise = audioEl.play();
                 if (playPromise && typeof playPromise.catch === 'function') {
-                  playPromise.catch(function() {
-                    // Browser autoplay policy waiting for first user interaction; unlock immediately on first click/key
-                    if (!window.__jarvisAudioUnlockBound) {
-                      window.__jarvisAudioUnlockBound = true;
-                      const unlock = function() {
-                        window.__jarvisAudioUnlockBound = false;
-                        window.removeEventListener('pointerdown', unlock);
-                        window.removeEventListener('keydown', unlock);
-                        if (self.playing && !window.__jarvisAvPaused && audioEl) {
-                          audioEl.play().catch(function() {});
-                        }
-                        const v1 = document.getElementById('jarvis-bg-video');
-                        const v2 = document.getElementById('jarvis-mini-video');
-                        if (v1 && v1.style.display !== 'none' && !window.__jarvisAvPaused) v1.play().catch(function() {});
-                        if (v2 && !window.__jarvisAvPaused) v2.play().catch(function() {});
-                      };
-                      window.addEventListener('pointerdown', unlock, { once: true });
-                      window.addEventListener('keydown', unlock, { once: true });
-                    }
-                  });
+                  playPromise.catch(function() {});
                 }
               }
             }
           };
         }
 
-        const musicEnabled = cfg.music_enabled !== undefined ? !!cfg.music_enabled : true;
+        const musicEnabled = cfg.music_enabled !== undefined ? !!cfg.music_enabled : false;
         const musicPreset = cfg.music_preset || 'lofi_focus';
         const musicCustomUrl = cfg.music_custom_url || '';
         const musicCustomTitle = cfg.music_custom_title || '';
@@ -827,6 +839,7 @@
 
       // Interactive Controls for Real Small Video & Audio Background Deck (#jarvis-mini-av-player)
       (function() {
+        const photoKeys = Object.keys(window.__JARVIS_4K_WALLPAPERS);
         const videoKeys = ['vid_stark_hud', 'vid_cyberpunk', 'vid_deep_space', 'vid_matrix_rain'];
         const audioKeys = ['lofi_focus', 'synthwave_drive', 'deep_space', 'stark_tactical', 'cyber_rain'];
 
@@ -836,7 +849,7 @@
             const raw = localStorage.getItem('jarvis_theme_cfg');
             if (raw) return JSON.parse(raw);
           } catch (e) {}
-          return { bg_mode: 'live', bg_preset: 'vid_stark_hud', music_enabled: true, music_preset: 'lofi_focus', mini_av_visible: true };
+          return { bg_mode: 'photo', bg_preset: '4k_deep_cosmos', music_enabled: false, music_preset: 'lofi_focus', mini_av_visible: false };
         }
 
         function saveAndApply(nextCfg) {
@@ -850,11 +863,39 @@
 
         const playBtn = document.getElementById('jarvis-mini-play-btn');
         const muteBtn = document.getElementById('jarvis-mini-mute-btn');
+        const nextPhotoBtn = document.getElementById('jarvis-mini-next-photo-btn');
         const nextVidBtn = document.getElementById('jarvis-mini-next-vid-btn');
         const nextAudBtn = document.getElementById('jarvis-mini-next-aud-btn');
         const bgBtn = document.getElementById('jarvis-mini-av-bg-btn');
+        const fsBtn = document.getElementById('jarvis-mini-av-fs-btn');
         const minBtn = document.getElementById('jarvis-mini-av-min-btn');
         const playerEl = document.getElementById('jarvis-mini-av-player');
+        const closeBtn = document.getElementById('jarvis-mini-av-close-btn');
+
+        if (closeBtn && playerEl) {
+          closeBtn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (window.__jarvisYtm) {
+              window.__jarvisYtm.stopYtmMode();
+            }
+            const v2 = document.getElementById('jarvis-mini-video');
+            if (v2) v2.pause();
+            const a1 = document.getElementById('jarvis-music-audio');
+            if (a1) a1.pause();
+            window.__jarvisAvPaused = true;
+
+            playerEl.style.display = 'none';
+            const restorePill = document.getElementById('jarvis-mini-av-restore-pill');
+            if (restorePill) restorePill.style.display = 'inline-flex';
+
+            const cfg = getCfg();
+            cfg.mini_av_visible = false;
+            try {
+              localStorage.setItem('jarvis_mini_av_closed_by_user', '1');
+            } catch (err) {}
+            saveAndApply(cfg);
+          });
+        }
 
         if (playBtn) {
           playBtn.addEventListener('click', function() {
@@ -862,6 +903,11 @@
             const paused = !!window.__jarvisAvPaused;
             playBtn.textContent = paused ? '▶' : '⏸';
             playBtn.classList.toggle('active', !paused);
+            const iframe = document.getElementById('jarvis-yt-iframe');
+            if (iframe && iframe.contentWindow) {
+              const cmd = paused ? 'pauseVideo' : 'playVideo';
+              iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: cmd, args: '' }), '*');
+            }
             const v1 = document.getElementById('jarvis-bg-video');
             const v2 = document.getElementById('jarvis-mini-video');
             const a1 = document.getElementById('jarvis-music-audio');
@@ -873,8 +919,10 @@
               if (window.__jarvisMusicEngine) window.__jarvisMusicEngine.stopSynth();
             } else {
               if (v1 && v1.style.display !== 'none') v1.play().catch(function() {});
-              if (v2) v2.play().catch(function() {});
-              window.__applyJarvisTheme(getCfg());
+              if (v2 && v2.style.display !== 'none') v2.play().catch(function() {});
+              if (!iframe) {
+                window.__applyJarvisTheme(getCfg());
+              }
             }
             if (eq) eq.classList.toggle('paused', paused || !getCfg().music_enabled);
           });
@@ -890,13 +938,24 @@
           });
         }
 
+        if (nextPhotoBtn) {
+          nextPhotoBtn.addEventListener('click', function() {
+            const cfg = getCfg();
+            const keys = Object.keys(window.__JARVIS_4K_WALLPAPERS);
+            const idx = keys.indexOf(cfg.bg_preset);
+            cfg.bg_mode = 'photo'; // Immediately activates 4K wallpaper and removes video background!
+            cfg.bg_preset = keys[(idx + 1) % keys.length];
+            saveAndApply(cfg);
+          });
+        }
+
         if (nextVidBtn) {
           nextVidBtn.addEventListener('click', function() {
             window.__jarvisAvPaused = false;
             if (playBtn) { playBtn.textContent = '⏸'; playBtn.classList.add('active'); }
             const cfg = getCfg();
             const idx = videoKeys.indexOf(cfg.bg_preset);
-            cfg.bg_mode = 'live';
+            cfg.bg_mode = 'live'; // Activates live video background
             cfg.bg_preset = videoKeys[(idx + 1) % videoKeys.length];
             saveAndApply(cfg);
           });
@@ -914,16 +973,52 @@
           });
         }
 
+        // Toggle Full-Screen Background: 4K Image (Photo) <-> Live Video <-> Clean Off (None)
         if (bgBtn) {
           bgBtn.addEventListener('click', function() {
+            window.__jarvisAvPaused = false;
             const cfg = getCfg();
-            if (cfg.bg_mode === 'none') {
-              cfg.bg_mode = 'live';
-              if (!window.__JARVIS_VIDEOS[cfg.bg_preset]) cfg.bg_preset = 'vid_stark_hud';
-            } else {
+            const currentMode = cfg.bg_mode || 'photo';
+            if (currentMode === 'live') {
+              // Remove video background! Switch immediately to clean 4K Image
+              cfg.bg_mode = 'photo';
+              if (!cfg.bg_preset || !cfg.bg_preset.startsWith('4k_')) {
+                cfg.bg_preset = '4k_deep_cosmos';
+              }
+            } else if (currentMode === 'photo') {
+              // Switch to Clean Dark (none)
               cfg.bg_mode = 'none';
+            } else {
+              // Switch back to 4K image
+              cfg.bg_mode = 'photo';
+              if (!cfg.bg_preset || !cfg.bg_preset.startsWith('4k_')) {
+                cfg.bg_preset = '4k_deep_cosmos';
+              }
             }
             saveAndApply(cfg);
+          });
+        }
+
+        // Fullscreen Mini Video Screen Deck
+        if (fsBtn) {
+          fsBtn.addEventListener('click', function() {
+            const screenEl = document.querySelector('.jarvis-mini-av-screen') || playerEl;
+            if (!document.fullscreenElement) {
+              if (screenEl && screenEl.requestFullscreen) {
+                screenEl.requestFullscreen().catch(function() {});
+              } else if (screenEl && screenEl.webkitRequestFullscreen) {
+                screenEl.webkitRequestFullscreen();
+              }
+            } else {
+              if (document.exitFullscreen) {
+                document.exitFullscreen().catch(function() {});
+              }
+            }
+          });
+          document.addEventListener('fullscreenchange', function() {
+            const isFull = !!document.fullscreenElement;
+            fsBtn.textContent = isFull ? '🗗' : '⛶';
+            fsBtn.title = isFull ? 'Exit Full Screen' : 'Fullscreen Mini Video Screen';
           });
         }
 
@@ -1071,36 +1166,18 @@
       try {
         const rawSaved = localStorage.getItem('jarvis_theme_cfg');
         let bootCfg = rawSaved ? JSON.parse(rawSaved) : {};
-        if (!localStorage.getItem('jarvis_ytm_v16_30')) {
-          localStorage.setItem('jarvis_ytm_v16_30', '1');
-          localStorage.setItem('jarvis_av_v16_23', '1');
-          localStorage.setItem('jarvis_mini_av_size', 'md');
-          localStorage.removeItem('jarvis_mini_av_pos');
-          bootCfg.bg_mode = 'live';
-          bootCfg.bg_preset = 'vid_stark_hud';
-          bootCfg.bg_custom_url = '';
-          bootCfg.music_enabled = true;
-          if (!bootCfg.music_preset || (bootCfg.music_preset === 'custom_audio' && !bootCfg.music_custom_url)) {
-            bootCfg.music_preset = 'lofi_focus';
-          }
-          bootCfg.mini_av_visible = true;
-          const pEl = document.getElementById('jarvis-mini-av-player');
-          if (pEl) {
-            pEl.classList.remove('minimized');
-            pEl.setAttribute('data-av-size', 'md');
-            pEl.style.left = '';
-            pEl.style.top = '';
-            pEl.style.right = '';
-            pEl.style.bottom = '';
-          }
-          const dEl = document.getElementById('jarvis-mini-ytm-drawer');
-          if (dEl) dEl.style.display = 'flex';
+        if (bootCfg.mini_av_visible === undefined || localStorage.getItem('jarvis_mini_av_closed_by_user') === '1') {
+          bootCfg.mini_av_visible = false;
         }
+        // NEVER autoplay music on page refresh or startup
+        bootCfg.music_enabled = false;
+        window.__jarvisAvPaused = true;
         window.__applyJarvisTheme(bootCfg);
         const restorePill = document.getElementById('jarvis-mini-av-restore-pill');
         if (restorePill) {
           restorePill.addEventListener('click', function() {
-            const nextCfg = Object.assign({}, window.__jarvisCurrentThemeCfg || bootCfg, { mini_av_visible: true, music_enabled: true });
+            try { localStorage.removeItem('jarvis_mini_av_closed_by_user'); } catch (err) {}
+            const nextCfg = Object.assign({}, window.__jarvisCurrentThemeCfg || bootCfg, { mini_av_visible: true });
             window.__applyJarvisTheme(nextCfg);
             if (window.__jarvisYtm) window.__jarvisYtm.toggleDrawer(true);
             fetch('/api/theme', {
@@ -1180,6 +1257,114 @@
             st.raf = requestAnimationFrame(tick);
           }
         }, { passive: false });
+      })();
+
+      // ═══════════════════════════════════════════════════════════════════════
+      // JARVIS OMEGA TACTICAL SCI-FI HUD SETTINGS UX CONTROLLER
+      // ═══════════════════════════════════════════════════════════════════════
+      (function() {
+        const sections = [
+          { id: 'jarvis-sec-music', label: 'SONIC MATRIX', code: 'SEC-01' },
+          { id: 'jarvis-sec-bg', label: 'OPTICS MATRIX', code: 'SEC-02' },
+          { id: 'jarvis-sec-theme', label: 'CHROMATICS', code: 'SEC-03' },
+          { id: 'jarvis-sec-model', label: 'NEURAL ROUTING', code: 'SEC-04' },
+          { id: 'jarvis-sec-tools', label: 'AUTONOMY GRID', code: 'SEC-05' },
+          { id: 'jarvis-sec-memory', label: 'SYSTEM KERNEL', code: 'SEC-06' }
+        ];
+
+        function enhanceSettingsModal(modal) {
+          if (!modal || modal.__jarvisSciFiEnhanced) return;
+          modal.__jarvisSciFiEnhanced = true;
+
+          // 1. Futuristic HUD Telemetry Ribbon
+          const header = modal.querySelector('.shrink-0');
+          if (header && !header.querySelector('.jarvis-hud-telemetry')) {
+            const tel = document.createElement('div');
+            tel.className = 'jarvis-hud-telemetry';
+            tel.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:5px 10px;margin-bottom:8px;border-radius:6px;background:rgba(0,245,255,0.06);border:1px solid rgba(0,245,255,0.25);font-family:\'JetBrains Mono\',monospace;font-size:9.5px;color:#00f5ff;letter-spacing:0.06em;box-shadow:inset 0 0 12px rgba(0,245,255,0.05);';
+            tel.innerHTML = `
+              <div style="display:flex;align-items:center;gap:7px;">
+                <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#00f5ff;box-shadow:0 0 10px #00f5ff;"></span>
+                <span style="font-weight:700;">STARK IND. // OMEGA HUD CORE v16.35</span>
+              </div>
+              <div style="display:flex;gap:12px;color:#94a3b8;font-size:9px;">
+                <span>TELEMETRY: <b style="color:#00ffb2;">OPTIMAL</b></span>
+                <span>SECURITY: <b style="color:#00f5ff;">AES-4096</b></span>
+                <span>HUD: <b style="color:#ffffff;">ACTIVE</b></span>
+              </div>
+            `;
+            header.insertBefore(tel, header.firstChild);
+          }
+
+          // 2. Dynamic Active Tab Tracking on Scroll
+          const scrollEl = modal.querySelector('.jarvis-settings-scroll');
+          const tabBtns = modal.querySelectorAll('.shrink-0 > div:last-child button');
+          if (scrollEl && tabBtns.length > 0) {
+            const updateActiveTab = function() {
+              const scrollPos = scrollEl.scrollTop + 60;
+              let currentId = sections[0].id;
+              sections.forEach(sec => {
+                const el = document.getElementById(sec.id);
+                if (el && el.offsetTop <= scrollPos) {
+                  currentId = sec.id;
+                }
+              });
+              tabBtns.forEach((btn, idx) => {
+                const isCurrent = sections[idx] && sections[idx].id === currentId;
+                btn.classList.toggle('jarvis-active-tab', isCurrent);
+              });
+            };
+            scrollEl.addEventListener('scroll', updateActiveTab, { passive: true });
+            setTimeout(updateActiveTab, 100);
+          }
+
+          // 3. Tactical Section Corner Badges
+          sections.forEach(sec => {
+            const el = document.getElementById(sec.id);
+            if (el && !el.querySelector('.jarvis-sec-tag')) {
+              const tag = document.createElement('div');
+              tag.className = 'jarvis-sec-tag';
+              tag.style.cssText = 'position:absolute;top:8px;right:12px;font-family:\'JetBrains Mono\',monospace;font-size:8.5px;color:rgba(0,245,255,0.65);letter-spacing:0.08em;font-weight:700;pointer-events:none;background:rgba(0,245,255,0.08);padding:2px 6px;border-radius:4px;border:1px solid rgba(0,245,255,0.2);';
+              tag.textContent = '[' + sec.code + ' // ' + sec.label + ']';
+              el.style.position = 'relative';
+              el.appendChild(tag);
+            }
+          });
+
+          // 4. Live Numerical HUD Value Badges for All Range Sliders
+          const sliders = modal.querySelectorAll('input[type="range"]');
+          sliders.forEach(slider => {
+            if (slider.__jarvisBadge) return;
+            slider.__jarvisBadge = true;
+            const badge = document.createElement('span');
+            badge.className = 'jarvis-slider-hud-badge';
+            badge.style.cssText = 'display:inline-block;min-width:44px;text-align:center;margin-left:8px;padding:2px 6px;border-radius:4px;background:rgba(0,245,255,0.12);border:1px solid rgba(0,245,255,0.35);font-family:\'JetBrains Mono\',monospace;font-size:10px;color:#00f5ff;font-weight:700;box-shadow:0 0 8px rgba(0,245,255,0.2);';
+            const updateBadge = function() {
+              const val = Number(slider.value);
+              if (slider.max === '1' || Number(slider.max) <= 1) {
+                badge.textContent = Math.round(val * 100) + '%';
+              } else if (slider.max === '30') {
+                badge.textContent = val + 'px';
+              } else {
+                badge.textContent = val.toFixed(1);
+              }
+            };
+            if (slider.parentNode) {
+              slider.parentNode.style.display = 'flex';
+              slider.parentNode.style.alignItems = 'center';
+              slider.parentNode.appendChild(badge);
+            }
+            slider.addEventListener('input', updateBadge);
+            updateBadge();
+          });
+        }
+
+        // Global DOM Observer for Settings Modal
+        const observer = new MutationObserver(function() {
+          const modal = document.querySelector('.jarvis-settings-modal');
+          if (modal) enhanceSettingsModal(modal);
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
       })();
 
       // Global shortcut: Cmd+N / Ctrl+N for New Thread
@@ -1445,6 +1630,12 @@
             border-color: #ff3b5c !important;
             box-shadow: 0 0 10px rgba(255, 59, 92, 0.35);
           }
+          .jarvis-mini-av-close-btn:hover {
+            color: #ff2344 !important;
+            border-color: #ff2344 !important;
+            background: rgba(255, 35, 68, 0.28) !important;
+            box-shadow: 0 0 10px rgba(255, 35, 68, 0.45) !important;
+          }
           .jarvis-yt-player-wrap {
             position: absolute;
             inset: 0;
@@ -1458,6 +1649,9 @@
             height: 100% !important;
             border: 0 !important;
             display: block;
+          }
+          .jarvis-mini-av.dragging iframe {
+            pointer-events: none !important;
           }
           .jarvis-mini-av-overlay {
             z-index: 3;
@@ -1680,21 +1874,66 @@
 
           renderNowPlayingScreen: function(track) {
             const ytWrap = document.getElementById('jarvis-yt-player-wrap');
+            const miniVid = document.getElementById('jarvis-mini-video');
+            const bgAudio = document.getElementById('jarvis-music-audio');
             if (!ytWrap || !track) return;
-            const thumb = track.thumbnail || (track.id && !track.id.startsWith('ytm_') ? ('https://i.ytimg.com/vi/' + track.id + '/hqdefault.jpg') : '');
+
             ytWrap.style.display = 'block';
+            const isYt = track.id && !track.id.startsWith('ytm_');
+            const ytLink = document.getElementById('jarvis-mini-yt-link');
+            if (ytLink) {
+              if (isYt) {
+                ytLink.href = 'https://www.youtube.com/watch?v=' + encodeURIComponent(track.id);
+                ytLink.style.display = 'inline-flex';
+              } else {
+                ytLink.style.display = 'none';
+              }
+            }
+
+            const thumb = track.thumbnail || (isYt ? ('https://i.ytimg.com/vi/' + track.id + '/hqdefault.jpg') : '');
+            if (miniVid) { miniVid.style.display = 'none'; }
             ytWrap.innerHTML = `
               <div style="position:relative;width:100%;height:100%;overflow:hidden;display:flex;align-items:center;gap:10px;padding:8px 12px;box-sizing:border-box;background:#060914;">
                 <div style="position:absolute;inset:-14px;background-image:url('${thumb}');background-size:cover;background-position:center;filter:blur(16px) brightness(0.36);transform:scale(1.15);pointer-events:none;"></div>
-                <img src="${thumb}" alt="" style="position:relative;z-index:2;width:62px;height:62px;border-radius:10px;object-fit:cover;border:1.5px solid rgba(0,245,255,0.55);box-shadow:0 4px 16px rgba(0,0,0,0.65);flex-shrink:0;" />
+                <img src="${thumb}" alt="" style="position:relative;z-index:2;width:66px;height:66px;border-radius:10px;object-fit:cover;border:1.5px solid rgba(0,245,255,0.55);box-shadow:0 4px 16px rgba(0,0,0,0.65);flex-shrink:0;" />
                 <div style="position:relative;z-index:2;min-width:0;flex:1;display:flex;flex-direction:column;justify-content:center;gap:3px;">
                   <div style="display:inline-flex;align-items:center;gap:5px;font-size:8.5px;font-family:'Orbitron',monospace;color:#ff4e6a;letter-spacing:0.08em;font-weight:700;">
                     <span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:#ff1744;box-shadow:0 0 8px #ff1744;"></span>
-                    YOUTUBE MUSIC • 320KBPS HD
+                    ${isYt ? 'YOUTUBE • PLAYING NOW' : 'DIRECT HD STREAM'}
                   </div>
-                  <div style="font-size:11.5px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px rgba(0,0,0,0.8);">${track.title || 'YouTube Music Track'}</div>
-                  <div style="font-size:9.5px;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track.artist || 'YouTube Music'}${track.duration ? ' • ' + track.duration : ''}</div>
+                  <div style="font-size:11.5px;font-weight:700;color:#ffffff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 4px rgba(0,0,0,0.8);">${track.title || 'YouTube Track'}</div>
+                  <div style="font-size:9.5px;color:#cbd5e1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track.artist || 'YouTube'}${track.duration ? ' • ' + track.duration : ''}</div>
+                  ${isYt ? `
+                    <div style="display:flex;gap:6px;margin-top:3px;">
+                      <a href="https://www.youtube.com/watch?v=${encodeURIComponent(track.id)}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:4px;background:rgba(255,23,68,0.3);border:1px solid rgba(255,23,68,0.55);color:#fff;font-size:8.5px;font-weight:700;text-decoration:none;" title="Watch Video on YouTube">▶ Watch Video</a>
+                      <button type="button" onclick="window.__jarvisYtm.embedIframe('${encodeURIComponent(track.id)}')" style="padding:2px 7px;border-radius:4px;background:rgba(0,245,255,0.18);border:1px solid rgba(0,245,255,0.45);color:#00f5ff;font-size:8.5px;font-weight:700;cursor:pointer;" title="Embed Video inside Screen">🎬 Embed</button>
+                    </div>
+                  ` : ''}
                 </div>
+              </div>
+            `;
+          },
+
+          embedIframe: function(vid) {
+            const ytWrap = document.getElementById('jarvis-yt-player-wrap');
+            if (!ytWrap || !vid) return;
+            const cleanVid = decodeURIComponent(vid);
+            const audioEl = document.getElementById('jarvis-music-audio');
+            if (audioEl) {
+              try { audioEl.pause(); } catch(e) {}
+            }
+            ytWrap.innerHTML = `
+              <div style="position:relative;width:100%;height:100%;background:#000;">
+                <iframe id="jarvis-yt-iframe"
+                  src="https://www.youtube.com/embed/${cleanVid}?autoplay=1&enablejsapi=1&playsinline=1&rel=0&modestbranding=1"
+                  style="width:100%;height:100%;border:0;display:block;"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowfullscreen>
+                </iframe>
+                <button type="button" onclick="if(window.__jarvisYtm && window.__jarvisYtm.currentTrack) { window.__jarvisYtm.renderNowPlayingScreen(window.__jarvisYtm.currentTrack); const a = document.getElementById('jarvis-music-audio'); if (a) a.play().catch(()=>{}); }"
+                  style="position:absolute;top:4px;right:4px;z-index:10;background:rgba(0,0,0,0.75);color:#fff;border:1px solid rgba(255,255,255,0.3);border-radius:4px;font-size:9px;padding:2px 6px;cursor:pointer;">
+                  ✕ Close Video
+                </button>
               </div>
             `;
           },
@@ -1822,6 +2061,12 @@
             if (audioEl && !audioEl.paused) {
               try { audioEl.pause(); } catch (e) {}
             }
+            const iframe = document.getElementById('jarvis-yt-iframe');
+            if (iframe && iframe.contentWindow) {
+              try {
+                iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'pauseVideo', args: '' }), '*');
+              } catch (e) {}
+            }
             const eq = document.getElementById('jarvis-mini-eq');
             if (eq) eq.classList.add('paused');
           },
@@ -1830,10 +2075,16 @@
             if (!this.active) return;
             this.isPlaying = true;
             window.__jarvisAvPaused = false;
+            const iframe = document.getElementById('jarvis-yt-iframe');
+            if (iframe && iframe.contentWindow) {
+              try {
+                iframe.contentWindow.postMessage(JSON.stringify({ event: 'command', func: 'playVideo', args: '' }), '*');
+              } catch (e) {}
+            }
             const audioEl = document.getElementById('jarvis-music-audio');
-            if (audioEl && audioEl.src) {
+            if (audioEl && audioEl.src && !iframe) {
               try { audioEl.play().catch(() => {}); } catch (e) {}
-            } else if (this.currentTrack) {
+            } else if (this.currentTrack && !iframe) {
               this.playTrack(this.currentTrack, this.currentIndex);
             }
             const eq = document.getElementById('jarvis-mini-eq');
@@ -1845,9 +2096,19 @@
             this.isPlaying = false;
             this.pause();
             const ytWrap = document.getElementById('jarvis-yt-player-wrap');
-            if (ytWrap) ytWrap.style.display = 'none';
+            if (ytWrap) {
+              ytWrap.style.display = 'none';
+              ytWrap.innerHTML = '<div id="jarvis-yt-player-host"></div>';
+            }
+            const miniVid = document.getElementById('jarvis-mini-video');
+            if (miniVid) {
+              miniVid.style.display = 'block';
+              if (!window.__jarvisAvPaused) miniVid.play().catch(function() {});
+            }
             const likedBtn = document.getElementById('jarvis-mini-liked-btn');
             if (likedBtn) likedBtn.classList.remove('active');
+            const ytLink = document.getElementById('jarvis-mini-yt-link');
+            if (ytLink) ytLink.style.display = 'none';
           },
 
           toggleLike: function(track) {
@@ -1873,7 +2134,14 @@
             const q = String(query || '').trim();
             if (!q) return Promise.resolve([]);
             this.currentTab = 'search';
-            this.renderDrawer('Searching YouTube Music...');
+            const playerEl = document.getElementById('jarvis-mini-av-player');
+            const restorePill = document.getElementById('jarvis-mini-av-restore-pill');
+            if (playerEl && playerEl.style.display === 'none') {
+              playerEl.style.display = 'flex';
+              if (restorePill) restorePill.style.display = 'none';
+            }
+            this.toggleDrawer(true);
+            this.renderDrawer('Searching YouTube for real music videos...');
             return fetch('/api/ytmusic/search?q=' + encodeURIComponent(q))
               .then(r => r.json())
               .then(data => {
@@ -1962,11 +2230,12 @@
               const isCur = self.currentTrack && self.currentTrack.id === track.id && self.active;
               row.className = 'jarvis-ytm-track-item' + (isCur ? ' playing' : '');
               const isLiked = likedIds.has(track.id);
+              const isYt = track.id && !track.id.startsWith('ytm_');
               row.innerHTML = `
                 <img class="jarvis-ytm-thumb" src="${track.thumbnail || ('https://i.ytimg.com/vi/' + track.id + '/hqdefault.jpg')}" alt="" />
                 <div class="jarvis-ytm-info">
                   <div class="jarvis-ytm-title">${isCur ? '▶ ' : ''}${track.title || 'YouTube Music Track'}</div>
-                  <div class="jarvis-ytm-artist">${track.artist || 'YouTube Music'}${track.duration ? ' • ' + track.duration : ''}</div>
+                  <div class="jarvis-ytm-artist">${track.artist || 'YouTube'}${track.duration ? ' • ' + track.duration : ''}${isYt ? ' <span style="display:inline-block;padding:1px 5px;border-radius:4px;background:rgba(255,23,68,0.22);color:#ff4e6a;font-size:8.5px;font-weight:700;letter-spacing:0.04em;">▶ VIDEO</span>' : ''}</div>
                 </div>
                 <button type="button" class="jarvis-ytm-like-icon" title="${isLiked ? 'Remove from ❤️ Liked Playlist' : 'Add to ❤️ Liked Playlist'}">${isLiked ? '❤️' : '🤍'}</button>
               `;

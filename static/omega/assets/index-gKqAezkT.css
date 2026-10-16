@@ -79,9 +79,17 @@ pre {
 }
 
 .jarvis-settings-modal {
-  background: color-mix(in srgb, var(--color-omega-surface) 96%, #050816) !important;
-  -webkit-backdrop-filter: none !important;
-  backdrop-filter: none !important;
+  position: relative !important;
+  background: radial-gradient(circle at 50% 0%, rgba(10, 22, 45, 0.94), rgba(4, 7, 18, 0.96) 80%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  border: 1px solid rgba(0, 245, 255, 0.35) !important;
+  box-shadow: 
+    0 25px 60px -15px rgba(0, 0, 0, 0.9),
+    0 0 35px rgba(0, 245, 255, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 0 25px rgba(0, 245, 255, 0.05) !important;
+  border-radius: 18px !important;
   transform: translateZ(0);
 }
 
@@ -911,8 +919,8 @@ body:before {
 
 .jarvis-mini-av-controls {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
 }
 
 .jarvis-mini-av-btn {
@@ -935,4 +943,191 @@ body:before {
   color: var(--color-omega-cyan);
   border-color: color-mix(in srgb, var(--color-omega-cyan) 55%, transparent);
   background: color-mix(in srgb, var(--color-omega-cyan) 16%, transparent);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   JARVIS OMEGA TACTICAL SCI-FI HUD SETTINGS STUDIO
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Holographic Corner Brackets (HUD Tactical Reticle) */
+.jarvis-settings-modal::before,
+.jarvis-settings-modal::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  pointer-events: none;
+  z-index: 40;
+  transition: all 0.3s ease;
+}
+.jarvis-settings-modal::before {
+  top: 8px;
+  left: 8px;
+  border-top: 2px solid var(--color-omega-cyan, #00f5ff);
+  border-left: 2px solid var(--color-omega-cyan, #00f5ff);
+  filter: drop-shadow(0 0 6px var(--color-omega-cyan, #00f5ff));
+}
+.jarvis-settings-modal::after {
+  bottom: 8px;
+  right: 8px;
+  border-bottom: 2px solid var(--color-omega-cyan, #00f5ff);
+  border-right: 2px solid var(--color-omega-cyan, #00f5ff);
+  filter: drop-shadow(0 0 6px var(--color-omega-cyan, #00f5ff));
+}
+
+/* Sci-Fi Top Header & Scanline */
+.jarvis-settings-modal .shrink-0:first-child {
+  position: relative;
+  background: linear-gradient(180deg, rgba(0, 245, 255, 0.08) 0%, transparent 100%) !important;
+  border-bottom: 1px solid rgba(0, 245, 255, 0.22) !important;
+  padding-bottom: 10px !important;
+}
+
+/* Sci-Fi Title Typography */
+.jarvis-settings-modal h2 {
+  font-family: 'Orbitron', 'JetBrains Mono', monospace !important;
+  font-size: 13.5px !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: #ffffff !important;
+  text-shadow: 0 0 14px rgba(0, 245, 255, 0.5) !important;
+}
+
+.jarvis-settings-modal p {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.04em !important;
+  color: #94a3b8 !important;
+}
+
+/* Sci-Fi Navigation Tabs Bar */
+.jarvis-settings-modal .shrink-0 > div:last-child {
+  padding-top: 6px !important;
+  gap: 6px !important;
+  scrollbar-width: none;
+}
+.jarvis-settings-modal .shrink-0 > div:last-child::-webkit-scrollbar {
+  display: none;
+}
+.jarvis-settings-modal .shrink-0 > div:last-child button {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.05em !important;
+  border-radius: 6px !important;
+  padding: 5px 11px !important;
+  background: rgba(10, 20, 42, 0.7) !important;
+  border: 1px solid rgba(0, 245, 255, 0.2) !important;
+  color: #94a3b8 !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.jarvis-settings-modal .shrink-0 > div:last-child button:hover {
+  background: rgba(0, 245, 255, 0.16) !important;
+  border-color: rgba(0, 245, 255, 0.6) !important;
+  color: #00f5ff !important;
+  box-shadow: 0 0 14px rgba(0, 245, 255, 0.3) !important;
+  transform: translateY(-1px);
+}
+.jarvis-settings-modal .shrink-0 > div:last-child button.jarvis-active-tab {
+  background: linear-gradient(135deg, rgba(0, 245, 255, 0.28), rgba(138, 92, 255, 0.28)) !important;
+  border-color: #00f5ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 16px rgba(0, 245, 255, 0.45) !important;
+}
+
+/* Sci-Fi Section Cards Styling */
+.jarvis-settings-scroll > div {
+  position: relative !important;
+  background: rgba(8, 15, 32, 0.72) !important;
+  border: 1px solid rgba(0, 245, 255, 0.22) !important;
+  border-left: 3.5px solid var(--color-omega-cyan, #00f5ff) !important;
+  border-radius: 12px !important;
+  padding: 14px 16px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 245, 255, 0.02) !important;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease !important;
+}
+.jarvis-settings-scroll > div:hover {
+  border-color: rgba(0, 245, 255, 0.45) !important;
+  box-shadow: 0 6px 26px rgba(0, 0, 0, 0.6), 0 0 24px rgba(0, 245, 255, 0.1) !important;
+}
+
+/* Section Header Typography */
+.jarvis-settings-scroll label[class*="font-hud"] {
+  font-family: 'Orbitron', monospace !important;
+  font-size: 11px !important;
+  letter-spacing: 0.1em !important;
+  color: #00f5ff !important;
+  text-shadow: 0 0 8px rgba(0, 245, 255, 0.5) !important;
+}
+
+/* Sci-Fi Form Controls: Selects, Text Inputs, Textareas */
+.jarvis-settings-modal select,
+.jarvis-settings-modal input[type="text"],
+.jarvis-settings-modal textarea {
+  background: rgba(5, 10, 24, 0.88) !important;
+  border: 1px solid rgba(0, 245, 255, 0.28) !important;
+  color: #f1f5f9 !important;
+  border-radius: 8px !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 11.5px !important;
+  padding: 6px 10px !important;
+  transition: all 0.2s ease !important;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.6) !important;
+}
+.jarvis-settings-modal select:focus,
+.jarvis-settings-modal input[type="text"]:focus,
+.jarvis-settings-modal textarea:focus {
+  border-color: #00f5ff !important;
+  box-shadow: 0 0 14px rgba(0, 245, 255, 0.45), inset 0 2px 4px rgba(0, 0, 0, 0.6) !important;
+  outline: none !important;
+}
+
+/* Custom Sci-Fi Range Sliders with Glowing Thumbs */
+.jarvis-settings-modal input[type="range"] {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 100%;
+  height: 6px !important;
+  border-radius: 3px !important;
+  background: linear-gradient(90deg, rgba(0, 245, 255, 0.45), rgba(138, 92, 255, 0.45)) !important;
+  outline: none !important;
+  margin: 8px 0;
+}
+.jarvis-settings-modal input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  appearance: none !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 50% !important;
+  background: #00f5ff !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 0 10px #00f5ff, 0 0 22px rgba(0, 245, 255, 0.9) !important;
+  cursor: pointer !important;
+  transition: transform 0.15s ease, box-shadow 0.15s ease !important;
+}
+.jarvis-settings-modal input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.25) !important;
+  box-shadow: 0 0 16px #00f5ff, 0 0 30px rgba(0, 245, 255, 1) !important;
+}
+
+/* Sci-Fi Action Buttons within Settings */
+.jarvis-settings-modal button {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.jarvis-settings-modal button:active {
+  transform: scale(0.97) !important;
+}
+
+/* Sleek Sci-Fi Scrollbar for Settings Scroll Container */
+.jarvis-settings-scroll::-webkit-scrollbar {
+  width: 5px !important;
+}
+.jarvis-settings-scroll::-webkit-scrollbar-track {
+  background: rgba(0, 245, 255, 0.04) !important;
+  border-radius: 3px !important;
+}
+.jarvis-settings-scroll::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #00f5ff, #8a5cff) !important;
+  border-radius: 3px !important;
+  box-shadow: 0 0 8px rgba(0, 245, 255, 0.5) !important;
 }
