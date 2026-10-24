@@ -17,22 +17,27 @@ class VoiceEngine:
     def __init__(self):
         self.voice_dir = config.VOICE_DIR
         os.makedirs(self.voice_dir, exist_ok=True)
-        # Choosing a premium British neural voice (Stark/Jarvis persona)
-        self.default_voice = "en-GB-RyanNeural" 
+        self.default_voice = getattr(config, "TTS_VOICE", "en-GB-RyanNeural")
+        self.default_pitch = getattr(config, "TTS_PITCH", "-2Hz")
+        self.default_rate = getattr(config, "TTS_RATE", "+0%")
+        self.default_volume = getattr(config, "TTS_VOLUME", "+0%")
 
-    async def speak(self, text: str, voice: str = None) -> dict:
+    async def speak(self, text: str, voice: str = None, pitch: str = None, rate: str = None, volume: str = None) -> dict:
         """
-        Synthesize neural speech from text.
-        Returns the local filename for the audio file.
+        Synthesize neural speech from text with Stark acoustic modulation.
+        Returns the local filename and URL for the audio file.
         """
         voice = voice or self.default_voice
+        pitch = pitch or self.default_pitch
+        rate = rate or self.default_rate
+        volume = volume or self.default_volume
         filename = f"speech_{uuid.uuid4().hex[:8]}.mp3"
         save_path = os.path.join(self.voice_dir, filename)
 
         try:
             # Neural synthesis via edge-tts (High fidelity)
-            logger.info(f"Synthesizing neural voice for: {text[:30]}...")
-            communicate = edge_tts.Communicate(text, voice)
+            logger.info(f"Synthesizing neural voice ({voice}, {pitch}, {rate}) for: {text[:30]}...")
+            communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch, volume=volume)
             await communicate.save(save_path)
             
             return {

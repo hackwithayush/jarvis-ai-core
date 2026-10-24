@@ -17,11 +17,12 @@ async def speak(text: str, output: str = None) -> str:
         filename = f"voice_{uuid.uuid4().hex[:8]}.mp3"
         output = os.path.join(config.VOICE_DIR, filename)
 
-    # English British (Christopher) for the premium Jarvis feel
-    # The prompt specifically mentioned en-US-ChristopherNeural, so I will follow it.
-    voice = "en-US-ChristopherNeural" 
+    voice = getattr(config, "TTS_VOICE", "en-GB-RyanNeural")
+    pitch = getattr(config, "TTS_PITCH", "-2Hz")
+    rate = getattr(config, "TTS_RATE", "+0%")
+    volume = getattr(config, "TTS_VOLUME", "+0%")
     
-    communicate = edge_tts.Communicate(text, voice)
+    communicate = edge_tts.Communicate(text, voice, rate=rate, pitch=pitch, volume=volume)
     await communicate.save(output)
     
     return output

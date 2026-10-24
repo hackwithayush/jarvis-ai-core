@@ -7,13 +7,15 @@ import subprocess
 def run_command(command: str) -> dict:
     """Executes a shell command and returns the output."""
     try:
-        # Run in a secure sandbox/subprocess
+        # Run in a secure sandbox/subprocess with console window suppressed on Windows
+        flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
         result = subprocess.run(
             command,
             shell=True,
             capture_output=True,
             text=True,
-            timeout=30
+            timeout=30,
+            creationflags=flags
         )
         return {
             "stdout": result.stdout,

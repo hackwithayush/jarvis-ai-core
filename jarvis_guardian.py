@@ -165,6 +165,7 @@ Guardian is maintaining continuous auto-recovery attempts with backoff.
                     env = os.environ.copy()
                     env["PYTHONUNBUFFERED"] = "1"
 
+                    flags = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
                     self.process = subprocess.Popen(
                         [sys.executable, "-u", self.script_path],
                         stdout=subprocess.PIPE,
@@ -172,7 +173,8 @@ Guardian is maintaining continuous auto-recovery attempts with backoff.
                         text=True,
                         bufsize=1,
                         cwd=BASE_DIR,
-                        env=env
+                        env=env,
+                        creationflags=flags
                     )
 
                     logger.info(f"✅ {self.name} Online (PID: {self.process.pid})")

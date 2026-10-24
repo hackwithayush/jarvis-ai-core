@@ -16,6 +16,7 @@ from datetime import datetime
 from pathlib import Path
 
 logger = logging.getLogger("jarvis.security_guardian")
+_NO_WINDOW_FLAGS = subprocess.CREATE_NO_WINDOW if platform.system() == "Windows" else 0
 
 class SystemGuardian:
     """Windows Security and OS Optimization Engine."""
@@ -121,8 +122,8 @@ class SystemGuardian:
 
         # 1. Audit Windows Defender via PowerShell
         try:
-            cmd = "powershell -NoProfile -NonInteractive -Command \"Get-MpComputerStatus | Select-Object -Property AntivirusEnabled, AMServiceEnabled, RealTimeProtectionEnabled, BehaviorMonitorEnabled | ConvertTo-Json\""
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3)
+            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", "Get-MpComputerStatus | Select-Object -Property AntivirusEnabled, AMServiceEnabled, RealTimeProtectionEnabled, BehaviorMonitorEnabled | ConvertTo-Json"]
+            res = subprocess.run(cmd, creationflags=_NO_WINDOW_FLAGS, capture_output=True, text=True, timeout=3)
             if res.returncode == 0 and res.stdout.strip():
                 import json
                 data = json.loads(res.stdout.strip())
@@ -145,8 +146,8 @@ class SystemGuardian:
 
         # 2. Audit Windows Firewall Status
         try:
-            cmd = "powershell -NoProfile -NonInteractive -Command \"Get-NetFirewallProfile -PolicyStore ActiveStore | Select-Object -Property Name, Enabled | ConvertTo-Json\""
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=3)
+            cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", "Get-NetFirewallProfile -PolicyStore ActiveStore | Select-Object -Property Name, Enabled | ConvertTo-Json"]
+            res = subprocess.run(cmd, creationflags=_NO_WINDOW_FLAGS, capture_output=True, text=True, timeout=3)
             if res.returncode == 0 and res.stdout.strip():
                 import json
                 data = json.loads(res.stdout.strip())
@@ -206,7 +207,9 @@ class SystemGuardian:
                     
                     # Threat pattern B: Running from temp folders
                     elif exe_path and any(x in exe_path.lower() for x in ["temp", "appdata\\local\\temp"]):
-                        if not any(safe in exe_path.lower() for safe in ["discord", "teams", "slack", "vscode", "chrome"]):
+                        safe_apps = ["discord", "teams", "slack", "vscode", "chrome", "ollama", "python", "git", "node", "setup", "installer", "update", "pip", "winget", "msiexec"]
+                        is_safe = any(safe in exe_path.lower() for safe in safe_apps) or any(safe in name for safe in safe_apps)
+                        if not is_safe:
                             report["suspicious_processes"].append({"pid": proc.pid, "name": name, "reason": "Running from temp directory"})
                             report["warnings"].append(f"Process running from TEMP folder: {name} (PID: {proc.pid})")
                 except (psutil.NoSuchProcess, psutil.AccessDenied, TypeError):
@@ -284,8 +287,8 @@ class SystemGuardian:
         # 2. Audit Windows Event Logs for System Crashes / Errors
         if self.is_windows:
             try:
-                cmd = "powershell -Command \"Get-EventLog -LogName System -EntryType Error -Newest 10 | Select-Object -Property Source, Message, TimeGenerated | ConvertTo-Json\""
-                res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=5)
+                cmd = ["powershell", "-NoProfile", "-NonInteractive", "-Command", "Get-EventLog -LogName System -EntryType Error -Newest 10 | Select-Object -Property Source, Message, TimeGenerated | ConvertTo-Json"]
+                res = subprocess.run(cmd, creationflags=_NO_WINDOW_FLAGS, capture_output=True, text=True, timeout=5)
                 if res.returncode == 0 and res.stdout.strip():
                     import json
                     events = json.loads(res.stdout.strip())
@@ -522,7 +525,7 @@ class SystemGuardian:
             actions_taken.append("[SIMULATION] Would flush system DNS Resolver Cache.")
         else:
             try:
-                res = subprocess.run("ipconfig /flushdns", shell=True, capture_output=True, text=True)
+                res = subprocess.run(["ipconfig", "/flushdns"], creationflags=_NO_WINDOW_FLAGS, capture_output=True, text=True)
                 if res.returncode == 0:
                     actions_taken.append("Flushed system DNS Resolver Cache (restored network routing stability).")
                 else:
@@ -562,7 +565,7 @@ class SystemGuardian:
                 actions_taken.append("[SIMULATION] Would trigger background Windows Defender Quick Malware Scan.")
             else:
                 try:
-                    subprocess.Popen("powershell -Command \"Start-MpScan -ScanType QuickScan\"", shell=True)
+                    subprocess.Popen(["powershell", "-NoProfile", "-NonInteractive", "-Command", "Start-MpScan -ScanType QuickScan"], creationflags=_NO_WINDOW_FLAGS)
                     actions_taken.append("Triggered background Windows Defender Quick Malware Scan (Start-MpScan).")
                 except Exception as e:
                     errors.append(f"Could not automate Windows Defender quick scan: {e}")

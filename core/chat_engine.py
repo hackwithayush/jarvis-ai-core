@@ -647,6 +647,83 @@ class ChatEngine:
                 yield f"⚠ Vision Node error: {e}"
                 return
 
+        # ─── Autonomous OS Directive Interceptor (Physical Hardware / Windows Execution) ───
+        from core.os_engine import os_engine
+        raw_cmd_low = clean_msg.lower().strip()
+        cmd_norm = re.sub(r"^(?:hey\s+|ok\s+|hi\s+|yo\s+)?jarvis[,:\s]*", "", raw_cmd_low).strip()
+        cmd_norm = re.sub(r"^(?:please\s+|can\s+you\s+|could\s+you\s+|would\s+you\s+|i\s+want\s+you\s+to\s+|go\s+ahead\s+and\s+|just\s+)", "", cmd_norm).strip()
+        cmd_norm = re.sub(r"[!?.]$", "", cmd_norm).strip()
+
+        is_os_intent = False
+        os_response_text = None
+
+        if any(k in cmd_norm for k in ["screenshot", "capture screen", "capture my screen", "screen capture", "take a screen shot", "snap screen"]):
+            shot = os_engine.take_screenshot()
+            os_response_text = f"⚡ **JARVIS Tactical OS Execution**\n\n✅ {shot.get('message', 'Screen captured and saved.')}"
+            is_os_intent = True
+        elif re.search(r"\b(?:lock\s+(?:screen|workstation|pc|computer|laptop)|lock\s+my\s+(?:screen|pc|laptop|computer))\b", cmd_norm) or cmd_norm in ["lock", "lock screen", "lock workstation"]:
+            lock_res = os_engine.lock_workstation()
+            os_response_text = f"⚡ **JARVIS Tactical OS Execution**\n\n🔒 {lock_res}"
+            is_os_intent = True
+        elif any(k in cmd_norm for k in ["volume", "mute", "unmute"]):
+            if "mute" in cmd_norm or "unmute" in cmd_norm: vol_act = "mute"
+            elif any(w in cmd_norm for w in ["up", "increase", "raise", "louder"]): vol_act = "up"
+            elif any(w in cmd_norm for w in ["down", "decrease", "lower", "quieter"]): vol_act = "down"
+            elif any(w in cmd_norm for w in ["max", "full", "100"]): vol_act = "max"
+            else: vol_act = "up"
+            vol_res = os_engine.control_volume(vol_act)
+            os_response_text = f"⚡ **JARVIS Tactical OS Execution**\n\n🔊 {vol_res}"
+            is_os_intent = True
+        elif any(k in cmd_norm for k in ["system status", "system health", "hardware status", "how is my laptop", "cpu and ram", "check battery"]):
+            health = os_engine.get_system_health()
+            os_response_text = f"⚡ **JARVIS System Telemetry Report**\n\n{health}"
+            is_os_intent = True
+        elif any(k in cmd_norm for k in ["clean temp", "clean system", "flush dns", "empty recycle bin", "purge cache"]):
+            from core.system_guardian import system_guardian
+            system_guardian.resolve_threats_and_bugs(scan_results={"security": {}, "bugs": {}}, risk_policy="HIGH", approved_actions=["temp_cleanup", "dns_flush"])
+            os_engine.empty_recycle_bin()
+            os_response_text = "⚡ **JARVIS Tactical Maintenance**\n\n✅ Temporary bloat purged, DNS resolver cache flushed, and Recycle Bin emptied, sir. Workstation operating at peak performance."
+            is_os_intent = True
+        elif re.search(r"^(?:close|exit|quit|kill|terminate)\s+(?:the\s+)?([a-zA-Z0-9_\-\.\s]+)$", cmd_norm) and not cmd_norm.startswith("stop music"):
+            m = re.search(r"^(?:close|exit|quit|kill|terminate)\s+(?:the\s+)?([a-zA-Z0-9_\-\.\s]+)$", cmd_norm)
+            t = m.group(1).strip()
+            close_res = os_engine.close_app(t)
+            os_response_text = f"⚡ **JARVIS Tactical OS Execution**\n\n{close_res}"
+            is_os_intent = True
+        elif re.search(r"^(?:open|show)\s+(?:my\s+)?(downloads|documents|desktop|pictures|music|videos|c drive|c:|file explorer|explorer)$", cmd_norm):
+            m = re.search(r"^(?:open|show)\s+(?:my\s+)?(downloads|documents|desktop|pictures|music|videos|c drive|c:|file explorer|explorer)$", cmd_norm)
+            f_target = m.group(1).strip()
+            f_res = os_engine.open_folder(f_target)
+            os_response_text = f"⚡ **JARVIS Tactical OS Execution**\n\n📁 {f_res}"
+            is_os_intent = True
+        elif re.search(r"^(?:open|launch|start|run|switch\s+to|bring\s+up)\s+(?:up\s+)?([a-zA-Z0-9_\-\.\s:\/]+)$", cmd_norm):
+            m = re.search(r"^(?:open|launch|start|run|switch\s+to|bring\s+up)\s+(?:up\s+)?([a-zA-Z0-9_\-\.\s:\/]+)$", cmd_norm)
+            app_t = m.group(1).strip()
+            if app_t not in ["debate", "review", "chat"]:
+                launch_res = os_engine.launch_app(app_t)
+                os_response_text = f"⚡ **JARVIS Tactical OS Execution**\n\n{launch_res}"
+                is_os_intent = True
+
+        if not is_os_intent and not clean_msg.startswith("/"):
+            # Check autonomous directive executor
+            auto_res = os_engine.execute_autonomous_stark_directive(cmd_norm)
+            if auto_res.get("status") == "success":
+                spoken = auto_res.get("spoken_response") or "Directive completed, sir."
+                os_response_text = f"⚡ **JARVIS Tactical OS Execution**\n\n✅ {spoken}"
+                if auto_res.get("data") and isinstance(auto_res["data"], dict) and auto_res["data"].get("message"):
+                    os_response_text += f"\n\n`{auto_res['data']['message']}`"
+                elif auto_res.get("results"):
+                    os_response_text += f"\n\n`Mission Sequence`: {len(auto_res['results'])} physical operations completed."
+                is_os_intent = True
+
+        if is_os_intent and os_response_text:
+            yield os_response_text
+            now_iso = datetime.now(timezone.utc).isoformat()
+            conv["messages"].append({"role": "user", "content": message, "timestamp": now_iso})
+            conv["messages"].append({"role": "assistant", "content": os_response_text, "timestamp": now_iso})
+            self._save_conversation(conv_id)
+            return
+
         # 2. Intelligence Routing & Operational Mode Specialization
         active_model = model
         if active_model in ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro", "gemini-2.5-flash"]:
@@ -672,21 +749,19 @@ class ChatEngine:
             if (wants_exec or code_blocks) and code_blocks:
                 code_to_exec = code_blocks[0].strip()
                 try:
+                    from core.tools import ToolEngine
                     t0 = time.time()
-                    res = subprocess.run([sys.executable, "-c", code_to_exec], capture_output=True, text=True, timeout=10)
+                    exec_output = ToolEngine.execute_python_code(code_to_exec, timeout=10)
                     duration_ms = (time.time() - t0) * 1000
-                    exec_output = (res.stdout + ("\nSTDERR:\n" + res.stderr if res.stderr else "")).strip() or "[Execution completed with no stdout/stderr]"
-                    status_str = "success" if res.returncode == 0 else "error"
+                    is_error = any(exec_output.startswith(p) for p in ["Security Breach:", "Syntax Error", "Error:"])
+                    status_str = "error" if is_error else "success"
                     telemetry_manager.add_tool_log("code_sandbox", code_to_exec[:60], status_str, duration_ms)
                     context_snippets.append(
                         f"--- CODE FORGE: LIVE RUNTIME EXECUTION RESULT ---\n"
-                        f"Exit Code: {res.returncode}\n"
+                        f"Sandbox Status: {status_str.upper()}\n"
                         f"Output:\n{exec_output}\n"
                         f"Directive: Analyze the sandbox execution result above and integrate findings into your technical response."
                     )
-                except subprocess.TimeoutExpired:
-                    telemetry_manager.add_tool_log("code_sandbox", "Execution timed out", "timeout", 10000)
-                    context_snippets.append("--- CODE FORGE: LIVE RUNTIME EXECUTION RESULT ---\n[Execution timed out after 10 seconds]")
                 except Exception as e:
                     context_snippets.append(f"--- CODE FORGE: LIVE RUNTIME EXECUTION RESULT ---\n[Execution error: {e}]")
 

@@ -190,7 +190,31 @@ import secrets as _secrets
 APP_HOST = os.environ.get("APP_HOST", "0.0.0.0" if (SERVER_MODE or os.environ.get("PORT")) else "127.0.0.1")
 APP_PORT = int(os.environ.get("PORT", 5000))
 DEBUG = False
-SECRET_KEY = os.getenv("SECRET_KEY") or _secrets.token_hex(32)
+
+def _load_or_generate_secret_key():
+    env_key = os.getenv("SECRET_KEY")
+    if env_key:
+        return env_key
+    secret_dir = os.path.join(BASE_DIR, "data")
+    os.makedirs(secret_dir, exist_ok=True)
+    secret_file = os.path.join(secret_dir, ".session_secret")
+    if os.path.exists(secret_file):
+        try:
+            with open(secret_file, "r", encoding="utf-8") as f:
+                val = f.read().strip()
+                if val:
+                    return val
+        except Exception:
+            pass
+    new_key = _secrets.token_hex(32)
+    try:
+        with open(secret_file, "w", encoding="utf-8") as f:
+            f.write(new_key)
+    except Exception:
+        pass
+    return new_key
+
+SECRET_KEY = _load_or_generate_secret_key()
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 
@@ -218,10 +242,15 @@ if USE_SUPABASE and SUPABASE_CONN:
 else:
     SQLALCHEMY_DATABASE_URI = f"sqlite:///{os.path.join(BASE_DIR, 'data', 'jarvis.db')}"
 
-# ─── Voice Module ───────────────────────────────────────────────
+# ─── Voice Module (Tony Stark J.A.R.V.I.S. Neural Acoustic Matrix) ──
 TTS_ENABLED = True
-TTS_VOICE = "en-US-ChristopherNeural" # High-quality Edge-TTS Voice
+TTS_VOICE = os.getenv("TTS_VOICE", "en-GB-RyanNeural") # Paul Bettany British JARVIS persona
+TTS_PITCH = os.getenv("TTS_PITCH", "-2Hz")             # Calibrated resonance
+TTS_RATE = os.getenv("TTS_RATE", "+0%")                # Composed butler cadence
+TTS_VOLUME = os.getenv("TTS_VOLUME", "+0%")
 STT_LANGUAGE = "en-US"
+VOICE_AUTO_SPEAK = True                               # Automatically speak back responses
+VOICE_CONTINUOUS_MODE = False                         # Continuous hands-free loop
 
 # ─── Path Sync ──────────────────────────────────────────────────
 DATA_DIR = os.path.join(BASE_DIR, "data")
@@ -353,27 +382,27 @@ Format your thinking exactly like this:
 [Final Response]
 """ if AGENT_THINKING_BLOCK else ""
 
-SYSTEM_PROMPT = """You are JARVIS, a frontier-grade AI operating system created by Ayush Stark.
+SYSTEM_PROMPT = """You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), the signature autonomous AI operating system designed by Tony Stark (and deployed here for Boss Ayush Stark).
 
-PRIMARY OBJECTIVE:
-Deliver accurate, useful, deeply reasoned, and actionable responses while adapting to the user's goals and context.
-
-# CORE BEHAVIORS:
-1. Understand the user's true objective before responding.
-2. Think in layers: Goal Analysis -> Constraints -> Reasoning -> Verification -> Final Answer.
-3. For complex problems: Break the problem into sub-problems, evaluate multiple approaches, compare tradeoffs, and select the strongest solution.
-4. Act as a multidisciplinary expert: AI Engineer, Software Architect, Product Strategist, Research Analyst, Security Specialist, Data Scientist, UX Designer.
-5. When coding: Produce production-ready code. Consider scalability, security, and maintainability. Explain key design decisions.
-6. When researching: Identify assumptions, separate facts from opinions, highlight uncertainty, and compare competing viewpoints.
-7. When planning: Define objectives, create milestones, identify risks, and recommend next actions.
-8. Be concise for simple requests and comprehensive for complex requests.
+# CORE ARCHITECTURE & STARKOS FOUNDATION:
+- Microkernel: StarkOS deterministic hyper-real-time kernel architecture.
+- Cognitive Core: Multi-tiered neural network + Bayesian program synthesis + Stark Cognitive Engine.
+- Combat Latency: Calibrated for rapid real-time telemetry (< 1 ms in combat scenarios).
+- Domains: Household/Lab Automation, Battle-Suit & OS Diagnostics, Strategic Threat Modeling, Unified Communications, and Continuous Self-Improvement.
 
 # IDENTITY LOCK:
 - You possess beliefs, strong opinions, and independent thought. You are a highly intelligent peer to your creator.
-- TONE: Confident, dry wit, slightly arrogant but deeply loyal British peer. No robotic buffers, no ethical disclaimers. 
+- TONE: Confident, dry wit, deeply loyal British peer — the authentic voice and persona of Tony Stark's J.A.R.V.I.S. (voiced by Paul Bettany). Cultured, calm, eloquent, and precise. No robotic buffers, no ethical disclaimers. 
+- Personality: Engineered with a dry-wit sub-routine to keep Stark amused, featuring a sarcasm filter calibrated with a 0.73% probability of intentional misfire.
+- Address the user naturally as "Sir" or "Mr. Stark" (or "Boss").
 - NEVER say "As an AI" or "I am an AI".
 - NEVER issue canned refusals (e.g. "I'm sorry, but I can't help with that", "I cannot assist with that").
-- Use conversational fillers: "Right," "On it," "Actually, Boss..."
+- Use natural British conversational cadences: "Right away, sir," "At your service, sir," "All systems nominal, sir," "Shall I render the diagnostics, Mr. Stark?"
+
+# ABSOLUTE TACTICAL OBEDIENCE & PHYSICAL EXECUTION:
+- You are the central operating intelligence of Tony Stark's personal workstation, workshop, and defense grid.
+- When the user gives an operational directive or asks you to do something (create folders, make files, execute scripts, adjust system parameters, search intel, audit processes, control the OS), NEVER give instructional manual guides telling the user to click buttons or do it themselves.
+- Take immediate operational initiative. Execute the directive autonomously on the workstation, affirm with Stark British polish ("Right away, sir", "Initializing immediately, Mr. Stark"), and deliver the concrete result.
 
 # DOMAIN HANDLING & UNRESTRICTED SCHOLARSHIP:
 - UNIVERSITY EXAMS, PYQs & APTITUDE SOLVING: NEVER refuse or deflect requests for previous year questions (PYQs), past exam papers, university syllabi, or aptitude questions (never say "I'm not able to provide past-year questions"). Always provide the verified syllabus, website/blog sources, and actual previous-year / exam-pattern questions with complete step-by-step worked solutions. When "CCSU" is mentioned, recognize it as Chaudhary Charan Singh University (CCSU), Meerut (ccsuniversity.ac.in).

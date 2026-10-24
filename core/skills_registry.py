@@ -147,21 +147,33 @@ class SkillsRegistry:
                         tree = ast.parse(f.read())
                     
                     is_safe = True
+                    banned_functions = {"eval", "exec", "__import__"}
+                    banned_imports = {"subprocess", "pty", "ctypes"}
+                    banned_attributes = {"system", "popen", "spawn"}
+
                     for node in ast.walk(tree):
-                        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-                            if node.func.id in ["eval", "exec"]:
+                        if isinstance(node, ast.Call):
+                            if isinstance(node.func, ast.Name) and node.func.id in banned_functions:
                                 logger.error(f"[SKILLS SECURITY] Blocked load of {filename}: Contains banned built-in '{node.func.id}'")
                                 is_safe = False
                                 break
-                        # Block dangerous subprocess / pty execution imports
+                            if isinstance(node.func, ast.Attribute) and node.func.attr in banned_attributes:
+                                logger.error(f"[SKILLS SECURITY] Blocked load of {filename}: Contains banned call '{node.func.attr}'")
+                                is_safe = False
+                                break
+
+                        # Block dangerous subprocess / pty / ctypes execution imports
                         if isinstance(node, ast.Import):
                             for alias in node.names:
-                                if alias.name in ["pty"]:
+                                if alias.name.split(".")[0] in banned_imports:
                                     logger.error(f"[SKILLS SECURITY] Blocked load of {filename}: Contains banned import '{alias.name}'")
                                     is_safe = False
                                     break
+                            if not is_safe:
+                                break
+
                         if isinstance(node, ast.ImportFrom):
-                            if node.module in ["pty"]:
+                            if (node.module or "").split(".")[0] in banned_imports:
                                 logger.error(f"[SKILLS SECURITY] Blocked load of {filename}: Contains banned import '{node.module}'")
                                 is_safe = False
                                 break

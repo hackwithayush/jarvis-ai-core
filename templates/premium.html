@@ -274,6 +274,8 @@
                 <i onclick="toggleConnectorsModal()" class="fas fa-link hover:text-[#FAFAFA] cursor-pointer transition-colors" title="App Connectors"></i>
                 <!-- Skills HUD Trigger -->
                 <i onclick="toggleSkillsModal()" class="fas fa-brain hover:text-[#FAFAFA] cursor-pointer transition-colors text-purple-400" title="Skills HUD"></i>
+                <!-- Tony Stark Voice Maker HUD Trigger -->
+                <i onclick="toggleVoiceMakerModal()" class="fas fa-volume-high hover:text-cyan-400 cursor-pointer transition-colors text-cyan-500/80" title="Tony Stark Voice Maker & HUD"></i>
                 <!-- Sign Out -->
                 <i onclick="triggerSignOut()" class="fas fa-sign-out-alt hover:text-[#FAFAFA] cursor-pointer transition-colors text-red-500/80 hover:text-red-400 animate-pulse-slow" title="Sign Out"></i>
             </div>
@@ -282,23 +284,41 @@
 
     <!-- Main Content -->
     <div class="flex-1 flex flex-col relative h-full w-full">
-        <!-- Mobile Header -->
-        <div class="md:hidden absolute top-0 left-0 w-full p-4 flex justify-between items-center z-50 bg-[#080808] border-b border-[#27272A]">
-            <button onclick="toggleSidebar()" class="text-[#717171] hover:text-[#FAFAFA]"><i class="fas fa-bars"></i></button>
-            <div class="flex items-center gap-2">
-                <img src="/static/img/logo.jpg" class="w-5 h-5 rounded-full object-cover border border-[#27272A] shadow-[0_0_6px_rgba(0,240,255,0.2)]">
-                <span class="font-brand font-medium text-sm">JARVIS</span>
+        <!-- Top HUD Header (Desktop & Mobile) -->
+        <header class="w-full px-4 py-2.5 flex justify-between items-center z-40 bg-[#080b11]/90 backdrop-blur-md border-b border-[#1a2636] flex-shrink-0">
+            <div class="flex items-center gap-3">
+                <button onclick="toggleSidebar()" class="text-[#717171] hover:text-[#FAFAFA] p-1.5 rounded hover:bg-[#111827] transition-colors"><i class="fas fa-bars"></i></button>
+                <div class="flex items-center gap-2">
+                    <img src="/static/img/logo.jpg" class="w-6 h-6 rounded-full object-cover border border-[#00f0ff]/40 shadow-[0_0_8px_rgba(0,240,255,0.3)]">
+                    <span class="font-brand font-medium text-sm text-white tracking-wide">JARVIS 4.0</span>
+                    <span class="hidden sm:inline-flex items-center gap-1 font-mono text-[9px] px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/30 text-cyan-400 font-bold uppercase tracking-wider">
+                        <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span> Paul Bettany Voice Active
+                    </span>
+                </div>
             </div>
-            <div class="w-4"></div>
-        </div>
+            
+            <div class="flex items-center gap-2">
+                <!-- Top Voice Speak Button -->
+                <button id="header-voice-btn" onclick="toggleVoice()" class="px-3 py-1.5 rounded-lg bg-cyan-950/50 border border-cyan-500/50 text-cyan-300 hover:text-white hover:bg-cyan-500/25 hover:border-cyan-400 transition-all flex items-center gap-2 shadow-[0_0_12px_rgba(0,240,255,0.2)] cursor-pointer" title="Click to Speak to JARVIS (Voice Input)">
+                    <i class="fas fa-microphone text-xs text-cyan-400"></i>
+                    <span id="header-voice-text" class="text-xs font-mono font-bold tracking-wide">SPEAK TO JARVIS</span>
+                </button>
+                
+                <!-- Top Voice Maker Trigger -->
+                <button onclick="toggleVoiceMakerModal()" class="px-2.5 py-1.5 rounded-lg bg-[#101722] border border-[#1a2636] hover:border-cyan-500/40 text-[#94a3b8] hover:text-cyan-300 transition-all flex items-center gap-1.5 text-xs font-mono font-medium cursor-pointer" title="Tony Stark Voice Maker Studio">
+                    <i class="fas fa-sliders text-xs text-cyan-400"></i>
+                    <span class="hidden md:inline">VOICE MAKER</span>
+                </button>
+            </div>
+        </header>
 
         <!-- Chat Area Container -->
-        <div id="chat-container" class="flex-1 flex flex-col max-w-3xl mx-auto w-full px-4 pt-20 md:pt-10 pb-6 relative transition-all duration-500">
+        <div id="chat-container" class="flex-1 flex flex-col max-w-3xl mx-auto w-full px-4 pt-4 pb-6 relative transition-all duration-500">
             
             <!-- Empty State -->
-            <div id="empty-state" class="flex-1 flex flex-col items-center justify-center w-full select-none">
-                <!-- Glowing Holographic Arc Reactor Core -->
-                <div class="relative w-28 h-28 mb-8 flex items-center justify-center cursor-pointer group">
+            <div id="empty-state" class="flex-1 flex flex-col items-center justify-center w-full select-none py-4">
+                <!-- Glowing Holographic Arc Reactor Core (Clickable to Speak) -->
+                <div onclick="toggleVoice()" class="relative w-28 h-28 mb-6 flex items-center justify-center cursor-pointer group" title="Click to Speak to JARVIS">
                     <div class="absolute w-24 h-24 rounded-full bg-cyan-500/20 blur-xl animate-pulse-slow"></div>
                     <svg class="absolute w-28 h-28 animate-spin-slow drop-shadow-[0_0_8px_rgba(0,240,255,0.4)]" viewBox="0 0 100 100">
                         <!-- Outer dotted ring -->
@@ -314,7 +334,19 @@
                     <div class="absolute font-mono text-[8px] text-cyan-400 font-bold uppercase tracking-widest mt-28 animate-pulse-slow">Core Online</div>
                 </div>
 
-                <h1 class="text-2xl font-brand font-medium mb-8 text-[#FAFAFA] tracking-tight glow-cyan">J.A.R.V.I.S. Neural Hub</h1>
+                <h1 class="text-2xl font-brand font-medium mb-3 text-[#FAFAFA] tracking-tight glow-cyan">J.A.R.V.I.S. Neural Hub</h1>
+                
+                <!-- Center Voice Trigger Pill -->
+                <div class="flex flex-wrap items-center justify-center gap-2.5 mb-6">
+                    <button id="empty-voice-btn" onclick="toggleVoice()" class="px-4 py-2 rounded-full bg-cyan-950/60 border border-cyan-500/50 hover:bg-cyan-500/20 text-cyan-300 hover:text-white transition-all flex items-center gap-2.5 shadow-[0_0_20px_rgba(0,240,255,0.25)] animate-pulse-slow cursor-pointer">
+                        <i class="fas fa-microphone text-xs text-cyan-400"></i>
+                        <span id="empty-voice-text" class="font-mono text-xs font-bold tracking-wider uppercase">Voice Control • Click to Speak</span>
+                    </button>
+                    <button onclick="toggleVoiceMakerModal()" class="px-3.5 py-2 rounded-full bg-[#101722] border border-[#1a2636] hover:border-cyan-500/40 text-[#94a3b8] hover:text-cyan-300 transition-all flex items-center gap-1.5 font-mono text-xs cursor-pointer">
+                        <i class="fas fa-sliders text-xs text-cyan-400"></i>
+                        <span>Voice Maker Studio</span>
+                    </button>
+                </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-3 w-full max-w-xl">
                     <button onclick="prefill('/Adversarial Review '); sendMessage();" class="p-4 rounded-lg text-left bg-[#090e15] box-glow border border-[#1a2636] transition-all">
@@ -394,8 +426,17 @@
                             <button onclick="document.getElementById('file-input').click()" class="p-1.5 text-[#717171] hover:text-[#FAFAFA] rounded hover:bg-[#1A1A1A] transition-colors" title="Attach File">
                                 <i class="fas fa-paperclip text-sm"></i>
                             </button>
-                            <button id="mic-btn" onclick="toggleVoice()" class="p-1.5 text-[#717171] hover:text-[#FAFAFA] rounded hover:bg-[#1A1A1A] transition-colors" title="Voice Input">
-                                <i class="fas fa-microphone text-sm"></i>
+                            <button id="mic-btn" onclick="toggleVoice()" class="px-2.5 py-1 text-cyan-300 bg-cyan-950/40 border border-cyan-500/40 hover:bg-cyan-500/20 hover:border-cyan-400 rounded-md transition-all flex items-center gap-1.5 shadow-[0_0_10px_rgba(0,240,255,0.15)] cursor-pointer" title="Voice Input (Click to Speak to JARVIS)">
+                                <i class="fas fa-microphone text-xs text-cyan-400"></i>
+                                <span id="mic-btn-label" class="text-[10px] font-mono font-bold">VOICE</span>
+                            </button>
+                            <button id="continuous-voice-btn" onclick="toggleContinuousVoice()" class="px-2 py-1 text-[#94a3b8] hover:text-cyan-400 rounded-md bg-[#101722] border border-[#1a2636] hover:border-cyan-500/30 transition-all flex items-center gap-1 cursor-pointer" title="Hands-Free Continuous Voice Control (Tony Stark Mode)">
+                                <i class="fas fa-atom text-[10px] text-cyan-400"></i>
+                                <span id="continuous-voice-label" class="text-[9px] font-mono font-bold hidden sm:inline">HUD VOICE</span>
+                            </button>
+                            <button onclick="toggleVoiceMakerModal()" class="px-2 py-1 text-cyan-400 hover:text-cyan-300 rounded-md bg-[#101722] border border-[#1a2636] hover:border-cyan-500/30 transition-all flex items-center gap-1 cursor-pointer" title="Tony Stark Voice Maker Studio & Acoustic HUD">
+                                <i class="fas fa-sliders text-[10px]"></i>
+                                <span class="text-[9px] font-mono font-bold hidden sm:inline">VOICE MAKER</span>
                             </button>
                             <button onclick="prefill('/Adversarial Review ')" class="px-2 py-1 ml-1 text-[10px] font-mono font-semibold rounded-md bg-amber-950/40 border border-amber-700/50 text-amber-300 hover:bg-amber-900/50 transition-colors flex items-center gap-1" title="Adversarial Review">
                                 <i class="fas fa-scale-balanced text-[9px]"></i> Adversarial Review
@@ -443,6 +484,31 @@
                     <span>JARVIS Local Node. Verify generated logic.</span>
                     <span id="char-count" class="font-mono text-[9px] text-[#475569]">0 ch // ~0 tok</span>
                 </div>
+            </div>
+        </div>
+
+        <!-- Floating Stark Voice Core Orb (Fixed Bottom Right, Always Visible) -->
+        <div id="floating-voice-orb" class="fixed bottom-24 right-6 z-40 flex items-center gap-2 group">
+            <button onclick="toggleVoice()" id="floating-voice-btn" class="w-13 h-13 rounded-full bg-[#080d16] border-2 border-cyan-400 text-cyan-400 hover:text-white hover:border-cyan-300 flex items-center justify-center shadow-[0_0_25px_rgba(0,240,255,0.4)] hover:shadow-[0_0_35px_rgba(0,240,255,0.8)] hover:scale-105 transition-all duration-300 relative cursor-pointer" title="Speak to J.A.R.V.I.S. (Voice Control)">
+                <div class="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping opacity-30"></div>
+                <i id="floating-voice-icon" class="fas fa-microphone text-lg drop-shadow-[0_0_6px_#00f0ff]"></i>
+            </button>
+            <div class="hidden group-hover:flex flex-col bg-[#080d16]/95 border border-cyan-500/40 rounded-xl p-2.5 shadow-2xl backdrop-blur-md text-[11px] font-mono space-y-1.5 animate-fadeIn min-w-[170px]">
+                <div class="text-cyan-400 font-bold uppercase tracking-wider flex items-center gap-1.5 pb-1 border-b border-cyan-500/20 text-[10px]">
+                    <span class="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse"></span> J.A.R.V.I.S. VOICE
+                </div>
+                <button onclick="toggleVoice()" class="text-left px-2 py-1.5 rounded bg-cyan-950/40 hover:bg-cyan-500/20 text-cyan-300 flex items-center gap-2 cursor-pointer transition-colors">
+                    <i class="fas fa-microphone text-xs text-cyan-400"></i>
+                    <span>Push-to-Talk</span>
+                </button>
+                <button onclick="toggleContinuousVoice()" class="text-left px-2 py-1.5 rounded hover:bg-[#121c2c] text-[#94a3b8] hover:text-cyan-300 flex items-center gap-2 cursor-pointer transition-colors">
+                    <i class="fas fa-atom text-xs text-cyan-400"></i>
+                    <span>Hands-Free HUD</span>
+                </button>
+                <button onclick="toggleVoiceMakerModal()" class="text-left px-2 py-1.5 rounded hover:bg-[#121c2c] text-[#94a3b8] hover:text-cyan-300 flex items-center gap-2 cursor-pointer transition-colors">
+                    <i class="fas fa-sliders text-xs text-cyan-400"></i>
+                    <span>Voice Maker Studio</span>
+                </button>
             </div>
         </div>
     </div>
@@ -810,6 +876,188 @@
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <!-- 🎙️ J.A.R.V.I.S. TONY STARK VOICE MAKER & ACOUSTIC HUD MODAL           -->
+    <!-- ═══════════════════════════════════════════════════════════════════════ -->
+    <div id="voice-maker-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black/90 opacity-0 transition-opacity duration-300 backdrop-blur-md">
+        <div class="bg-[#090D14] border border-[#00f0ff]/30 w-full max-w-2xl max-h-[90vh] rounded-2xl flex flex-col shadow-[0_0_50px_rgba(0,240,255,0.15)] overflow-hidden">
+            <!-- Modal Header -->
+            <div class="p-5 border-b border-[#1A2636] flex-shrink-0 flex items-center justify-between bg-gradient-to-r from-[#0C1420] to-[#090D14]">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-lg shadow-[0_0_15px_rgba(0,240,255,0.2)]">
+                        <i class="fas fa-atom animate-spin-slow"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 class="text-base font-brand font-semibold text-white tracking-wide">J.A.R.V.I.S. VOCAL MATRIX</h2>
+                            <span class="px-2 py-0.5 text-[9px] font-mono font-bold rounded-full bg-cyan-500/15 border border-cyan-500/40 text-cyan-300">STARK LABS</span>
+                        </div>
+                        <p class="text-[11px] text-[#718296] font-mono">Neural text-to-speech modulation & full autonomous speech control</p>
+                    </div>
+                </div>
+                <button onclick="toggleVoiceMakerModal()" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#718296] hover:text-white hover:bg-[#15202E] transition-all">
+                    <i class="fas fa-times text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div class="p-5 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+                <!-- 1. Voice Personas Grid -->
+                <div>
+                    <label class="block text-xs font-mono font-bold text-cyan-400 mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fas fa-user-astronaut text-[10px]"></i> 1. Select Neural Persona
+                    </label>
+                    <div id="voice-persona-cards" class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                        <!-- Dynamic Persona Cards rendered via JS -->
+                    </div>
+                </div>
+
+                <!-- 2. Acoustic Sliders (Pitch, Rate, Volume) -->
+                <div class="bg-[#0C1420]/80 border border-[#1A2636] rounded-xl p-4 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fas fa-sliders text-[10px]"></i> 2. Stark Acoustic Tuning
+                        </span>
+                        <button onclick="resetVoiceDefaults()" class="text-[10px] font-mono text-[#718296] hover:text-cyan-300 underline">Reset Tony Stark Calibration</button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <!-- Pitch -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-[11px] font-mono">
+                                <span class="text-[#94A3B8]">Pitch</span>
+                                <span id="voice-pitch-label" class="text-cyan-400 font-bold">-2Hz</span>
+                            </div>
+                            <input id="voice-pitch-slider" type="range" min="-10" max="10" step="1" value="-2" oninput="onVoiceParamChange('pitch', this.value)" class="w-full accent-cyan-400 h-1 bg-[#1A2636] rounded-lg cursor-pointer">
+                            <div class="flex justify-between text-[8px] text-[#475569] font-mono">
+                                <span>-10Hz (Deeper)</span>
+                                <span>+10Hz (Higher)</span>
+                            </div>
+                        </div>
+
+                        <!-- Rate / Cadence -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-[11px] font-mono">
+                                <span class="text-[#94A3B8]">Pace / Cadence</span>
+                                <span id="voice-rate-label" class="text-cyan-400 font-bold">+0%</span>
+                            </div>
+                            <input id="voice-rate-slider" type="range" min="-20" max="20" step="2" value="0" oninput="onVoiceParamChange('rate', this.value)" class="w-full accent-cyan-400 h-1 bg-[#1A2636] rounded-lg cursor-pointer">
+                            <div class="flex justify-between text-[8px] text-[#475569] font-mono">
+                                <span>-20% (Composed)</span>
+                                <span>+20% (Rapid)</span>
+                            </div>
+                        </div>
+
+                        <!-- Volume Gain -->
+                        <div class="space-y-1">
+                            <div class="flex justify-between text-[11px] font-mono">
+                                <span class="text-[#94A3B8]">Gain Boost</span>
+                                <span id="voice-vol-label" class="text-cyan-400 font-bold">+0%</span>
+                            </div>
+                            <input id="voice-vol-slider" type="range" min="-20" max="20" step="5" value="0" oninput="onVoiceParamChange('volume', this.value)" class="w-full accent-cyan-400 h-1 bg-[#1A2636] rounded-lg cursor-pointer">
+                            <div class="flex justify-between text-[8px] text-[#475569] font-mono">
+                                <span>-20% (Soft)</span>
+                                <span>+20% (Louder)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Full Voice Control Capabilities & Toggles -->
+                <div class="bg-[#0C1420]/80 border border-[#1A2636] rounded-xl p-4 space-y-3">
+                    <span class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fas fa-microphone-lines text-[10px]"></i> 3. Full Voice Control & Autonomous Modes
+                    </span>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                        <!-- Auto-speak responses -->
+                        <label class="flex items-start gap-3 p-2.5 rounded-lg border border-[#1A2636] bg-[#080E18] hover:border-cyan-500/30 cursor-pointer transition-colors">
+                            <input id="voice-toggle-autospeak" type="checkbox" onchange="onVoiceControlToggle('auto_speak', this.checked)" class="mt-0.5 accent-cyan-400 rounded">
+                            <div class="text-[11px]">
+                                <div class="font-bold text-white flex items-center gap-1.5">
+                                    <i class="fas fa-volume-high text-cyan-400 text-[10px]"></i> Auto-Speak Responses
+                                </div>
+                                <div class="text-[#718296] text-[10px] mt-0.5">JARVIS speaks answers aloud using your chosen voice persona.</div>
+                            </div>
+                        </label>
+
+                        <!-- Hands-Free Continuous Mode -->
+                        <label class="flex items-start gap-3 p-2.5 rounded-lg border border-[#1A2636] bg-[#080E18] hover:border-cyan-500/30 cursor-pointer transition-colors">
+                            <input id="voice-toggle-continuous" type="checkbox" onchange="onVoiceControlToggle('continuous_mode', this.checked)" class="mt-0.5 accent-cyan-400 rounded">
+                            <div class="text-[11px]">
+                                <div class="font-bold text-white flex items-center gap-1.5">
+                                    <i class="fas fa-atom text-cyan-400 text-[10px]"></i> Hands-Free Continuous HUD
+                                </div>
+                                <div class="text-[#718296] text-[10px] mt-0.5">Continuous conversation loop. Resumes listening after speaking.</div>
+                            </div>
+                        </label>
+                    </div>
+
+                    <!-- Direct Commands Cheat Sheet -->
+                    <div class="p-3 rounded-lg bg-[#080E18] border border-[#1A2636]/60 text-[10px] font-mono text-[#94A3B8]">
+                        <div class="text-cyan-300 font-bold mb-1 flex items-center gap-1">
+                            <i class="fas fa-terminal text-[9px]"></i> Instant Voice Commands (Say aloud to execute):
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[#718296]">
+                            <div>• <span class="text-white">"Jarvis, open [chrome / spotify / vscode]"</span></div>
+                            <div>• <span class="text-white">"Jarvis, play [song name / artist]"</span></div>
+                            <div>• <span class="text-white">"Jarvis, system status / CPU / health"</span></div>
+                            <div>• <span class="text-white">"Jarvis, scan laptop / find viruses"</span></div>
+                            <div>• <span class="text-white">"Jarvis, clean temp files / flush DNS"</span></div>
+                            <div>• <span class="text-white">"Jarvis, toggle full screen / hide video"</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4. Interactive Live Tester & Soundwave Visualizer -->
+                <div class="bg-[#0C1420]/80 border border-[#1A2636] rounded-xl p-4 space-y-3">
+                    <span class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <i class="fas fa-play text-[10px]"></i> 4. Live Voice Synthesis Test
+                    </span>
+
+                    <!-- Quick Phrases Chips -->
+                    <div class="flex flex-wrap gap-1.5">
+                        <button onclick="setTestPhrase('At your service, sir. All diagnostic nodes are nominal.')" class="px-2 py-1 text-[10px] font-mono bg-[#15202E] text-cyan-300 hover:bg-cyan-500/20 rounded border border-[#1A2636] transition-colors">"At your service, sir..."</button>
+                        <button onclick="setTestPhrase('Power levels at one hundred percent, Mr. Stark. Ready for flight.')" class="px-2 py-1 text-[10px] font-mono bg-[#15202E] text-cyan-300 hover:bg-cyan-500/20 rounded border border-[#1A2636] transition-colors">"Power levels at 100%..."</button>
+                        <button onclick="setTestPhrase('Right away, sir. Initiating workstation security scan.')" class="px-2 py-1 text-[10px] font-mono bg-[#15202E] text-cyan-300 hover:bg-cyan-500/20 rounded border border-[#1A2636] transition-colors">"Initiating security scan..."</button>
+                    </div>
+
+                    <div class="flex gap-2">
+                        <input id="voice-test-input" type="text" value="At your service, sir. All diagnostic nodes are nominal. Power levels at one hundred percent." class="flex-1 bg-[#080E18] border border-[#1A2636] rounded-lg px-3 py-2 text-xs text-white font-mono placeholder-[#52525B] focus:outline-none focus:border-cyan-400">
+                        <button id="voice-test-play-btn" onclick="playVoiceTest()" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-brand font-bold text-xs rounded-lg transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.3)]">
+                            <i class="fas fa-play text-xs"></i> <span>Synthesize</span>
+                        </button>
+                    </div>
+
+                    <!-- Glowing Soundwave Visualizer -->
+                    <div id="voice-visualizer" class="h-8 bg-[#080E18] border border-[#1A2636] rounded-lg flex items-center justify-center gap-1 px-4 overflow-hidden">
+                        <div class="w-1 bg-cyan-400 h-2 rounded-full transition-all duration-100 vbar"></div>
+                        <div class="w-1 bg-cyan-400 h-3 rounded-full transition-all duration-100 vbar"></div>
+                        <div class="w-1 bg-cyan-400 h-5 rounded-full transition-all duration-100 vbar"></div>
+                        <div class="w-1 bg-cyan-400 h-2 rounded-full transition-all duration-100 vbar"></div>
+                        <div class="w-1 bg-cyan-400 h-6 rounded-full transition-all duration-100 vbar"></div>
+                        <div class="w-1 bg-cyan-400 h-4 rounded-full transition-all duration-100 vbar"></div>
+                        <div class="w-1 bg-cyan-400 h-2 rounded-full transition-all duration-100 vbar"></div>
+                        <div class="w-1 bg-cyan-400 h-5 rounded-full transition-all duration-100 vbar"></div>
+                        <div class="w-1 bg-cyan-400 h-3 rounded-full transition-all duration-100 vbar"></div>
+                        <div class="w-1 bg-cyan-400 h-1 rounded-full transition-all duration-100 vbar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-[#1A2636] flex-shrink-0 flex items-center justify-between bg-[#0C1420]">
+                <div class="text-[10px] font-mono text-[#718296] flex items-center gap-1.5">
+                    <i class="fas fa-shield-alt text-cyan-400"></i> Active: <span id="voice-active-summary" class="text-cyan-300 font-bold">J.A.R.V.I.S. (Tony Stark)</span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="toggleVoiceMakerModal()" class="px-3 py-1.5 text-xs font-mono text-[#94A3B8] hover:text-white bg-[#15202E] border border-[#1A2636] rounded-lg transition-colors">Close</button>
+                    <button onclick="saveVoiceSettings()" class="px-4 py-1.5 text-xs font-brand font-bold text-black bg-cyan-400 hover:bg-cyan-300 rounded-lg shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all">Save to Stark Core</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Holographic Authentication Overlay -->
     <div id="auth-overlay" class="fixed inset-0 z-[100] flex items-center justify-center hidden bg-black/95 backdrop-blur-xl opacity-0 transition-opacity duration-500">
         <div class="bg-[#0B0B0C] w-full max-w-md rounded-2xl border border-[#27272A]/80 p-8 relative transform scale-95 transition-transform duration-500 shadow-2xl flex flex-col items-center">
@@ -888,6 +1136,17 @@
             currentConvId: null, 
             isStreaming: false, 
             isVoiceActive: false, 
+            isSpeaking: false,
+            voiceAutoSpeak: true,
+            continuousVoiceMode: false,
+            voiceSettings: {
+                profile: 'jarvis-stark',
+                voice: 'en-GB-RyanNeural',
+                pitch: '-2Hz',
+                rate: '+0%',
+                volume: '+0%'
+            },
+            voiceProfiles: [],
             abortController: null,
             lastUploadedContent: null,
             lastUploadedImage: null,
@@ -1402,6 +1661,18 @@
                 // Reload conversations list to display current thread updates
                 await loadConversations();
 
+                // Auto-speak response if enabled in Stark Vocal Matrix
+                if ((state.voiceAutoSpeak || state.continuousVoiceMode) && fullText) {
+                    await jarvisSpeak(fullText);
+                    if (state.continuousVoiceMode && !state.isStreaming && !state.isSpeaking) {
+                        setTimeout(() => {
+                            if (state.continuousVoiceMode && !state.isVoiceActive && !state.isSpeaking) {
+                                startVoiceRecognition();
+                            }
+                        }, 800);
+                    }
+                }
+
             } catch (e) {
                 if (e.name !== 'AbortError') {
                     contentDiv.style.whiteSpace = 'normal';
@@ -1411,6 +1682,13 @@
                 state.isStreaming = false;
                 document.getElementById('stop-btn').classList.add('hidden');
                 document.getElementById('send-btn').classList.remove('hidden');
+                if (state.continuousVoiceMode && !state.isSpeaking && !state.isVoiceActive && !fullText) {
+                    setTimeout(() => {
+                        if (state.continuousVoiceMode && !state.isSpeaking && !state.isVoiceActive) {
+                            startVoiceRecognition();
+                        }
+                    }, 800);
+                }
             }
         }
 
@@ -1560,78 +1838,706 @@
             }
         });
 
-        // ─── Native Web Speech Recognition Dictation ──────────────────────────
+        // ════════════════════════════════════════════════════════════════════════════════
+        // 🎙️ J.A.R.V.I.S. TONY STARK VOICE MAKER & AUTONOMOUS CONTROL ENGINE
+        // ════════════════════════════════════════════════════════════════════════════════
         let recognition = null;
-        function toggleVoice() {
-            const micBtn = document.getElementById('mic-btn');
-            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-            
-            if (!SpeechRecognition) {
-                alert("Speech recognition is not supported in this browser, Sir.");
+        let audioVisualizerInterval = null;
+        let webAudioCtx = null;
+
+        function playStarkChirp(type) {
+            try {
+                if (!webAudioCtx) {
+                    webAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (webAudioCtx.state === 'suspended') {
+                    webAudioCtx.resume();
+                }
+                const osc = webAudioCtx.createOscillator();
+                const gain = webAudioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(webAudioCtx.destination);
+                const now = webAudioCtx.currentTime;
+
+                if (type === 'start') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(587.33, now); // D5
+                    osc.frequency.exponentialRampToValueAtTime(880.00, now + 0.12); // A5
+                    gain.gain.setValueAtTime(0.08, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                } else if (type === 'ack') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(783.99, now); // G5
+                    osc.frequency.setValueAtTime(1046.50, now + 0.08); // C6
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                } else if (type === 'stop') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880.00, now);
+                    osc.frequency.exponentialRampToValueAtTime(440.00, now + 0.15);
+                    gain.gain.setValueAtTime(0.06, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+                    osc.start(now);
+                    osc.stop(now + 0.18);
+                }
+            } catch(e) {}
+        }
+
+        async function initVoiceSystem() {
+            try {
+                const res = await fetch('/api/voice/profiles');
+                if (res.ok) {
+                    const data = await res.json();
+                    state.voiceProfiles = data.profiles || [];
+                    state.voiceSettings = {
+                        profile: 'jarvis-stark',
+                        voice: data.active_voice || 'en-GB-RyanNeural',
+                        pitch: data.active_pitch || '-2Hz',
+                        rate: data.active_rate || '+0%',
+                        volume: data.active_volume || '+0%'
+                    };
+                    state.voiceAutoSpeak = data.auto_speak !== undefined ? data.auto_speak : true;
+                    state.continuousVoiceMode = data.continuous_mode !== undefined ? data.continuous_mode : false;
+
+                    renderVoicePersonaCards();
+                    syncVoiceUIFromState();
+                }
+            } catch (err) {
+                console.warn("Could not initialize Stark Vocal Matrix:", err);
+            }
+        }
+        window.initVoiceSystem = initVoiceSystem;
+
+        function renderVoicePersonaCards() {
+            const container = document.getElementById('voice-persona-cards');
+            if (!container || !state.voiceProfiles.length) return;
+
+            container.innerHTML = state.voiceProfiles.map(p => {
+                const isSelected = p.voice === state.voiceSettings.voice;
+                return `
+                    <div onclick="selectVoicePersona('${p.id}')" class="p-3 rounded-xl border transition-all cursor-pointer relative overflow-hidden group ${isSelected ? 'bg-cyan-950/20 border-cyan-400 shadow-[0_0_15px_rgba(0,240,255,0.15)]' : 'bg-[#080E18] border-[#1A2636] hover:border-[#27384E]'}">
+                        <div class="flex items-start justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-lg ${isSelected ? 'bg-cyan-500 text-black shadow-[0_0_8px_rgba(0,240,255,0.4)]' : 'bg-[#15202E] text-cyan-400'} flex items-center justify-center text-xs">
+                                    <i class="fas ${p.id.includes('friday') ? 'fa-bolt' : p.id.includes('edith') ? 'fa-satellite' : p.id.includes('mark') ? 'fa-shield-halved' : 'fa-robot'}"></i>
+                                </div>
+                                <div>
+                                    <h4 class="text-xs font-brand font-bold text-white">${p.name}</h4>
+                                    <span class="text-[9px] font-mono text-[#718296]">${p.badge} · ${p.voice}</span>
+                                </div>
+                            </div>
+                            <span class="px-1.5 py-0.5 text-[8px] font-mono font-bold rounded ${isSelected ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40' : 'bg-[#15202E] text-[#52525B]'}">${p.tag}</span>
+                        </div>
+                        <p class="text-[10px] text-[#94A3B8] mt-2 line-clamp-2 leading-relaxed">${p.description}</p>
+                        <div class="mt-2.5 flex items-center justify-between pt-2 border-t border-[#1A2636]/60">
+                            <button onclick="event.stopPropagation(); previewPersonaVoice('${p.id}')" class="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1">
+                                <i class="fas fa-play text-[8px]"></i> Preview Voice
+                            </button>
+                            <span class="text-[9px] font-mono text-[#52525B]">${p.pitch} | ${p.rate}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function selectVoicePersona(profileId) {
+            const profile = state.voiceProfiles.find(p => p.id === profileId);
+            if (!profile) return;
+
+            state.voiceSettings.profile = profile.id;
+            state.voiceSettings.voice = profile.voice;
+            state.voiceSettings.pitch = profile.pitch;
+            state.voiceSettings.rate = profile.rate;
+            state.voiceSettings.volume = profile.volume;
+
+            syncVoiceUIFromState();
+            renderVoicePersonaCards();
+            playStarkChirp('ack');
+        }
+        window.selectVoicePersona = selectVoicePersona;
+
+        function syncVoiceUIFromState() {
+            const pitchSlider = document.getElementById('voice-pitch-slider');
+            const pitchLabel = document.getElementById('voice-pitch-label');
+            const rateSlider = document.getElementById('voice-rate-slider');
+            const rateLabel = document.getElementById('voice-rate-label');
+            const volSlider = document.getElementById('voice-vol-slider');
+            const volLabel = document.getElementById('voice-vol-label');
+            const autoSpeakToggle = document.getElementById('voice-toggle-autospeak');
+            const continuousToggle = document.getElementById('voice-toggle-continuous');
+            const summaryEl = document.getElementById('voice-active-summary');
+
+            const pNum = parseInt(state.voiceSettings.pitch) || 0;
+            const rNum = parseInt(state.voiceSettings.rate) || 0;
+            const vNum = parseInt(state.voiceSettings.volume) || 0;
+
+            if (pitchSlider) pitchSlider.value = pNum;
+            if (pitchLabel) pitchLabel.textContent = `${pNum >= 0 ? '+' : ''}${pNum}Hz`;
+            if (rateSlider) rateSlider.value = rNum;
+            if (rateLabel) rateLabel.textContent = `${rNum >= 0 ? '+' : ''}${rNum}%`;
+            if (volSlider) volSlider.value = vNum;
+            if (volLabel) volLabel.textContent = `${vNum >= 0 ? '+' : ''}${vNum}%`;
+            if (autoSpeakToggle) autoSpeakToggle.checked = state.voiceAutoSpeak;
+            if (continuousToggle) continuousToggle.checked = state.continuousVoiceMode;
+
+            if (summaryEl) {
+                const p = state.voiceProfiles.find(x => x.voice === state.voiceSettings.voice);
+                summaryEl.textContent = p ? p.name : state.voiceSettings.voice;
+            }
+
+            // Sync continuous voice button in toolbar
+            const contBtn = document.getElementById('continuous-voice-btn');
+            const contLbl = document.getElementById('continuous-voice-label');
+            if (contBtn && contLbl) {
+                if (state.continuousVoiceMode) {
+                    contBtn.classList.add('text-cyan-300', 'bg-cyan-950/50', 'border-cyan-500/60', 'shadow-[0_0_12px_rgba(0,240,255,0.25)]');
+                    contBtn.classList.remove('text-[#94a3b8]', 'bg-[#101722]', 'border-[#1a2636]');
+                    contLbl.textContent = 'HUD: LIVE';
+                } else {
+                    contBtn.classList.remove('text-cyan-300', 'bg-cyan-950/50', 'border-cyan-500/60', 'shadow-[0_0_12px_rgba(0,240,255,0.25)]');
+                    contBtn.classList.add('text-[#94a3b8]', 'bg-[#101722]', 'border-[#1a2636]');
+                    contLbl.textContent = 'HUD VOICE';
+                }
+            }
+        }
+
+        function onVoiceParamChange(param, val) {
+            const num = parseInt(val) || 0;
+            if (param === 'pitch') {
+                state.voiceSettings.pitch = `${num >= 0 ? '+' : ''}${num}Hz`;
+                const lbl = document.getElementById('voice-pitch-label');
+                if (lbl) lbl.textContent = state.voiceSettings.pitch;
+            } else if (param === 'rate') {
+                state.voiceSettings.rate = `${num >= 0 ? '+' : ''}${num}%`;
+                const lbl = document.getElementById('voice-rate-label');
+                if (lbl) lbl.textContent = state.voiceSettings.rate;
+            } else if (param === 'volume') {
+                state.voiceSettings.volume = `${num >= 0 ? '+' : ''}${num}%`;
+                const lbl = document.getElementById('voice-vol-label');
+                if (lbl) lbl.textContent = state.voiceSettings.volume;
+            }
+        }
+        window.onVoiceParamChange = onVoiceParamChange;
+
+        function onVoiceControlToggle(key, isChecked) {
+            if (key === 'auto_speak') {
+                state.voiceAutoSpeak = isChecked;
+            } else if (key === 'continuous_mode') {
+                state.continuousVoiceMode = isChecked;
+                syncVoiceUIFromState();
+                if (isChecked && !state.isVoiceActive) {
+                    startVoiceRecognition();
+                } else if (!isChecked && state.isVoiceActive) {
+                    stopVoiceRecognition();
+                }
+            }
+        }
+        window.onVoiceControlToggle = onVoiceControlToggle;
+
+        function resetVoiceDefaults() {
+            state.voiceSettings = {
+                profile: 'jarvis-stark',
+                voice: 'en-GB-RyanNeural',
+                pitch: '-2Hz',
+                rate: '+0%',
+                volume: '+0%'
+            };
+            syncVoiceUIFromState();
+            renderVoicePersonaCards();
+            playStarkChirp('ack');
+        }
+        window.resetVoiceDefaults = resetVoiceDefaults;
+
+        function setTestPhrase(phrase) {
+            const input = document.getElementById('voice-test-input');
+            if (input) input.value = phrase;
+        }
+        window.setTestPhrase = setTestPhrase;
+
+        function animateVisualizer(active) {
+            const bars = document.querySelectorAll('#voice-visualizer .vbar');
+            if (!bars.length) return;
+            if (audioVisualizerInterval) {
+                clearInterval(audioVisualizerInterval);
+                audioVisualizerInterval = null;
+            }
+            if (active) {
+                audioVisualizerInterval = setInterval(() => {
+                    bars.forEach(b => {
+                        const h = Math.floor(Math.random() * 22) + 4;
+                        b.style.height = `${h}px`;
+                    });
+                }, 80);
+            } else {
+                bars.forEach(b => {
+                    b.style.height = '4px';
+                });
+            }
+        }
+
+        async function jarvisSpeak(text, customVoice = null, customPitch = null, customRate = null, customVolume = null) {
+            if (!text || !text.trim()) return;
+            try {
+                state.isSpeaking = true;
+                animateVisualizer(true);
+
+                // Clean markdown artifacts
+                let clean = text
+                    .replace(/```[\s\S]*?```/g, " I have rendered the technical code block on your display, sir. ")
+                    .replace(/`([^`]+)`/g, "$1")
+                    .replace(/https?:\/\/\S+/g, "")
+                    .replace(/^[#>*\-+|]+\s*/gm, "")
+                    .replace(/\*\*([^*]+)\*\*/g, "$1")
+                    .replace(/\*([^*]+)\*/g, "$1")
+                    .replace(/\s+/g, " ")
+                    .trim();
+                if (!clean) return;
+
+                const response = await fetch('/api/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        text: clean.substring(0, 1500),
+                        voice: customVoice || state.voiceSettings.voice,
+                        pitch: customPitch || state.voiceSettings.pitch,
+                        rate: customRate || state.voiceSettings.rate,
+                        volume: customVolume || state.voiceSettings.volume
+                    })
+                });
+
+                if (!response.ok) throw new Error("TTS failed");
+
+                const blob = await response.blob();
+                const audioUrl = URL.createObjectURL(blob);
+                const audio = new Audio(audioUrl);
+
+                return new Promise((resolve) => {
+                    audio.onended = () => {
+                        state.isSpeaking = false;
+                        animateVisualizer(false);
+                        URL.revokeObjectURL(audioUrl);
+                        resolve();
+                    };
+                    audio.onerror = () => {
+                        state.isSpeaking = false;
+                        animateVisualizer(false);
+                        URL.revokeObjectURL(audioUrl);
+                        resolve();
+                    };
+                    audio.play().catch(() => {
+                        state.isSpeaking = false;
+                        animateVisualizer(false);
+                        resolve();
+                    });
+                });
+            } catch (err) {
+                console.warn("JARVIS vocal output failure:", err);
+                state.isSpeaking = false;
+                animateVisualizer(false);
+            }
+        }
+        window.jarvisSpeak = jarvisSpeak;
+
+        async function previewPersonaVoice(profileId) {
+            const p = state.voiceProfiles.find(x => x.id === profileId);
+            if (!p) return;
+            await jarvisSpeak(p.sample, p.voice, p.pitch, p.rate, p.volume);
+        }
+        window.previewPersonaVoice = previewPersonaVoice;
+
+        async function playVoiceTest() {
+            const input = document.getElementById('voice-test-input');
+            const text = input ? input.value : "At your service, sir.";
+            const btn = document.getElementById('voice-test-play-btn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin text-xs"></i> <span>Speaking...</span>';
+            }
+            await jarvisSpeak(text);
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-play text-xs"></i> <span>Synthesize</span>';
+            }
+        }
+        window.playVoiceTest = playVoiceTest;
+
+        async function saveVoiceSettings() {
+            try {
+                const res = await fetch('/api/voice/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        voice: state.voiceSettings.voice,
+                        pitch: state.voiceSettings.pitch,
+                        rate: state.voiceSettings.rate,
+                        volume: state.voiceSettings.volume,
+                        auto_speak: state.voiceAutoSpeak,
+                        continuous_mode: state.continuousVoiceMode
+                    })
+                });
+                if (res.ok) {
+                    playStarkChirp('ack');
+                    toggleVoiceMakerModal();
+                    await jarvisSpeak("Vocal matrix calibrated and synchronized with Stark Core, sir.");
+                }
+            } catch (e) {
+                alert("Failed to synchronize voice settings, sir.");
+            }
+        }
+        window.saveVoiceSettings = saveVoiceSettings;
+
+        function toggleVoiceMakerModal() {
+            const modal = document.getElementById('voice-maker-modal');
+            if (!modal) return;
+            if (modal.classList.contains('hidden')) {
+                modal.classList.remove('hidden');
+                setTimeout(() => modal.classList.remove('opacity-0'), 10);
+                syncVoiceUIFromState();
+                renderVoicePersonaCards();
+            } else {
+                modal.classList.add('opacity-0');
+                setTimeout(() => modal.classList.add('hidden'), 300);
+            }
+        }
+        window.toggleVoiceMakerModal = toggleVoiceMakerModal;
+
+        // ─── Autonomous Speech Recognition Engine ─────────────────────────────
+        // ─── Autonomous Dual-Engine Speech Recognition & Audio Capture ──────
+        let activeMediaStream = null;
+        let activeMediaRecorder = null;
+        let activeAudioChunks = [];
+        let activeSpeechTranscript = '';
+        let activeSilenceTimer = null;
+
+        async function startVoiceRecognition() {
+            if (state.isVoiceActive) return;
+
+            // 1. Request hardware microphone stream
+            try {
+                if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                    alert("Microphone capture not supported in this browser context, sir.");
+                    return;
+                }
+                activeMediaStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+            } catch (err) {
+                console.error("Microphone access error:", err);
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    alert("J.A.R.V.I.S. could not access your microphone, sir.\n\nPlease click the lock or camera icon in your address bar (next to http://127.0.0.1:5000) and set Microphone to 'Allow'.");
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    alert("No microphone hardware detected on your system, sir.");
+                }
                 return;
             }
 
-            if (!recognition) {
-                recognition = new SpeechRecognition();
-                recognition.continuous = true;
-                recognition.interimResults = true;
-                recognition.lang = 'en-US';
+            state.isVoiceActive = true;
+            activeSpeechTranscript = '';
+            activeAudioChunks = [];
+            updateMicUI(true);
+            playStarkChirp('start');
+            if (chatInput) chatInput.placeholder = "Listening... Speak your directive now, sir...";
 
-                recognition.onstart = () => {
-                    state.isVoiceActive = true;
-                    micBtn.classList.add('text-red-500');
-                    micBtn.classList.remove('text-[#717171]');
-                    micBtn.innerHTML = '<i class="fas fa-microphone animate-pulse text-sm"></i>';
-                    chatInput.placeholder = "Listening, Sir...";
-                };
-
-                recognition.onresult = (event) => {
-                    let interimTranscript = '';
-                    let finalTranscript = '';
-                    for (let i = event.resultIndex; i < event.results.length; ++i) {
-                        if (event.results[i].isFinal) {
-                            finalTranscript += event.results[i][0].transcript;
-                        } else {
-                            interimTranscript += event.results[i][0].transcript;
-                        }
-                    }
-                    if (finalTranscript || interimTranscript) {
-                        chatInput.value = finalTranscript || interimTranscript;
-                        chatInput.dispatchEvent(new Event('input'));
-                    }
-                };
-
-                recognition.onerror = (err) => {
-                    console.error("Speech Recognition Error:", err);
+            // Hard safety watchdog cutoff (6.5s) to guarantee no listening hang
+            if (window._premiumVoiceWatchdog) clearTimeout(window._premiumVoiceWatchdog);
+            window._premiumVoiceWatchdog = setTimeout(() => {
+                if (state.isVoiceActive) {
+                    console.log("Maximum speech window (6.5s) reached in HUD. Processing...");
                     stopVoiceRecognition();
-                };
+                }
+            }, 6500);
 
-                recognition.onend = () => {
-                    stopVoiceRecognition();
+            // 2. Start MediaRecorder for Whisper v3 fallback
+            try {
+                let mime = '';
+                if (MediaRecorder.isTypeSupported('audio/webm;codecs=opus')) mime = 'audio/webm;codecs=opus';
+                else if (MediaRecorder.isTypeSupported('audio/webm')) mime = 'audio/webm';
+                else if (MediaRecorder.isTypeSupported('audio/ogg;codecs=opus')) mime = 'audio/ogg;codecs=opus';
+
+                activeMediaRecorder = mime ? new MediaRecorder(activeMediaStream, { mimeType: mime }) : new MediaRecorder(activeMediaStream);
+                activeMediaRecorder.ondataavailable = (e) => {
+                    if (e.data && e.data.size > 0) activeAudioChunks.push(e.data);
                 };
+                activeMediaRecorder.start(100);
+            } catch (mrErr) {
+                console.warn("MediaRecorder init note:", mrErr);
             }
 
-            if (state.isVoiceActive) {
-                recognition.stop();
+            // 3. Fast-path browser speech recognition in parallel
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SpeechRecognition && !recognition) {
+                try {
+                    recognition = new SpeechRecognition();
+                    recognition.continuous = true;
+                    recognition.interimResults = true;
+                    recognition.lang = 'en-US';
+
+                    recognition.onresult = async (event) => {
+                        let interim = '';
+                        let finalTrans = '';
+                        for (let i = event.resultIndex; i < event.results.length; ++i) {
+                            if (event.results[i].isFinal) {
+                                finalTrans += event.results[i][0].transcript;
+                            } else {
+                                interim += event.results[i][0].transcript;
+                            }
+                        }
+                        if (finalTrans) {
+                            activeSpeechTranscript = finalTrans.trim();
+                            if (chatInput) chatInput.value = activeSpeechTranscript;
+                            stopVoiceRecognition();
+                        } else if (interim && chatInput) {
+                            chatInput.value = interim;
+                            if (window._premiumInterimTimer) clearTimeout(window._premiumInterimTimer);
+                            window._premiumInterimTimer = setTimeout(() => {
+                                if (state.isVoiceActive && chatInput.value) {
+                                    activeSpeechTranscript = chatInput.value.trim();
+                                    stopVoiceRecognition();
+                                }
+                            }, 1200);
+                        }
+                    };
+
+                    recognition.onerror = (err) => {
+                        console.warn("Speech API note (using Whisper fallback):", err.error);
+                    };
+                } catch(e) {}
+            }
+
+            if (recognition) {
+                try { recognition.start(); } catch(e) {}
+            }
+        }
+
+        async function stopVoiceRecognition() {
+            if (!state.isVoiceActive) return;
+            state.isVoiceActive = false;
+            if (window._premiumVoiceWatchdog) { clearTimeout(window._premiumVoiceWatchdog); window._premiumVoiceWatchdog = null; }
+            if (window._premiumInterimTimer) { clearTimeout(window._premiumInterimTimer); window._premiumInterimTimer = null; }
+            updateMicUI('processing');
+            playStarkChirp('stop');
+            if (chatInput) chatInput.placeholder = "Processing directive with J.A.R.V.I.S. neural core...";
+
+            if (recognition) {
+                try { recognition.stop(); } catch(e) {}
+            }
+
+            if (activeMediaStream) {
+                try {
+                    activeMediaStream.getTracks().forEach(t => t.stop());
+                } catch(e) {}
+            }
+
+            const processAudio = async () => {
+                // If Web Speech API already returned text, use it!
+                if (activeSpeechTranscript && activeSpeechTranscript.trim().length > 1) {
+                    const txt = activeSpeechTranscript.trim();
+                    activeSpeechTranscript = '';
+                    await handleVoiceCommand(txt);
+                    return;
+                }
+
+                // Fallback to Groq Whisper Large v3 Turbo on server!
+                if (activeAudioChunks && activeAudioChunks.length > 0) {
+                    const blob = new Blob(activeAudioChunks, { type: activeMediaRecorder?.mimeType || 'audio/webm' });
+                    if (blob.size > 800) {
+                        const formData = new FormData();
+                        formData.append('file', blob, 'recording.webm');
+                        try {
+                            const res = await fetch('/api/voice/transcribe', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            if (res.ok) {
+                                const data = await res.json();
+                                const text = (data.text || '').trim();
+                                if (text) {
+                                    if (chatInput) chatInput.value = text;
+                                    await handleVoiceCommand(text);
+                                    return;
+                                }
+                            }
+                        } catch(err) {
+                            console.warn("Server STT error:", err);
+                        }
+                    }
+                }
+                // If nothing was transcribed
+                if (state.continuousVoiceMode && !state.isSpeaking) {
+                    setTimeout(() => {
+                        if (state.continuousVoiceMode && !state.isSpeaking && !state.isVoiceActive) {
+                            startVoiceRecognition();
+                        }
+                    }, 700);
+                } else {
+                    updateMicUI(false);
+                }
+            };
+
+            if (activeMediaRecorder && activeMediaRecorder.state !== 'inactive') {
+                activeMediaRecorder.onstop = () => { processAudio(); };
+                try { activeMediaRecorder.stop(); } catch(e) { processAudio(); }
             } else {
-                recognition.start();
+                processAudio();
+            }
+        }
+
+        function updateMicUI(isActive) {
+            // 1. Chat toolbar mic button
+            const micBtn = document.getElementById('mic-btn');
+            const micBtnLbl = document.getElementById('mic-btn-label');
+            if (micBtn) {
+                if (isActive) {
+                    micBtn.classList.remove('bg-cyan-950/40', 'border-cyan-500/40', 'text-cyan-300');
+                    micBtn.classList.add('bg-red-950/70', 'border-red-500', 'text-red-400', 'shadow-[0_0_15px_rgba(239,68,68,0.6)]');
+                    if (micBtnLbl) micBtnLbl.textContent = 'LISTENING...';
+                } else {
+                    micBtn.classList.remove('bg-red-950/70', 'border-red-500', 'text-red-400', 'shadow-[0_0_15px_rgba(239,68,68,0.6)]');
+                    micBtn.classList.add('bg-cyan-950/40', 'border-cyan-500/40', 'text-cyan-300');
+                    if (micBtnLbl) micBtnLbl.textContent = 'VOICE';
+                }
+            }
+
+            // 2. Top header voice button
+            const headerVoiceBtn = document.getElementById('header-voice-btn');
+            const headerVoiceTxt = document.getElementById('header-voice-text');
+            if (headerVoiceBtn) {
+                if (isActive) {
+                    headerVoiceBtn.classList.remove('bg-cyan-950/50', 'border-cyan-500/50', 'text-cyan-300');
+                    headerVoiceBtn.classList.add('bg-red-950/80', 'border-red-500', 'text-red-400', 'shadow-[0_0_15px_rgba(239,68,68,0.6)]');
+                    if (headerVoiceTxt) headerVoiceTxt.textContent = 'LISTENING...';
+                } else {
+                    headerVoiceBtn.classList.remove('bg-red-950/80', 'border-red-500', 'text-red-400', 'shadow-[0_0_15px_rgba(239,68,68,0.6)]');
+                    headerVoiceBtn.classList.add('bg-cyan-950/50', 'border-cyan-500/50', 'text-cyan-300');
+                    if (headerVoiceTxt) headerVoiceTxt.textContent = 'SPEAK TO JARVIS';
+                }
+            }
+
+            // 3. Center empty-state voice button
+            const emptyVoiceBtn = document.getElementById('empty-voice-btn');
+            const emptyVoiceTxt = document.getElementById('empty-voice-text');
+            if (emptyVoiceBtn) {
+                if (isActive) {
+                    emptyVoiceBtn.classList.remove('bg-cyan-950/60', 'border-cyan-500/50', 'text-cyan-300');
+                    emptyVoiceBtn.classList.add('bg-red-950/80', 'border-red-500', 'text-red-400', 'shadow-[0_0_20px_rgba(239,68,68,0.7)]');
+                    if (emptyVoiceTxt) emptyVoiceTxt.textContent = 'LISTENING TO DIRECTIVE...';
+                } else {
+                    emptyVoiceBtn.classList.remove('bg-red-950/80', 'border-red-500', 'text-red-400', 'shadow-[0_0_20px_rgba(239,68,68,0.7)]');
+                    emptyVoiceBtn.classList.add('bg-cyan-950/60', 'border-cyan-500/50', 'text-cyan-300');
+                    if (emptyVoiceTxt) emptyVoiceTxt.textContent = 'Voice Control • Click to Speak';
+                }
+            }
+
+            // 4. Floating Voice Orb
+            const floatBtn = document.getElementById('floating-voice-btn');
+            const floatIcon = document.getElementById('floating-voice-icon');
+            if (floatBtn && floatIcon) {
+                if (isActive) {
+                    floatBtn.classList.remove('border-cyan-400', 'text-cyan-400', 'shadow-[0_0_25px_rgba(0,240,255,0.4)]');
+                    floatBtn.classList.add('border-red-500', 'text-red-400', 'shadow-[0_0_35px_rgba(239,68,68,0.8)]');
+                    floatIcon.className = 'fas fa-microphone animate-pulse text-lg';
+                } else {
+                    floatBtn.classList.remove('border-red-500', 'text-red-400', 'shadow-[0_0_35px_rgba(239,68,68,0.8)]');
+                    floatBtn.classList.add('border-cyan-400', 'text-cyan-400', 'shadow-[0_0_25px_rgba(0,240,255,0.4)]');
+                    floatIcon.className = 'fas fa-microphone text-lg drop-shadow-[0_0_6px_#00f0ff]';
+                }
+            }
+        }
+
+        function toggleVoice() {
+            if (state.isVoiceActive) {
+                stopVoiceRecognition();
+            } else {
+                startVoiceRecognition();
             }
         }
         window.toggleVoice = toggleVoice;
+        window.stopVoiceRecognition = stopVoiceRecognition;
 
-        function stopVoiceRecognition() {
-            const micBtn = document.getElementById('mic-btn');
-            state.isVoiceActive = false;
-            if (micBtn) {
-                micBtn.classList.remove('text-red-500');
-                micBtn.classList.add('text-[#717171]');
-                micBtn.innerHTML = '<i class="fas fa-microphone text-sm"></i>';
-            }
-            if (chatInput) {
-                chatInput.placeholder = "Message JARVIS...";
+        async function toggleContinuousVoice() {
+            state.continuousVoiceMode = !state.continuousVoiceMode;
+            syncVoiceUIFromState();
+            if (state.continuousVoiceMode) {
+                // Speak greeting first, open mic ONLY after greeting playback completes!
+                await jarvisSpeak("Full continuous voice control active, sir. Standing by for commands.");
+                if (state.continuousVoiceMode && !state.isSpeaking && !state.isVoiceActive) {
+                    setTimeout(() => {
+                        if (state.continuousVoiceMode && !state.isSpeaking && !state.isVoiceActive) {
+                            startVoiceRecognition();
+                        }
+                    }, 800);
+                }
+            } else {
+                stopVoiceRecognition();
+                await jarvisSpeak("Hands-free continuous mode disengaged.");
             }
         }
-        window.stopVoiceRecognition = stopVoiceRecognition;
+        window.toggleContinuousVoice = toggleContinuousVoice;
+
+        async function handleVoiceCommand(rawText) {
+            if (!rawText || !rawText.trim()) return;
+            const text = rawText.trim();
+
+            // Temporarily pause recognition while command executes & speaks
+            if (recognition) {
+                try { recognition.stop(); } catch(e) {}
+            }
+
+            try {
+                // Check direct autonomous command execution
+                const res = await fetch('/api/voice/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ transcript: text })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.status === 'success') {
+                        // Display command & action in chat
+                        document.body.classList.add('chat-active');
+                        addLog(text, 'user');
+                        const jarvisLog = addLog(`✅ **${data.spoken_response}**`, 'jarvis');
+                        scrollToBottom();
+
+                        // Vocalize confirmation
+                        await jarvisSpeak(data.spoken_response);
+
+                        // If user asked to play music, trigger YouTube / Music Deck
+                        if (data.action === 'play_music') {
+                            const playerInput = document.getElementById('music-url-input');
+                            if (playerInput) {
+                                playerInput.value = data.query;
+                            }
+                        }
+
+                        // In continuous mode, resume listening after speaking with 800ms acoustic echo cooldown
+                        if (state.continuousVoiceMode && !state.isSpeaking && !state.isVoiceActive) {
+                            setTimeout(() => {
+                                if (state.continuousVoiceMode && !state.isSpeaking && !state.isVoiceActive) {
+                                    startVoiceRecognition();
+                                }
+                            }, 800);
+                        }
+                        return;
+                    }
+                }
+            } catch (err) {
+                console.warn("Direct voice command pass-through:", err);
+            }
+
+            // Fallback: Send message to full AI assistant
+            chatInput.value = text;
+            await sendMessage();
+        }
 
         // ─── Dynamic Conversations Loader ────────────────────────────────────
         async function loadConversations() {
@@ -2593,6 +3499,7 @@
             await loadMCPTools();
             await loadConnectors();
             await loadConversations();
+            await initVoiceSystem();
         };
     </script>
 </body>
