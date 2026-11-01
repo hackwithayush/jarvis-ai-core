@@ -85,3 +85,13 @@ class VoiceEngine:
     def speak_sync(self, text: str, voice: str = None) -> dict:
         """Synchronous wrapper for async speak."""
         return asyncio.run(self.speak(text, voice))
+
+    def detect_vad(self, audio_bytes: bytes, sample_rate: int = 16000) -> dict:
+        """Classifies audio frames using Silero VAD."""
+        from core.voice_vad import voice_vad
+        return voice_vad.detect_speech_from_pcm(audio_bytes, sample_rate)
+
+    def trigger_barge_in(self, source: str = "user_barge_in") -> dict:
+        """Signals conversational interruption."""
+        from core.voice_vad import voice_vad
+        return voice_vad.trigger_interruption(source)

@@ -387,6 +387,40 @@ class OSEngine:
         subprocess.Popen(["cmd.exe", "/c", "start", "", url], shell=False)
         return f"Executing neural search for {query} on your primary browser, sir."
 
+    def browse_web(self, task: str, headless: bool = False) -> dict:
+        """Execute autonomous visual web automation using Browser-Use agent."""
+        try:
+            from core.browser_engine import browser_engine
+            res = browser_engine.execute_task(task, headless=headless)
+            spoken = res.get("final_result") or f"Browser automation task completed, sir."
+            return {
+                "status": "success",
+                "action": "browse_web",
+                "spoken_response": spoken,
+                "data": res
+            }
+        except Exception as e:
+            logger.error(f"browse_web failure: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "spoken_response": "I encountered an impediment with the browser automation protocol, sir."
+            }
+
+    def visual_click(self, directive: str) -> dict:
+        """Execute pixel-accurate UI action using OmniParser visual grounding."""
+        try:
+            from VISION.omni_parser import omni_parser
+            res = omni_parser.visual_action(directive)
+            return res
+        except Exception as e:
+            logger.error(f"visual_click error: {e}")
+            return {
+                "status": "error",
+                "error": str(e),
+                "spoken_response": "I encountered an obstruction with the visual grounding interface, sir."
+            }
+
     def list_processes(self) -> str:
         """Scan active system nodes (top 15 by memory)."""
         try:
@@ -852,6 +886,21 @@ class OSEngine:
             res = self.armor_diagnostics()
             return {"status": "success", "action": "armor_diagnostics", "spoken_response": res.get("spoken_response"), "data": res}
 
+        # 14. Autonomous Web Browsing (Browser-Use)
+        if any(clean_low.startswith(k) for k in ["browse to ", "navigate to ", "go to website ", "browse the web and ", "look up on website "]):
+            res = self.browse_web(clean, headless=False)
+            return {
+                "status": "success",
+                "action": "browse_web",
+                "spoken_response": res.get("spoken_response"),
+                "data": res
+            }
+
+        # 15. OmniParser Visual UI Interaction
+        if any(clean_low.startswith(k) for k in ["click on ", "visually click ", "click the ", "press button ", "press the button "]):
+            res = self.visual_click(clean)
+            return res
+
         # ─── AUTONOMOUS AI ACTION PLANNER (For Complex Multi-Step Directives) ───
         try:
             from core.model_manager import ModelManager
@@ -870,7 +919,9 @@ class OSEngine:
                 "- control_volume: {action: 'up'|'down'|'mute'|'max'}\n"
                 "- take_screenshot: {}\n"
                 "- check_network_health: {}\n"
-                "- search_web: {query: string}\n\n"
+                "- search_web: {query: string}\n"
+                "- browse_web: {task: string}\n"
+                "- visual_click: {directive: string}\n\n"
                 "JSON format:\n"
                 "{\n"
                 '  "spoken_response": "Formal British confirmation as Paul Bettany J.A.R.V.I.S.",\n'
@@ -923,6 +974,14 @@ class OSEngine:
                     elif tool == "search_web":
                         r = self.search_web(params.get("query", ""))
                         executed_results.append({"search": params.get("query"), "result": r})
+                    elif tool == "browse_web":
+                        task_str = params.get("task") or params.get("query") or clean
+                        r = self.browse_web(task_str, headless=False)
+                        executed_results.append(r)
+                    elif tool == "visual_click":
+                        dir_str = params.get("directive") or params.get("target") or clean
+                        r = self.visual_click(dir_str)
+                        executed_results.append(r)
 
                 return {
                     "status": "success",

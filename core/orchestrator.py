@@ -26,15 +26,22 @@ class VisionAgent(BaseAgent):
         
     def evaluate_confidence(self, task: str) -> float:
         t = task.lower()
-        if any(keyword in t for keyword in ["see", "screen", "look", "read", "screenshot", "vision"]):
+        if any(keyword in t for keyword in ["see", "screen", "look", "read", "screenshot", "vision", "parse ui", "omniparser"]):
             return 0.95
         return 0.1
         
     def execute(self, task: str) -> str:
         try:
             from VISION.desktop_vision import DesktopVision
-            res = DesktopVision.describe_screen_layout()
-            return f"[VISION RESPONSE] {res}"
+            t = task.lower()
+            if any(k in t for k in ["parse", "elements", "boxes", "som", "where is", "find button", "find input"]):
+                res = DesktopVision.omni_parse(task)
+                total = res.get("total_elements", 0)
+                plan = res.get("action_plan", {})
+                return f"[OMNIPARSER RESPONSE] Grounded {total} UI elements on display. Plan: {plan.get('reason', 'Ready')}"
+            else:
+                res = DesktopVision.describe_screen_layout()
+                return f"[VISION RESPONSE] {res}"
         except Exception as e:
             return f"Vision Agent Failed: {e}"
 
@@ -169,10 +176,32 @@ Return ONLY valid JSON.
         return f"[MCP RESPONSE from {best_tool}]\n{res}"
 
 
+class BrowserAgentNode(BaseAgent):
+    def __init__(self):
+        super().__init__("BrowserAgent")
+        
+    def evaluate_confidence(self, task: str) -> float:
+        t = task.lower()
+        if any(keyword in t for keyword in ["browse", "navigate to", "website", "web page", "scrape", "amazon", "login to", "fill form", "extract from web"]):
+            return 0.92
+        return 0.05
+        
+    def execute(self, task: str) -> str:
+        try:
+            from core.browser_engine import browser_engine
+            res = browser_engine.execute_task(task, headless=False)
+            if res.get("status") == "success":
+                return f"[BROWSER RESPONSE] {res.get('final_result', 'Task completed.')}"
+            else:
+                return f"[BROWSER ERROR] {res.get('error', 'Execution failed.')}"
+        except Exception as e:
+            return f"Browser Agent Failed: {e}"
+
 class AgentOrchestrator:
     def __init__(self):
         self.agents: List[BaseAgent] = [
             VisionAgent(),
+            BrowserAgentNode(),
             ComputerControlAgentNode(),
             PlannerAgentNode(),
             MCPExtensionAgent()

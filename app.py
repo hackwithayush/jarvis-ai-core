@@ -3569,7 +3569,25 @@ def voice_command_endpoint():
             "spoken_response": spoken
         })
 
-    # 16. Omnipotent Autonomous Stark Directive Engine
+    # 16. Autonomous Browser Navigation Directive (Browser-Use)
+    if any(clean_cmd.startswith(k) for k in ["browse ", "navigate to ", "go to website ", "browse the web and ", "look up on website "]):
+        from core.browser_engine import browser_engine
+        res = browser_engine.execute_task(clean_cmd, headless=False)
+        spoken = res.get("final_result") or "Web browsing directive completed, sir."
+        return jsonify({
+            "status": "success",
+            "action": "browse_web",
+            "spoken_response": spoken,
+            "data": res
+        })
+
+    # 17. OmniParser Visual UI Interaction Directive
+    if any(clean_cmd.startswith(k) for k in ["click on ", "visually click ", "click the ", "press button "]):
+        from VISION.omni_parser import omni_parser
+        res = omni_parser.visual_action(clean_cmd)
+        return jsonify(res)
+
+    # 18. Omnipotent Autonomous Stark Directive Engine
     # If not matched by simple regex, dispatch to autonomous directive executor
     auto_res = os_engine.execute_autonomous_stark_directive(clean_cmd)
     if auto_res.get("status") == "success":
@@ -3581,6 +3599,49 @@ def voice_command_endpoint():
         "message": "Routing to core neural intelligence",
         "clean_prompt": raw_cmd
     })
+
+@app.route("/api/browser/task", methods=["POST"])
+def browser_task_api():
+    """Autonomous Web Automation API powered by Browser-Use."""
+    data = request.get_json(silent=True) or {}
+    task = data.get("task", "").strip()
+    if not task:
+        return jsonify({"status": "error", "error": "No browser task provided"}), 400
+        
+    headless = bool(data.get("headless", False))
+    provider = data.get("provider")
+    model = data.get("model")
+    max_steps = int(data.get("max_steps", 15))
+    
+    from core.browser_engine import browser_engine
+    res = browser_engine.execute_task(
+        task=task,
+        headless=headless,
+        provider=provider,
+        model=model,
+        max_steps=max_steps
+    )
+    return jsonify(res)
+
+@app.route("/api/vision/omni-parse", methods=["POST", "GET"])
+def omni_parse_api():
+    """OmniParser: Extracts Set-of-Marks UI elements and optional target plan."""
+    from VISION.desktop_vision import DesktopVision
+    data = request.get_json(silent=True) or {}
+    goal = data.get("goal") or request.args.get("goal")
+    res = DesktopVision.omni_parse(goal=goal)
+    return jsonify(res)
+
+@app.route("/api/vision/visual-click", methods=["POST"])
+def visual_click_api():
+    """OmniParser: Pixel-accurate visual action execution."""
+    data = request.get_json(silent=True) or {}
+    directive = data.get("directive", "").strip()
+    if not directive:
+        return jsonify({"status": "error", "error": "Directive required."}), 400
+    from VISION.omni_parser import omni_parser
+    res = omni_parser.visual_action(directive)
+    return jsonify(res)
 
 @app.route("/api/tts", methods=["POST"])
 def tts_api():
@@ -3680,6 +3741,103 @@ def tts_api():
     except Exception as e:
         logger.error(f"Neural Vocalization Failure: {e}")
         return jsonify({"error": "Vocal node offline"}), 500
+
+@app.route("/api/voice/vad", methods=["POST"])
+def voice_vad_endpoint():
+    """Silero VAD Endpoint: Analyzes audio chunk (PCM/WAV) to detect speech activity & barge-in."""
+    try:
+        from core.voice_vad import voice_vad
+        
+        pcm_bytes = None
+        sample_rate = 16000
+        auto_interrupt = True
+
+        # 1. Multipart audio upload
+        if "file" in request.files or "audio" in request.files:
+            file_obj = request.files.get("file") or request.files.get("audio")
+            raw_data = file_obj.read()
+            if raw_data.startswith(b"RIFF") and b"WAVE" in raw_data[:12]:
+                try:
+                    import wave
+                    import io
+                    with wave.open(io.BytesIO(raw_data), "rb") as wf:
+                        sample_rate = wf.getframerate() or 16000
+                        pcm_bytes = wf.readframes(wf.getnframes())
+                except Exception:
+                    pcm_bytes = raw_data
+            else:
+                pcm_bytes = raw_data
+
+        # 2. JSON payload (base64 PCM/WAV)
+        elif request.is_json:
+            data = request.get_json(silent=True) or {}
+            b64_audio = data.get("audio_base64") or data.get("pcm_base64")
+            if b64_audio:
+                import base64
+                pcm_bytes = base64.b64decode(b64_audio)
+            sample_rate = int(data.get("sample_rate", 16000))
+            auto_interrupt = bool(data.get("auto_interrupt", True))
+
+        # 3. Raw stream
+        elif request.data:
+            pcm_bytes = request.data
+            auto_interrupt = request.args.get("auto_interrupt", "true").lower() == "true"
+            if request.args.get("sample_rate"):
+                try:
+                    sample_rate = int(request.args.get("sample_rate"))
+                except ValueError:
+                    sample_rate = 16000
+
+        if not pcm_bytes:
+            return jsonify({"status": "error", "error": "No audio chunk payload received"}), 400
+
+        vad_result = voice_vad.detect_speech_from_pcm(pcm_bytes, sample_rate=sample_rate)
+        
+        # If speech was detected and auto_interrupt is true, signal barge-in
+        if vad_result.get("is_speech") and auto_interrupt:
+            voice_vad.trigger_interruption(source="silero_vad_realtime")
+            vad_result["barge_in_triggered"] = True
+        else:
+            vad_result["barge_in_triggered"] = False
+
+        vad_result["status"] = "success"
+        vad_result["interrupted"] = voice_vad.is_interrupted()
+        return jsonify(vad_result)
+    except Exception as e:
+        logger.error(f"Voice VAD endpoint failed: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+@app.route("/api/voice/interrupt", methods=["POST"])
+def voice_interrupt_endpoint():
+    """Full-Duplex Conversational Barge-In: Trigger interruption signal to silence speech playback."""
+    try:
+        from core.voice_vad import voice_vad
+        data = request.get_json(silent=True) or {}
+        source = data.get("source", "user_barge_in")
+        res = voice_vad.trigger_interruption(source=source)
+        return jsonify(res)
+    except Exception as e:
+        logger.error(f"Voice interruption signal failed: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+@app.route("/api/voice/interrupt/status", methods=["GET"])
+def voice_interrupt_status():
+    """Query current interruption state."""
+    from core.voice_vad import voice_vad
+    return jsonify({
+        "status": "success",
+        "interrupted": voice_vad.is_interrupted()
+    })
+
+@app.route("/api/voice/interrupt/reset", methods=["POST"])
+def voice_interrupt_reset():
+    """Clear conversational interruption signal."""
+    from core.voice_vad import voice_vad
+    voice_vad.reset_interruption()
+    return jsonify({
+        "status": "success",
+        "interrupted": False
+    })
 
 # ─── Laptop Guardian API ───────────────────────────────────────────
 

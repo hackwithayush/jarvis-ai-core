@@ -28,3 +28,4 @@ UI/frontend/node_modules/
 # Transcripts and local traces
 *.jsonl
 conversation_transcript.md
+.venv_browser/

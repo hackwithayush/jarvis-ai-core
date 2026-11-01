@@ -1626,6 +1626,10 @@
         };
 
         window.__jarvisStopSpeaking = function() {
+          if (window.__jarvisVoiceSystem && window.__jarvisVoiceSystem.isSpeaking && window.__jarvisVoiceSystem.bargeInInterrupt) {
+            window.__jarvisVoiceSystem.bargeInInterrupt('stop_speaking_call');
+            return;
+          }
           try {
             if (window.__jarvisTtsAudio) {
               window.__jarvisTtsAudio.pause();
@@ -2604,6 +2608,12 @@
           isListening: false,
           isSpeaking: false,
           isRecognitionRunning: false,
+          bargeInActive: false,
+          bargeInStream: null,
+          bargeInAudioCtx: null,
+          bargeInAnalyser: null,
+          bargeInAnimFrame: null,
+          bargeInRecognition: null,
           awaitingChatReply: false,
           chatReplyWatchdog: null,
           voiceCycleTimer: null,
@@ -3088,7 +3098,11 @@
           },
 
           startVoice: async function() {
-            if (this.isListening || this.isSpeaking) return;
+            if (this.isSpeaking) {
+              this.bargeInInterrupt('start_voice_interrupt');
+              return;
+            }
+            if (this.isListening) return;
 
             if (this.voiceCycleTimer) {
               clearTimeout(this.voiceCycleTimer);
@@ -3316,6 +3330,10 @@
           },
 
           toggleVoice: function() {
+            if (this.isSpeaking) {
+              this.bargeInInterrupt('manual_toggle');
+              return;
+            }
             if (this.isListening) {
               this.stopVoice();
             } else {
@@ -3388,6 +3406,7 @@
 
             const handlePlaybackEnded = () => {
               this.isSpeaking = false;
+              this.stopBargeInMonitor();
               this.animateVisualizer(false);
               this.setMusicDucking(false);
               if (onFinished) {
@@ -3430,6 +3449,7 @@
                   };
 
                   await audio.play();
+                  this.startBargeInMonitor();
                   return;
                 }
               }
@@ -3449,11 +3469,162 @@
                   handlePlaybackEnded();
                 };
                 window.speechSynthesis.speak(utter);
+                this.startBargeInMonitor();
                 return;
               }
             } catch(e) {}
 
             handlePlaybackEnded();
+          },
+
+          startBargeInMonitor: function() {
+            if (this.bargeInActive) return;
+            this.bargeInActive = true;
+
+            // 1. Audio energy detection via getUserMedia with echoCancellation
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+              navigator.mediaDevices.getUserMedia({
+                audio: {
+                  echoCancellation: true,
+                  noiseSuppression: true,
+                  autoGainControl: true
+                }
+              }).then(stream => {
+                if (!this.bargeInActive || !this.isSpeaking) {
+                  stream.getTracks().forEach(t => t.stop());
+                  return;
+                }
+                this.bargeInStream = stream;
+                try {
+                  const AC = window.AudioContext || window.webkitAudioContext;
+                  if (AC) {
+                    const ctx = new AC();
+                    this.bargeInAudioCtx = ctx;
+                    const src = ctx.createMediaStreamSource(stream);
+                    const analyser = ctx.createAnalyser();
+                    analyser.fftSize = 128;
+                    src.connect(analyser);
+                    this.bargeInAnalyser = analyser;
+
+                    const data = new Uint8Array(analyser.frequencyBinCount);
+                    let vocalBurstCount = 0;
+
+                    const monitorLoop = () => {
+                      if (!this.bargeInActive || !this.isSpeaking) return;
+                      analyser.getByteFrequencyData(data);
+                      let sum = 0;
+                      for (let i = 0; i < data.length; i++) sum += data[i];
+                      const avg = sum / data.length;
+
+                      // echoCancellation ensures speaker audio is omitted
+                      // User speaking directly into mic creates sharp energy peak (> 48)
+                      if (avg > 48) {
+                        vocalBurstCount++;
+                        if (vocalBurstCount >= 3) {
+                          console.log("⚡ Silero/Acoustic VAD barge-in detected via energy burst!");
+                          this.bargeInInterrupt('acoustic_speech_detected');
+                          return;
+                        }
+                      } else {
+                        vocalBurstCount = Math.max(0, vocalBurstCount - 1);
+                      }
+                      this.bargeInAnimFrame = requestAnimationFrame(monitorLoop);
+                    };
+                    this.bargeInAnimFrame = requestAnimationFrame(monitorLoop);
+                  }
+                } catch(e) {
+                  console.warn("Barge-in AudioContext note:", e);
+                }
+              }).catch(err => {
+                console.warn("Barge-in mic capture note:", err);
+              });
+            }
+
+            // 2. Web Speech API barge-in detector for fast keyword/phrase interruption
+            const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (SR) {
+              try {
+                const recog = new SR();
+                recog.continuous = true;
+                recog.interimResults = true;
+                recog.lang = 'en-US';
+                recog.onresult = (e) => {
+                  if (!this.bargeInActive || !this.isSpeaking) return;
+                  for (let i = e.resultIndex; i < e.results.length; ++i) {
+                    const tr = (e.results[i][0].transcript || '').trim();
+                    if (tr.length > 1) {
+                      console.log("⚡ Speech recognition detected user voice barge-in:", tr);
+                      this.bargeInInterrupt('speech_keyword_detected');
+                      return;
+                    }
+                  }
+                };
+                recog.onerror = () => {};
+                recog.start();
+                this.bargeInRecognition = recog;
+              } catch(e) {}
+            }
+          },
+
+          stopBargeInMonitor: function() {
+            this.bargeInActive = false;
+            if (this.bargeInAnimFrame) {
+              cancelAnimationFrame(this.bargeInAnimFrame);
+              this.bargeInAnimFrame = null;
+            }
+            if (this.bargeInStream) {
+              try {
+                this.bargeInStream.getTracks().forEach(t => t.stop());
+              } catch(e) {}
+              this.bargeInStream = null;
+            }
+            if (this.bargeInAudioCtx) {
+              try {
+                this.bargeInAudioCtx.close();
+              } catch(e) {}
+              this.bargeInAudioCtx = null;
+            }
+            if (this.bargeInRecognition) {
+              try {
+                this.bargeInRecognition.stop();
+              } catch(e) {}
+              this.bargeInRecognition = null;
+            }
+          },
+
+          bargeInInterrupt: function(reason) {
+            if (!this.isSpeaking && !window.__jarvisIsSpeaking) return;
+            console.log("⚡ Conversational Barge-In Triggered:", reason);
+            this.isSpeaking = false;
+            window.__jarvisIsSpeaking = false;
+            this.stopBargeInMonitor();
+
+            if (this.currentAudio) {
+              try {
+                this.currentAudio.pause();
+                this.currentAudio.currentTime = 0;
+                this.currentAudio = null;
+              } catch(e) {}
+            }
+            if (window.speechSynthesis) {
+              try { window.speechSynthesis.cancel(); } catch(e) {}
+            }
+            this.animateVisualizer(false);
+            this.setMusicDucking(false);
+            this.showToast("Interrupted: Listening to directive, sir...", "⚡");
+            this.playChirp('ack');
+
+            // Signal backend
+            fetch('/api/voice/interrupt', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ source: reason || 'user_barge_in' })
+            }).catch(() => {});
+
+            // Seamlessly transition into listening mode
+            setTimeout(() => {
+              this.startVoice();
+            }, 120);
           },
 
           animateVisualizer: function(active) {

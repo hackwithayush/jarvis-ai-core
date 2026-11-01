@@ -39,6 +39,12 @@ class ExecutionManager:
         elif tool == "system_status":
             return RemoteTasks.get_system_status()
             
+        elif tool in ["browser_use", "browser", "autonomous_browser"]:
+            print("[BROWSER USE] Running autonomous multi-step visual web navigation...")
+            from core.browser_engine import browser_engine
+            res = browser_engine.execute_task(step, headless=False)
+            return res.get("final_result", "Browser task completed.")
+            
         elif tool == "terminal":
             print("[SANDBOX SHELL LAYER] Running raw command inside secure subprocess sandbox.")
             from SAFE_EXECUTION.sandbox import SafeSandbox

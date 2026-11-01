@@ -70,3 +70,34 @@ class DesktopVision:
             logger.error(f"Screen layout description failed: {e}")
             return f"ERROR: Visual cortex parsing failure: {str(e)}"
 
+    @staticmethod
+    def omni_parse(goal: str = None) -> dict:
+        """
+        OmniParser visual grounding:
+        Parses desktop into Set-of-Marks UI elements and locates target.
+        """
+        from VISION.omni_parser import omni_parser
+        img = omni_parser.capture_screen()
+        elements = omni_parser.parse_ui_elements(img)
+        som_img, som_b64, registry = omni_parser.generate_som_image(img, elements)
+        
+        result = {
+            "total_elements": len(elements),
+            "elements": [e.to_dict() for e in elements],
+            "som_image_b64": som_b64
+        }
+        
+        if goal:
+            plan = omni_parser.target_action(goal, elements, som_b64)
+            result["action_plan"] = plan
+            
+        return result
+
+    @staticmethod
+    def visual_click(directive: str) -> dict:
+        """
+        Execute pixel-grounded mouse click on UI element matching directive.
+        """
+        from VISION.omni_parser import omni_parser
+        return omni_parser.visual_action(directive)
+

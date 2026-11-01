@@ -48,7 +48,10 @@ class ComputerControlAgent:
             
         try:
             if x is not None and y is not None:
-                pyautogui.click(x=x, y=y, clicks=clicks, button=button)
+                # Failsafe buffer: prevent hitting exact corner (0,0) which triggers PyAutoGUI abort
+                safe_x = max(10, min(x, 1910))
+                safe_y = max(10, min(y, 1070))
+                pyautogui.click(x=safe_x, y=safe_y, clicks=clicks, button=button)
             else:
                 pyautogui.click(clicks=clicks, button=button)
             return True
@@ -109,6 +112,14 @@ class ComputerControlAgent:
         except Exception as e:
             logger.error(f"Scroll failed: {e}")
             return False
+
+    def visual_click(self, directive: str) -> dict:
+        """
+        OmniParser Visual Grounding:
+        Visually locates button/input from screen using Set-of-Marks and clicks exact center.
+        """
+        from VISION.omni_parser import omni_parser
+        return omni_parser.visual_action(directive)
 
 # Global Instance
 computer_control = ComputerControlAgent()

@@ -1,54 +1,59 @@
 import logging
 import os
-from playwright.async_api import async_playwright
 from langchain_core.messages import HumanMessage
-from langchain_groq import ChatGroq
+from core.browser_engine import browser_engine
 
 logger = logging.getLogger("jarvis.workers.browser")
 
 class BrowserWorker:
-    """Specialized Agent: Autonomous Web Browsing & Visual Extraction."""
+    """Specialized Agent: Autonomous Web Browsing & Visual Extraction using Browser-Use."""
     
     def __init__(self, llm=None):
-        self.llm = llm or ChatGroq(model_name="qwen/qwen3.8-27b", groq_api_key=os.getenv("GROQ_API_KEY"))
+        self.llm = llm
 
     async def run(self, state: dict):
-        """Navigate a URL and extract specific data."""
+        """Navigate web, interact with pages, and fulfill autonomous web objectives."""
         url = state.get("url")
-        objective = state.get("objective", "Extract main content")
+        objective = state.get("objective")
+        query = state.get("user_query") or state.get("task")
         
-        if not url:
-            return {"error": "No target URL provided to Browser Node."}
+        # Build comprehensive natural language browser directive
+        if url and objective:
+            task = f"Navigate to {url} and {objective}."
+        elif url:
+            task = f"Navigate to {url} and extract the primary contents and answers."
+        elif objective:
+            task = objective
+        elif query:
+            task = query
+        else:
+            return {"error": "No web target or objective provided to Browser Node."}
 
-        logger.info(f"Browser Worker: Navigating to {url} to {objective}...")
+        logger.info(f"Browser Worker: Dispatching autonomous task -> '{task}'")
         
-        async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
-            page = await browser.new_page()
+        # Use our high-level BrowserEngine powered by Browser-Use
+        try:
+            res = await browser_engine.execute_task_async(
+                task=task,
+                headless=False, # Allow user to see Tony Stark HUD in action, or set headless=True
+                timeout=120
+            )
             
-            try:
-                await page.goto(url, wait_until="networkidle")
-                # Wait for any dynamic content
-                await page.wait_for_timeout(2000)
-                
-                # Use LLM to decide what to extract if it's complex, 
-                # but for v1 we just get text
-                content = await page.content()
-                text = await page.evaluate("document.body.innerText")
-                
-                # Cleanup
-                text_clean = " ".join(text.split())[:8000]
-                
-                summary_prompt = f"Summarize this webpage content specifically for this objective: {objective}\n\nCONTENT:\n{text_clean}"
-                summary = await self.llm.ainvoke(summary_prompt)
-                
-                await browser.close()
+            if res.get("status") == "success":
+                final_text = res.get("final_result", "Web automation task completed successfully.")
                 return {
-                    "messages": [HumanMessage(content=summary.content, name="BrowserNode")],
+                    "messages": [HumanMessage(content=final_text, name="BrowserNode")],
                     "url": url,
-                    "extracted_text": text_clean
+                    "urls_visited": res.get("urls_visited", []),
+                    "extracted_text": final_text
                 }
-            except Exception as e:
-                logger.error(f"Playwright Error: {e}")
-                await browser.close()
-                return {"error": f"Browser node failed: {e}"}
+            else:
+                err = res.get("error", "Unknown browser automation failure.")
+                logger.error(f"Browser Worker execution reported error: {err}")
+                return {
+                    "messages": [HumanMessage(content=f"Browser automation encountered an issue: {err}", name="BrowserNode")],
+                    "error": err
+                }
+        except Exception as e:
+            logger.exception(f"Browser Worker critical fault: {e}")
+            return {"error": f"Browser node failed: {e}"}

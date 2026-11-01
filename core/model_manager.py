@@ -317,7 +317,7 @@ class ModelManager:
 
             # --- Choice A: Google Gemini (FREE flagship with model-level failover) ---
             if self.gemini_client:
-                gemini_models = ["gemini-flash-latest", "gemini-3.7-flash", "gemini-2.5-flash", "gemini-3.8-flash"]
+                gemini_models = ["gemini-2.5-flash", "gemini-3.8-flash", "gemini-flash-latest"]
                 for g_model in gemini_models:
                     try:
                         logger.info(f"Vision Node Active: Analyzing image with {g_model} (Gemini)...")
