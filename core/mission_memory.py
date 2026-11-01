@@ -1,8 +1,15 @@
 """
-JARVIS 4.0 — Mission Memory & Long-Term Objective Tracking
+JARVIS 5.0 — Mission Memory & Long-Term Objective Tracking
 Decomposes complex multi-stage objectives into verifiable milestones,
 persists architectural decisions across Windows reboots, detects unfinished work,
 and orchestrates multi-session autonomous progression with human authorization gates.
+
+Hardened with:
+1. Concurrency Locking: Thread-safe, non-blocking per-objective locks preventing race conditions.
+2. Action Idempotency: SHA-256 fingerprinting preventing accidental duplicate execution on resume.
+3. Stale Permission Validation: Strict TTL checks preventing execution with expired authorization.
+4. Situational Knowledge Graph: Automatic linking of objectives, milestones, decisions, and files.
+5. Autonomous Quality Evaluation: Automated scoring of completed milestone artifacts.
 """
 import os
 import sys
@@ -10,7 +17,9 @@ import time
 import json
 import uuid
 import shutil
+import hashlib
 import logging
+import threading
 from typing import Dict, Any, List, Optional, Tuple
 
 import config
@@ -29,8 +38,73 @@ class MissionMemoryManager:
         self.workspace_root = os.path.abspath(workspace_root or os.getcwd())
         self.storage_dir = os.path.join(self.workspace_root, "data", "objectives")
         os.makedirs(self.storage_dir, exist_ok=True)
+        self.idempotency_dir = os.path.join(self.workspace_root, "data")
+        os.makedirs(self.idempotency_dir, exist_ok=True)
+        self.idempotency_file = os.path.join(self.idempotency_dir, "idempotency_cache.json")
         self.model_mgr = ModelManager()
-        logger.info(f"JARVIS 4.0 Mission Memory active. Storage: {self.storage_dir}")
+
+        # Concurrency Protection: Lock registry per objective ID
+        self._locks_mutex = threading.Lock()
+        self._obj_locks: Dict[str, threading.Lock] = {}
+        self._idempotency_lock = threading.Lock()
+
+        # Default authorization TTL (24 hours)
+        self.authorization_ttl: float = 86400.0
+
+        logger.info(f"JARVIS 5.0 Mission Memory active. Storage: {self.storage_dir}")
+
+    # ─── Concurrency Protection ────────────────────────────────────────────────
+
+    def _get_objective_lock(self, objective_id: str) -> threading.Lock:
+        """Retrieves or creates a thread lock for a specific objective ID."""
+        with self._locks_mutex:
+            if objective_id not in self._obj_locks:
+                self._obj_locks[objective_id] = threading.Lock()
+            return self._obj_locks[objective_id]
+
+    # ─── Action Idempotency & Replay Prevention ────────────────────────────────
+
+    def compute_action_fingerprint(self, action_type: str, target: str, payload: Any) -> str:
+        """Computes a deterministic SHA-256 fingerprint for an external action."""
+        raw = f"{action_type}:{target}:{json.dumps(payload, sort_keys=True, default=str)}"
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    def is_action_already_executed(self, fingerprint: str) -> Optional[Dict[str, Any]]:
+        """Checks if an external action has already been executed successfully."""
+        with self._idempotency_lock:
+            cache = self._load_idempotency_cache()
+            return cache.get(fingerprint)
+
+    def record_action_executed(self, fingerprint: str, action_type: str, target: str, result: Any):
+        """Records completed action in the persistent idempotency cache."""
+        with self._idempotency_lock:
+            cache = self._load_idempotency_cache()
+            cache[fingerprint] = {
+                "fingerprint": fingerprint,
+                "action_type": action_type,
+                "target": target,
+                "result": result,
+                "executed_at": time.time()
+            }
+            self._save_idempotency_cache(cache)
+
+    def _load_idempotency_cache(self) -> Dict[str, Any]:
+        if os.path.isfile(self.idempotency_file):
+            try:
+                with open(self.idempotency_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            except Exception:
+                pass
+        return {}
+
+    def _save_idempotency_cache(self, cache: Dict[str, Any]):
+        temp_f = f"{self.idempotency_file}.tmp"
+        try:
+            with open(temp_f, "w", encoding="utf-8") as f:
+                json.dump(cache, f, indent=2, default=str)
+            os.replace(temp_f, self.idempotency_file)
+        except Exception as e:
+            logger.warning(f"Failed to persist idempotency cache: {e}")
 
     # ─── Storage & Atomic Checkpointing ────────────────────────────────────────
 
@@ -102,17 +176,52 @@ class MissionMemoryManager:
                         results.append(data)
         return results
 
+    # ─── Stale Permission Validation ──────────────────────────────────────────
+
+    def validate_objective_authorization(
+        self,
+        objective_id: str,
+        user_id: str,
+        provided_authorized_flag: bool
+    ) -> Tuple[bool, Optional[str]]:
+        """
+        Verifies authorization freshness (TTL window) before resuming long-running objectives.
+        """
+        obj = self.get_objective(objective_id)
+        if not obj:
+            return False, f"Objective '{objective_id}' not found."
+
+        if obj.get("user_id") and user_id and obj.get("user_id") != user_id:
+            return False, f"Permission denied: Objective belongs to '{obj.get('user_id')}', requested by '{user_id}'."
+
+        if not provided_authorized_flag:
+            return False, "Authorization flag not provided."
+
+        last_auth = obj.get("last_authorized_at")
+        now = time.time()
+
+        if last_auth is not None:
+            age = now - float(last_auth)
+            if age > self.authorization_ttl:
+                obj["status"] = "awaiting_reauthorization"
+                self._save_objective(obj)
+                return False, f"Security Guardian Gate: Objective '{objective_id}' authorization expired (age: {age:.0f}s > TTL {self.authorization_ttl:.0f}s). Fresh authorization required."
+
+        return True, None
+
     # ─── Objective Decomposition & Creation ────────────────────────────────────
 
     def create_objective(self, goal: str, user_id: str = "Ayush") -> Dict[str, Any]:
         """
         Deconstructs a strategic user goal into sequential, verifiable milestones.
+        Registers the objective in the Persistent Knowledge Graph.
         """
         oid = f"obj_{uuid.uuid4().hex[:8]}"
         logger.info(f"[MISSION MEMORY] Decomposing objective [{oid}]: '{goal}'")
 
         # Decompose using LLM into structured milestones
         milestones = self._decompose_goal_into_milestones(goal)
+        now = time.time()
 
         obj_data = {
             "id": oid,
@@ -125,13 +234,30 @@ class MissionMemoryManager:
             "progress_percent": 0.0,
             "milestones": milestones,
             "decisions_log": [],
-            "created_at": time.time(),
-            "updated_at": time.time(),
+            "created_at": now,
+            "updated_at": now,
+            "last_authorized_at": now,
             "completed_at": None
         }
 
         self._save_objective(obj_data)
         logger.info(f"[MISSION MEMORY] Created objective '{obj_data['title']}' with {len(milestones)} milestones.")
+
+        # Register in Knowledge Graph
+        try:
+            from core.knowledge_graph import knowledge_graph
+            knowledge_graph.add_node(
+                node_id=oid,
+                node_type="objective",
+                label=obj_data["title"],
+                properties={"goal": goal, "user_id": user_id, "status": "active"}
+            )
+            for m in milestones:
+                ms_node_id = f"ms_{oid}_{m['id']}"
+                knowledge_graph.link_objective_milestone(oid, ms_node_id, m["title"], status=m["status"])
+        except Exception as e:
+            logger.warning(f"Knowledge graph registration notice: {e}")
+
         return obj_data
 
     def _decompose_goal_into_milestones(self, goal: str) -> List[Dict[str, Any]]:
@@ -232,98 +358,177 @@ Example JSON format:
     ) -> Dict[str, Any]:
         """
         Executes the current active milestone for an objective.
-        Updates decision log, saves progress, and handles blockers.
+        Protected with non-blocking concurrency locking, action idempotency,
+        automated quality evaluation, and Knowledge Graph updates.
         """
-        obj = self.get_objective(objective_id)
-        if not obj:
-            return {"status": "error", "error": f"Objective '{objective_id}' not found."}
-
-        idx = obj.get("current_milestone_index", 0)
-        milestones = obj.get("milestones", [])
-
-        if idx >= len(milestones):
-            obj["status"] = "completed"
-            obj["progress_percent"] = 100.0
-            obj["completed_at"] = time.time()
-            self._save_objective(obj)
+        lock = self._get_objective_lock(objective_id)
+        acquired = lock.acquire(blocking=False)
+        if not acquired:
+            logger.warning(f"[MISSION MEMORY] Objective '{objective_id}' is locked by another active thread.")
             return {
-                "status": "completed",
-                "message": f"Objective '{obj['title']}' is fully completed (100%).",
-                "objective": obj
+                "status": "locked",
+                "error": f"Objective '{objective_id}' is currently executing in another process/thread. Concurrency conflict avoided."
             }
 
-        ms = milestones[idx]
-        ms["status"] = "in_progress"
-        ms["started_at"] = time.time()
-        self._save_objective(obj)
+        try:
+            obj = self.get_objective(objective_id)
+            if not obj:
+                return {"status": "error", "error": f"Objective '{objective_id}' not found."}
 
-        logger.info(f"[MISSION MEMORY] Executing Milestone {ms['id']}/{len(milestones)}: '{ms['title']}'")
+            idx = obj.get("current_milestone_index", 0)
+            milestones = obj.get("milestones", [])
 
-        # Delegate execution to MissionControlEngine
-        from core.mission_control import mission_control
-        mission_res = mission_control.execute_mission(
-            directive=ms["directive"],
-            user_id=obj.get("user_id", "Ayush"),
-            auto_approve=auto_approve
-        )
+            if idx >= len(milestones):
+                obj["status"] = "completed"
+                obj["progress_percent"] = 100.0
+                obj["completed_at"] = time.time()
+                self._save_objective(obj)
+                return {
+                    "status": "completed",
+                    "message": f"Objective '{obj['title']}' is fully completed (100%).",
+                    "objective": obj
+                }
 
-        # Check for pause / blocker
-        if mission_res.get("status") == "awaiting_approval":
+            ms = milestones[idx]
+
+            # 2. Idempotency Check: Verify if milestone directive was already executed
+            action_fp = self.compute_action_fingerprint(
+                action_type="milestone_execution",
+                target=objective_id,
+                payload={"milestone_id": ms["id"], "directive": ms["directive"]}
+            )
+            cached_action = self.is_action_already_executed(action_fp)
+            if cached_action and ms.get("status") == "completed":
+                logger.info(f"[MISSION MEMORY] Milestone {ms['id']} already executed. Returning cached outcome.")
+                return {
+                    "status": "success",
+                    "milestone_completed": ms["id"],
+                    "title": ms["title"],
+                    "progress_percent": obj.get("progress_percent", 0.0),
+                    "is_objective_completed": obj.get("status") == "completed",
+                    "idempotent_replay_prevented": True,
+                    "cached_result": cached_action.get("result")
+                }
+
+            ms["status"] = "in_progress"
+            ms["started_at"] = time.time()
+            self._save_objective(obj)
+
+            logger.info(f"[MISSION MEMORY] Executing Milestone {ms['id']}/{len(milestones)}: '{ms['title']}'")
+
+            # Delegate execution to MissionControlEngine
+            from core.mission_control import mission_control
+            mission_res = mission_control.execute_mission(
+                directive=ms["directive"],
+                user_id=obj.get("user_id", "Ayush"),
+                auto_approve=auto_approve
+            )
+
+            # Check for pause / blocker
+            if mission_res.get("status") == "awaiting_approval":
+                ms["status"] = "blocked"
+                ms["blocker"] = "Paused at Zero-Trust Guardian Gate: Privileged action requires human approval."
+                obj["status"] = "blocked"
+                self._save_objective(obj)
+
+                # Link in Knowledge Graph
+                try:
+                    from core.knowledge_graph import knowledge_graph
+                    ms_node_id = f"ms_{objective_id}_{ms['id']}"
+                    knowledge_graph.add_node(ms_node_id, "milestone", ms["title"], {"status": "blocked", "blocker": ms["blocker"]})
+                    knowledge_graph.add_edge(objective_id, ms_node_id, "BLOCKED_BY", {"reason": ms["blocker"]})
+                except Exception:
+                    pass
+
+                return {
+                    "status": "blocked",
+                    "milestone": ms,
+                    "pending_approval": mission_res.get("pending_approval"),
+                    "message": f"Milestone {ms['id']} paused: Human supervisor authorization required."
+                }
+
+            # Check for completion
+            if mission_res.get("status") == "completed":
+                ms["status"] = "completed"
+                ms["completed_at"] = time.time()
+                proto_p = mission_res.get("prototype_path")
+                report_p = mission_res.get("report_path")
+                if report_p:
+                    ms["artifacts"].append(report_p)
+                if proto_p:
+                    ms["artifacts"].append(proto_p)
+
+                # Autonomous Quality Evaluation
+                from core.autonomous_evaluator import autonomous_evaluator
+                quality_res = autonomous_evaluator.evaluate_milestone_deliverables(
+                    prototype_path=proto_p,
+                    test_results={"passed": mission_res.get("tests_verified", True)},
+                    report_path=report_p
+                )
+                ms["quality_evaluation"] = quality_res
+
+                decision_entry = f"Milestone {ms['id']} ({ms['title']}) completed successfully. Quality score: {quality_res['milestone_quality_score']}/100 ({quality_res['grade']})."
+                ms["decisions"].append(decision_entry)
+                obj.setdefault("decisions_log", []).append(decision_entry)
+
+                # Advance to next milestone
+                obj["current_milestone_index"] = idx + 1
+                obj["progress_percent"] = round(((idx + 1) / len(milestones)) * 100, 1)
+
+                if obj["current_milestone_index"] >= len(milestones):
+                    obj["status"] = "completed"
+                    obj["completed_at"] = time.time()
+
+                self._save_objective(obj)
+
+                # Record Action Idempotency
+                self.record_action_executed(
+                    fingerprint=action_fp,
+                    action_type="milestone_execution",
+                    target=objective_id,
+                    result={"milestone_id": ms["id"], "status": "completed", "score": quality_res["milestone_quality_score"]}
+                )
+
+                # Update Knowledge Graph
+                try:
+                    from core.knowledge_graph import knowledge_graph
+                    ms_node_id = f"ms_{objective_id}_{ms['id']}"
+                    knowledge_graph.link_objective_milestone(objective_id, ms_node_id, ms["title"], status="completed")
+                    if proto_p:
+                        knowledge_graph.link_decision_to_code(
+                            decision_id=f"dec_{objective_id}_{ms['id']}",
+                            decision_text=decision_entry,
+                            file_path=proto_p,
+                            objective_id=objective_id
+                        )
+                except Exception:
+                    pass
+
+                return {
+                    "status": "success",
+                    "milestone_completed": ms["id"],
+                    "title": ms["title"],
+                    "progress_percent": obj["progress_percent"],
+                    "is_objective_completed": obj["status"] == "completed",
+                    "quality_evaluation": quality_res,
+                    "report_path": report_p,
+                    "vocal_briefing": mission_res.get("vocal_response"),
+                    "next_milestone": milestones[idx + 1]["title"] if idx + 1 < len(milestones) else None
+                }
+
+            # Handle failure
             ms["status"] = "blocked"
-            ms["blocker"] = "Paused at Zero-Trust Guardian Gate: Privileged action requires human approval."
+            ms["blocker"] = mission_res.get("error", "Execution failed.")
             obj["status"] = "blocked"
             self._save_objective(obj)
             return {
-                "status": "blocked",
+                "status": "failed",
                 "milestone": ms,
-                "pending_approval": mission_res.get("pending_approval"),
-                "message": f"Milestone {ms['id']} paused: Human supervisor authorization required."
+                "error": ms["blocker"]
             }
 
-        # Check for completion
-        if mission_res.get("status") == "completed":
-            ms["status"] = "completed"
-            ms["completed_at"] = time.time()
-            if mission_res.get("report_path"):
-                ms["artifacts"].append(mission_res["report_path"])
-            if mission_res.get("prototype_path"):
-                ms["artifacts"].append(mission_res["prototype_path"])
-
-            decision_entry = f"Milestone {ms['id']} ({ms['title']}) completed successfully. Verified tests: {mission_res.get('tests_verified')}."
-            ms["decisions"].append(decision_entry)
-            obj.setdefault("decisions_log", []).append(decision_entry)
-
-            # Advance to next milestone
-            obj["current_milestone_index"] = idx + 1
-            obj["progress_percent"] = round(((idx + 1) / len(milestones)) * 100, 1)
-
-            if obj["current_milestone_index"] >= len(milestones):
-                obj["status"] = "completed"
-                obj["completed_at"] = time.time()
-
-            self._save_objective(obj)
-
-            return {
-                "status": "success",
-                "milestone_completed": ms["id"],
-                "title": ms["title"],
-                "progress_percent": obj["progress_percent"],
-                "is_objective_completed": obj["status"] == "completed",
-                "report_path": mission_res.get("report_path"),
-                "vocal_briefing": mission_res.get("vocal_response"),
-                "next_milestone": milestones[idx + 1]["title"] if idx + 1 < len(milestones) else None
-            }
-
-        # Handle failure
-        ms["status"] = "blocked"
-        ms["blocker"] = mission_res.get("error", "Execution failed.")
-        obj["status"] = "blocked"
-        self._save_objective(obj)
-        return {
-            "status": "failed",
-            "milestone": ms,
-            "error": ms["blocker"]
-        }
+        finally:
+            lock.release()
 
     # ─── Windows Restart Continuity & Unfinished Work Detection ───────────────
 
@@ -333,7 +538,7 @@ Example JSON format:
         """
         unfinished = []
         for obj in self.list_objectives():
-            if obj.get("status") in ["active", "blocked", "in_progress"]:
+            if obj.get("status") in ["active", "blocked", "in_progress", "awaiting_reauthorization"]:
                 idx = obj.get("current_milestone_index", 0)
                 milestones = obj.get("milestones", [])
                 active_ms = milestones[idx] if idx < len(milestones) else None
@@ -350,9 +555,15 @@ Example JSON format:
                 })
         return unfinished
 
-    def resume_objective(self, objective_id: str, authorized: bool = True) -> Dict[str, Any]:
+    def resume_objective(
+        self,
+        objective_id: str,
+        authorized: bool = True,
+        user_id: str = "Ayush"
+    ) -> Dict[str, Any]:
         """
         Resumes an objective that was interrupted by a Windows reboot or paused at a gate.
+        Enforces stale permission validation (checking TTL) before resuming.
         """
         obj = self.get_objective(objective_id)
         if not obj:
@@ -361,14 +572,27 @@ Example JSON format:
         if obj["status"] == "completed":
             return {"status": "completed", "message": "Objective is already completed."}
 
-        # Clear blockers if authorized
-        if authorized:
-            obj["status"] = "active"
-            idx = obj.get("current_milestone_index", 0)
-            if idx < len(obj.get("milestones", [])):
-                obj["milestones"][idx]["status"] = "pending"
-                obj["milestones"][idx]["blocker"] = None
-            self._save_objective(obj)
+        # Stale Permission / TTL Validation Check
+        is_valid_auth, auth_err = self.validate_objective_authorization(
+            objective_id=objective_id,
+            user_id=user_id,
+            provided_authorized_flag=authorized
+        )
+        if not is_valid_auth:
+            return {
+                "status": "blocked",
+                "error": auth_err,
+                "objective_id": objective_id
+            }
+
+        # Clear blockers and refresh authorization timestamp
+        obj["status"] = "active"
+        obj["last_authorized_at"] = time.time()
+        idx = obj.get("current_milestone_index", 0)
+        if idx < len(obj.get("milestones", [])):
+            obj["milestones"][idx]["status"] = "pending"
+            obj["milestones"][idx]["blocker"] = None
+        self._save_objective(obj)
 
         return self.execute_next_milestone(objective_id, auto_approve=authorized)
 

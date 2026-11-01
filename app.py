@@ -4044,10 +4044,100 @@ def objective_resume_api(objective_id: str):
     """Resumes an objective interrupted by a Windows reboot or paused at a gate."""
     data = request.get_json(silent=True) or {}
     authorized = bool(data.get("authorized", True))
+    user_id = data.get("user_id", "Ayush")
 
     from core.mission_memory import mission_memory
-    res = mission_memory.resume_objective(objective_id=objective_id, authorized=authorized)
+    res = mission_memory.resume_objective(objective_id=objective_id, authorized=authorized, user_id=user_id)
     return jsonify(res)
+
+# ─── JARVIS 5.0: Situational Intelligence & Knowledge Graph Endpoints ─────────
+
+@app.route("/api/graph/inspect", methods=["GET"])
+def graph_inspect_api():
+    """Inspects complete state of the Personal Knowledge Graph."""
+    from core.knowledge_graph import knowledge_graph
+    return jsonify(knowledge_graph.inspect_graph())
+
+@app.route("/api/graph/node", methods=["POST"])
+def graph_add_node_api():
+    """Adds or updates a node in the Knowledge Graph."""
+    data = request.get_json(silent=True) or {}
+    node_id = data.get("id")
+    node_type = data.get("type", "generic")
+    label = data.get("label", node_id)
+    properties = data.get("properties", {})
+    if not node_id:
+        return jsonify({"status": "error", "error": "Missing node id."}), 400
+
+    from core.knowledge_graph import knowledge_graph
+    node = knowledge_graph.add_node(node_id, node_type, label, properties)
+    return jsonify({"status": "success", "node": node})
+
+@app.route("/api/graph/edge", methods=["POST"])
+def graph_add_edge_api():
+    """Adds a directed relation edge between two entities."""
+    data = request.get_json(silent=True) or {}
+    source = data.get("source")
+    target = data.get("target")
+    relation = data.get("relation")
+    properties = data.get("properties", {})
+    if not source or not target or not relation:
+        return jsonify({"status": "error", "error": "Missing source, target, or relation."}), 400
+
+    from core.knowledge_graph import knowledge_graph
+    edge = knowledge_graph.add_edge(source, target, relation, properties)
+    return jsonify({"status": "success", "edge": edge})
+
+@app.route("/api/graph/blockers/<node_id>", methods=["GET"])
+def graph_find_blockers_api(node_id: str):
+    """Recursively traces BLOCKED_BY and DEPENDS_ON relations."""
+    from core.knowledge_graph import knowledge_graph
+    blockers = knowledge_graph.find_blockers(node_id)
+    return jsonify({"node_id": node_id, "blockers": blockers})
+
+@app.route("/api/graph/root-cause/<event_id>", methods=["GET"])
+def graph_root_cause_api(event_id: str):
+    """Traces CAUSED_BY chains to pinpoint root cause of a system failure."""
+    from core.knowledge_graph import knowledge_graph
+    root_res = knowledge_graph.find_root_cause(event_id)
+    return jsonify(root_res)
+
+@app.route("/api/graph/related-decisions/<node_id>", methods=["GET"])
+def graph_related_decisions_api(node_id: str):
+    """Retrieves architectural decisions justifying code or project changes."""
+    from core.knowledge_graph import knowledge_graph
+    decisions = knowledge_graph.find_related_decisions(node_id)
+    return jsonify({"node_id": node_id, "decisions": decisions})
+
+@app.route("/api/cognitive/awareness", methods=["GET"])
+def cognitive_awareness_api():
+    """Returns real-time situational awareness (active window, developer tools, user focus)."""
+    from core.cognitive_awareness import cognitive_awareness
+    return jsonify(cognitive_awareness.get_active_application_context())
+
+@app.route("/api/cognitive/diagnostics", methods=["GET"])
+def cognitive_diagnostics_api():
+    """Predicts system failures (memory saturation, rate limits, lock contention) before host crash."""
+    from core.cognitive_awareness import cognitive_awareness
+    return jsonify(cognitive_awareness.predict_system_anomalies())
+
+@app.route("/api/cognitive/suggestions", methods=["GET"])
+def cognitive_suggestions_api():
+    """Generates proactive recommendations correlating app context and objective blockers."""
+    from core.cognitive_awareness import cognitive_awareness
+    return jsonify({"suggestions": cognitive_awareness.suggest_proactive_actions()})
+
+@app.route("/api/evaluator/evaluate", methods=["POST"])
+def evaluator_evaluate_api():
+    """Autonomously measures code quality, syntax integrity, and security posture."""
+    data = request.get_json(silent=True) or {}
+    code_str = data.get("code")
+    file_path = data.get("file_path")
+
+    from core.autonomous_evaluator import autonomous_evaluator
+    eval_res = autonomous_evaluator.evaluate_code(code_string=code_str, file_path=file_path)
+    return jsonify(eval_res)
+
 
 @app.route("/api/tts", methods=["POST"])
 def tts_api():

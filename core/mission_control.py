@@ -117,6 +117,19 @@ class MissionControlEngine:
         except Exception:
             pass
 
+        # Check Cognitive Awareness & Predictive Diagnostics
+        try:
+            from core.cognitive_awareness import cognitive_awareness
+            diag = cognitive_awareness.predict_system_anomalies()
+            for anomaly in diag.get("anomalies", []):
+                recommendations.append({
+                    "type": "predictive_diagnostic",
+                    "priority": anomaly.get("severity", "MEDIUM"),
+                    "message": anomaly.get("message")
+                })
+        except Exception:
+            pass
+
         # Check GPU capacity for offline acceleration
         if vram_free > 4000:
             recommendations.append({
