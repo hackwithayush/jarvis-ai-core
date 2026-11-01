@@ -219,6 +219,25 @@ RULES:
         if cmd[0] in ["python", "python3"]:
             cmd[0] = python_exe
 
+        # Security Sandbox: Validate executable against allowlist (prevent shell escapes)
+        base_bin = os.path.basename(cmd[0]).lower()
+        if not (base_bin.startswith("python") or base_bin in ["pytest", "py_compile"]):
+            return {
+                "status": "error",
+                "passed": False,
+                "error": f"Security restriction: Execution of binary '{base_bin}' is disallowed in the test sandbox."
+            }
+
+        # Security Sandbox: Scrub all credentials and secrets from subprocess environment
+        sanitized_env = os.environ.copy()
+        secret_keys_to_purge = [
+            "GEMINI_API_KEY", "OPENAI_API_KEY", "GROQ_API_KEY", "ANTHROPIC_API_KEY",
+            "OPENROUTER_API_KEY", "TOGETHER_API_KEY", "SECRET_KEY", "DATABASE_URL",
+            "SQLALCHEMY_DATABASE_URI", "STRIPE_SECRET_KEY", "TAVILY_API_KEY"
+        ]
+        for k in secret_keys_to_purge:
+            sanitized_env.pop(k, None)
+
         logger.info(f"[TEST RUNNER] Executing: {' '.join(cmd)}")
         try:
             start_t = time.time()
@@ -227,7 +246,9 @@ RULES:
                 cwd=self.workspace_root,
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
+                env=sanitized_env,
+                shell=False
             )
             duration = round(time.time() - start_t, 2)
             passed = (res.returncode == 0)

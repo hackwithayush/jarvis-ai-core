@@ -311,5 +311,15 @@ class AgentOrchestrator:
         from core.mission_control import mission_control
         return mission_control.get_proactive_briefing(user_id=user_id)
 
+    def create_strategic_objective(self, goal: str, user_id: str = "Ayush") -> Dict[str, Any]:
+        """J.A.R.V.I.S. 4.0: Mission Memory strategic goal decomposition into sequential milestones."""
+        from core.mission_memory import mission_memory
+        return mission_memory.create_objective(goal=goal, user_id=user_id)
+
+    def execute_objective_milestone(self, objective_id: str, auto_approve: bool = False) -> Dict[str, Any]:
+        """J.A.R.V.I.S. 4.0: Executes next sequential milestone with decision persistence."""
+        from core.mission_memory import mission_memory
+        return mission_memory.execute_next_milestone(objective_id=objective_id, auto_approve=auto_approve)
+
 # Global Orchestrator Instance
 orchestrator = AgentOrchestrator()

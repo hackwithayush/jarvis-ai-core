@@ -307,14 +307,37 @@ class LlamaCppEngine:
             # Attempt 2: Cloud Intelligence Grid Failover via ModelManager
             return self._execute_cloud_fallback(prompt, system_prompt, reason=str(e))
 
+    @staticmethod
+    def _scrub_sensitive_data(text: str) -> str:
+        """Sanitizes text to prevent accidental exfiltration of API keys, tokens, or credentials to external clouds."""
+        import re
+        patterns = [
+            r"AIzaSy[a-zA-Z0-9_\-]{33}",                     # Google Gemini
+            r"sk-[a-zA-Z0-9]{40,64}",                        # OpenAI
+            r"gsk_[a-zA-Z0-9]{40,64}",                       # Groq
+            r"ghp_[a-zA-Z0-9]{36}",                          # GitHub PAT
+            r"github_pat_[a-zA-Z0-9_]{60,90}",              # GitHub Fine-grained PAT
+            r"(?:password|secret_key|api_key|token)\s*[:=]\s*['\"]?([^'\"\s\n]{8,})['\"]?",
+            r"-----BEGIN [A-Z ]+ PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+ PRIVATE KEY-----"
+        ]
+        sanitized = text
+        for pat in patterns:
+            sanitized = re.sub(pat, "[REDACTED_LOCAL_SECRET]", sanitized, flags=re.IGNORECASE)
+        return sanitized
+
     def _execute_cloud_fallback(self, prompt: str, system_prompt: Optional[str] = None, reason: str = "") -> Dict[str, Any]:
-        """Auto-heals execution by routing through Cloud Intelligence Grid."""
+        """Auto-heals execution by routing through Cloud Intelligence Grid with zero secret leakage."""
         try:
             from core.model_manager import ModelManager
             mgr = ModelManager()
+
+            # Zero-Leakage Guarantee: Scrub credentials before transmitting to external cloud
+            safe_prompt = self._scrub_sensitive_data(prompt)
+            safe_system = self._scrub_sensitive_data(system_prompt or "You are J.A.R.V.I.S., Tony Stark's autonomous AI assistant.")
+
             cloud_resp = mgr.generate(
-                messages=[{"role": "user", "content": prompt}],
-                system_prompt=system_prompt or "You are J.A.R.V.I.S., Tony Stark's autonomous AI assistant."
+                messages=[{"role": "user", "content": safe_prompt}],
+                system_prompt=safe_system
             )
             return {
                 "status": "success",

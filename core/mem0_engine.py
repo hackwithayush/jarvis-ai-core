@@ -201,18 +201,53 @@ class Mem0Engine:
             logger.error(f"Mem0 get_all error: {e}")
             return []
 
-    def delete_memory(self, memory_id: str) -> Dict[str, Any]:
+    def delete_memory(self, memory_id: str, user_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Removes a memory entry by ID.
+        Removes a memory entry by ID. If user_id is provided, validates ownership before deleting.
         """
         if not self.is_available():
             return {"status": "error", "error": "Mem0 offline"}
 
         try:
+            # If user_id provided, verify ownership at the storage layer
+            if user_id:
+                user_mems = self.get_all_memories(user_id=user_id)
+                owned_ids = {m.get("id") for m in user_mems if m.get("id")}
+                if memory_id not in owned_ids:
+                    return {
+                        "status": "error",
+                        "error": f"Permission denied: Memory '{memory_id}' does not belong to user '{user_id}'."
+                    }
+
             self.memory.delete(memory_id)
+            logger.info(f"Mem0: Deleted memory '{memory_id}'")
             return {"status": "success", "deleted_id": memory_id}
         except Exception as e:
             logger.error(f"Mem0 delete error: {e}")
+            return {"status": "error", "error": str(e)}
+
+    def delete_all_user_memories(self, user_id: str) -> Dict[str, Any]:
+        """
+        Removes all memories belonging to a specific user (GDPR / right to be forgotten).
+        """
+        if not self.is_available():
+            return {"status": "error", "error": "Mem0 offline"}
+
+        try:
+            mems = self.get_all_memories(user_id=user_id)
+            deleted_count = 0
+            for m in mems:
+                mid = m.get("id")
+                if mid:
+                    try:
+                        self.memory.delete(mid)
+                        deleted_count += 1
+                    except Exception:
+                        pass
+            logger.info(f"Mem0: Purged {deleted_count} memories for user '{user_id}'.")
+            return {"status": "success", "user_id": user_id, "deleted_count": deleted_count}
+        except Exception as e:
+            logger.error(f"Mem0 purge error: {e}")
             return {"status": "error", "error": str(e)}
 
 

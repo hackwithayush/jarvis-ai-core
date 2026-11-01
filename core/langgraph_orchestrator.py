@@ -8,6 +8,7 @@ import re
 import json
 import time
 import uuid
+import shutil
 import logging
 from typing import Dict, Any, List, Optional, TypedDict, Union
 
@@ -73,13 +74,24 @@ class LangGraphOrchestrator:
         logger.info(f"LangGraph Stateful Autonomous Orchestrator 3.0 initialized. Checkpoints: {self.checkpoint_dir}")
 
     def _save_session_checkpoint(self, session_id: str, state: AutonomousAgentState):
-        """Persists mission state to disk for cross-session continuity."""
+        """Persists mission state to disk with atomic write, fsync, and secondary backup protection."""
         try:
             target_p = os.path.join(self.checkpoint_dir, f"{session_id}.json")
+            backup_p = f"{target_p}.bak"
             temp_p = f"{target_p}.tmp"
+
+            # 1. Atomic write with fsync
             with open(temp_p, "w", encoding="utf-8") as f:
                 json.dump(dict(state), f, indent=2, default=str)
+                f.flush()
+                os.fsync(f.fileno())
+
+            # 2. Maintain secondary backup copy before replacing
             if os.path.exists(target_p):
+                try:
+                    shutil.copy2(target_p, backup_p)
+                except Exception:
+                    pass
                 os.replace(temp_p, target_p)
             else:
                 os.rename(temp_p, target_p)
@@ -87,18 +99,48 @@ class LangGraphOrchestrator:
             logger.warning(f"Failed to persist session checkpoint '{session_id}': {e}")
 
     def _load_session_checkpoint(self, session_id: str) -> Optional[AutonomousAgentState]:
-        """Loads mission state from persistent disk storage."""
+        """Loads mission state from persistent disk storage with automatic recovery from secondary backup."""
         target_p = os.path.join(self.checkpoint_dir, f"{session_id}.json")
-        if not os.path.isfile(target_p):
+        backup_p = f"{target_p}.bak"
+
+        if not os.path.isfile(target_p) and not os.path.isfile(backup_p):
             return None
+
+        # 1. Primary load attempt
+        if os.path.isfile(target_p):
+            try:
+                with open(target_p, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict) and data.get("session_id"):
+                    self.active_sessions[session_id] = data
+                    return data
+            except Exception as read_err:
+                logger.warning(f"[CHECKPOINT RECOVERY] Primary checkpoint '{session_id}' corrupted ({read_err}). Attempting backup...")
+
+        # 2. Backup recovery attempt
+        if os.path.isfile(backup_p):
+            try:
+                with open(backup_p, "r", encoding="utf-8") as bf:
+                    data = json.load(bf)
+                if isinstance(data, dict) and data.get("session_id"):
+                    # Restore primary from valid backup
+                    shutil.copy2(backup_p, target_p)
+                    self.active_sessions[session_id] = data
+                    logger.info(f"[CHECKPOINT RECOVERY] Restored session '{session_id}' from backup checkpoint.")
+                    return data
+            except Exception as b_err:
+                logger.error(f"[CHECKPOINT RECOVERY] Backup checkpoint for '{session_id}' also unreadable: {b_err}")
+
+        # 3. Quarantine unrecoverable corrupted checkpoint
         try:
-            with open(target_p, "r", encoding="utf-8") as f:
-                data = json.load(f)
-            self.active_sessions[session_id] = data
-            return data
-        except Exception as e:
-            logger.error(f"Failed to load session checkpoint '{session_id}': {e}")
-            return None
+            corrupted_dir = os.path.join(self.checkpoint_dir, "corrupted")
+            os.makedirs(corrupted_dir, exist_ok=True)
+            if os.path.exists(target_p):
+                shutil.move(target_p, os.path.join(corrupted_dir, f"{session_id}_{int(time.time())}.json"))
+        except Exception:
+            pass
+
+        return None
 
     def list_pending_missions(self) -> List[Dict[str, Any]]:
         """Scans disk checkpoints and returns all unfinished or paused missions."""

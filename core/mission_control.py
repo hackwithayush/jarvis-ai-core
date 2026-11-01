@@ -101,6 +101,22 @@ class MissionControlEngine:
                 "message": f"Sir, you have an unfinished mission from your previous session: '{top.get('task')}'. Would you like me to resume?"
             })
 
+        # Check for active long-term strategic objectives (Mission Memory)
+        try:
+            from core.mission_memory import mission_memory
+            unfinished_objs = mission_memory.detect_unfinished_work()
+            for u in unfinished_objs[:2]:
+                recommendations.append({
+                    "type": "resume_objective",
+                    "priority": "HIGH",
+                    "objective_id": u.get("objective_id"),
+                    "title": u.get("title"),
+                    "progress": f"{u.get('progress_percent')}%",
+                    "message": u.get("prompt_to_resume")
+                })
+        except Exception:
+            pass
+
         # Check GPU capacity for offline acceleration
         if vram_free > 4000:
             recommendations.append({

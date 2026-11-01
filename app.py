@@ -3996,6 +3996,59 @@ def mission_pending_api():
         "pending_missions": langgraph_orchestrator.list_pending_missions()
     })
 
+# ─── J.A.R.V.I.S. 4.0 Strategic Mission Memory & Objective APIs ───────
+@app.route("/api/objective/create", methods=["POST"])
+def objective_create_api():
+    """Decomposes a high-level strategic goal into sequential verifiable milestones."""
+    data = request.get_json(silent=True) or {}
+    goal = data.get("goal", "").strip()
+    if not goal:
+        return jsonify({"status": "error", "error": "Goal payload required."}), 400
+    user_id = data.get("user_id", "Ayush")
+
+    from core.mission_memory import mission_memory
+    res = mission_memory.create_objective(goal=goal, user_id=user_id)
+    return jsonify(res)
+
+@app.route("/api/objective/list", methods=["GET"])
+def objective_list_api():
+    """Lists all strategic objectives with progression metrics."""
+    user_id = request.args.get("user_id")
+    from core.mission_memory import mission_memory
+    return jsonify({
+        "status": "success",
+        "objectives": mission_memory.list_objectives(user_id=user_id)
+    })
+
+@app.route("/api/objective/<objective_id>", methods=["GET"])
+def objective_get_api(objective_id: str):
+    """Retrieves detailed state, decisions log, and milestones for an objective."""
+    from core.mission_memory import mission_memory
+    obj = mission_memory.get_objective(objective_id)
+    if not obj:
+        return jsonify({"status": "error", "error": f"Objective '{objective_id}' not found."}), 404
+    return jsonify(obj)
+
+@app.route("/api/objective/<objective_id>/execute-milestone", methods=["POST"])
+def objective_execute_milestone_api(objective_id: str):
+    """Executes the next active milestone for an objective."""
+    data = request.get_json(silent=True) or {}
+    auto_approve = bool(data.get("auto_approve", False))
+
+    from core.mission_memory import mission_memory
+    res = mission_memory.execute_next_milestone(objective_id=objective_id, auto_approve=auto_approve)
+    return jsonify(res)
+
+@app.route("/api/objective/<objective_id>/resume", methods=["POST"])
+def objective_resume_api(objective_id: str):
+    """Resumes an objective interrupted by a Windows reboot or paused at a gate."""
+    data = request.get_json(silent=True) or {}
+    authorized = bool(data.get("authorized", True))
+
+    from core.mission_memory import mission_memory
+    res = mission_memory.resume_objective(objective_id=objective_id, authorized=authorized)
+    return jsonify(res)
+
 @app.route("/api/tts", methods=["POST"])
 def tts_api():
     """Neural Vocalization: Synchronizing text to Tony Stark J.A.R.V.I.S. modulated voice."""
