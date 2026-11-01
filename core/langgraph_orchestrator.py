@@ -134,8 +134,9 @@ class LangGraphOrchestrator:
         task = state.get("task", "").strip()
         logger.info(f"[PLANNER NODE] Generating task DAG for: '{task[:60]}...'")
 
-        # 0. Retrieve persistent user memory context from Mem0
+        # 0. Retrieve persistent user memory context from Mem0 & Qdrant RAG knowledge
         user_context = ""
+        rag_context = ""
         try:
             from core.mem0_engine import mem0_engine
             user_context = mem0_engine.get_user_context(task)
@@ -144,17 +145,25 @@ class LangGraphOrchestrator:
         except Exception as mem_err:
             logger.debug(f"[PLANNER NODE] Mem0 context recall note: {mem_err}")
 
+        try:
+            from core.qdrant_engine import qdrant_engine
+            rag_context = qdrant_engine.get_rag_context(task)
+            if rag_context:
+                logger.info(f"[PLANNER NODE] Injected Qdrant RAG context for task: {task[:40]}")
+        except Exception as rag_err:
+            logger.debug(f"[PLANNER NODE] Qdrant RAG recall note: {rag_err}")
+
         # 1. Check for simple informational / conversational queries
         t_low = task.lower()
         is_direct_chat = any(k in t_low for k in ["who are you", "what is your name", "hello", "hi jarvis", "explain", "what is", "tell me about", "what language do i", "my preference"]) and not any(k in t_low for k in ["browse", "click", "search web", "run", "file", "delete", "open"])
 
         if is_direct_chat:
-            enhanced_prompt = f"{task}\n{user_context}" if user_context else task
+            enhanced_prompt = f"{task}\n{user_context}\n{rag_context}".strip()
             steps = [{
                 "id": 1,
                 "description": f"Answer informational query: {task}",
                 "tool": "direct_answer",
-                "arguments": {"prompt": enhanced_prompt, "user_context": user_context},
+                "arguments": {"prompt": enhanced_prompt, "user_context": user_context, "rag_context": rag_context},
                 "status": "pending",
                 "result": None,
                 "requires_approval": False,
@@ -353,6 +362,15 @@ class LangGraphOrchestrator:
                 context = args.get("context", {})
                 s_res = skills_registry.execute_skill(skill_name, context)
                 result = str(s_res)
+
+            elif tool in ["qdrant", "knowledge_search"]:
+                from core.qdrant_engine import qdrant_engine
+                q_text = args.get("query") or step.get("description")
+                hits = qdrant_engine.search(q_text, limit=3)
+                if hits:
+                    result = "\n".join([f"- [{h['title']}] {h['text']}" for h in hits])
+                else:
+                    result = "No matching knowledge entries found in Qdrant."
 
             else:  # "direct_answer" or fallback
                 from core.model_manager import ModelManager

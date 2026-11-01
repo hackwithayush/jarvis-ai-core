@@ -3766,6 +3766,76 @@ def mem0_delete_memory_api(memory_id):
     res = mem0_engine.delete_memory(memory_id=memory_id)
     return jsonify(res)
 
+# ─── Qdrant Semantic Knowledge Retrieval Endpoints ──────────────────
+
+@app.route("/api/knowledge/qdrant/index", methods=["POST"])
+def qdrant_index_document_api():
+    """Index a document, article, or note into Qdrant."""
+    data = request.get_json(silent=True) or {}
+    content = data.get("content", "").strip()
+    if not content:
+        return jsonify({"status": "error", "error": "Content required."}), 400
+    title = data.get("title", "Untitled Document")
+    category = data.get("category", "general")
+    source = data.get("source", "api_upload")
+    collection = data.get("collection", "documents")
+
+    from core.qdrant_engine import qdrant_engine
+    res = qdrant_engine.index_document(
+        content=content,
+        title=title,
+        category=category,
+        source=source,
+        collection_key=collection
+    )
+    return jsonify(res)
+
+@app.route("/api/knowledge/qdrant/search", methods=["POST", "GET"])
+def qdrant_search_api():
+    """Semantic vector search across Qdrant knowledge collections."""
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        query = data.get("query", "").strip()
+        collection = data.get("collection", "documents")
+        limit = int(data.get("limit", 5))
+        category = data.get("category")
+    else:
+        query = (request.args.get("query") or "").strip()
+        collection = request.args.get("collection", "documents")
+        limit = int(request.args.get("limit", 5))
+        category = request.args.get("category")
+
+    if not query:
+        return jsonify({"status": "error", "error": "Query required."}), 400
+
+    from core.qdrant_engine import qdrant_engine
+    hits = qdrant_engine.search(query=query, collection_key=collection, limit=limit, category=category)
+    return jsonify({
+        "status": "success",
+        "query": query,
+        "collection": collection,
+        "count": len(hits),
+        "results": hits
+    })
+
+@app.route("/api/knowledge/qdrant/stats", methods=["GET"])
+def qdrant_stats_api():
+    """Returns vector collections metrics, point counts, and storage status."""
+    from core.qdrant_engine import qdrant_engine
+    stats = qdrant_engine.get_stats()
+    return jsonify(stats)
+
+@app.route("/api/knowledge/qdrant/index-workspace", methods=["POST"])
+def qdrant_index_workspace_api():
+    """Index source code files from active project workspace."""
+    data = request.get_json(silent=True) or {}
+    workspace_dir = data.get("workspace_dir") or os.getcwd()
+    max_files = int(data.get("max_files", 50))
+
+    from core.qdrant_engine import qdrant_engine
+    res = qdrant_engine.index_workspace(workspace_path=workspace_dir, max_files=max_files)
+    return jsonify(res)
+
 @app.route("/api/tts", methods=["POST"])
 def tts_api():
     """Neural Vocalization: Synchronizing text to Tony Stark J.A.R.V.I.S. modulated voice."""

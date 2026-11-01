@@ -91,7 +91,27 @@ class KnowledgeManager:
     # ─── Search ─────────────────────────────────────────────────────
 
     def search(self, query: str, n_results: int = None) -> list[dict]:
-        """Hybrid Search (Vector + BM25) with Reciprocal Rank Fusion (Upgrade 5)."""
+        """Hybrid Search across Qdrant Vector Engine with ChromaDB fallback."""
+        n_results = n_results or config.MAX_CONTEXT_CHUNKS
+
+        # 1. Primary: High-speed local Qdrant Vector Search
+        try:
+            from core.qdrant_engine import qdrant_engine
+            if qdrant_engine.is_available():
+                q_hits = qdrant_engine.search(query=query, limit=n_results)
+                if q_hits:
+                    return [{
+                        "content": h.get("text", ""),
+                        "source": h.get("source", "Qdrant"),
+                        "title": h.get("title", ""),
+                        "category": h.get("category", "general"),
+                        "similarity": h.get("score", 0.0),
+                        "id": h.get("id")
+                    } for h in q_hits]
+        except Exception as q_err:
+            logger.debug(f"Qdrant search fallback note: {q_err}")
+
+        # 2. Secondary: ChromaDB Search
         if not self.enabled or not self.collection:
             return []
 
@@ -273,6 +293,18 @@ class KnowledgeManager:
                     added += 1
                 except Exception:
                     pass  # Skip duplicates silently
+
+            # Also index into Qdrant vector engine
+            try:
+                from core.qdrant_engine import qdrant_engine
+                qdrant_engine.index_document(
+                    content=content,
+                    title=title or source,
+                    category=category,
+                    source=source
+                )
+            except Exception as q_sync_err:
+                logger.debug(f"Qdrant sync error: {q_sync_err}")
 
             if added > 0:
                 logger.info(f"Added {added} chunks from: {title[:50] or source}")
