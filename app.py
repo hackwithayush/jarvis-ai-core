@@ -3903,6 +3903,56 @@ def coding_rollback_api():
     res = openhands_agent.rollback_file(backup_path=backup_path, target_file=target_file)
     return jsonify(res)
 
+# ─── llama.cpp Local Inference & Hardware Optimization Endpoints ─────
+@app.route("/api/llama/status", methods=["GET"])
+def llama_status_api():
+    """Returns local llama.cpp hardware profile, GPU offload layers, VRAM, and server health."""
+    from core.llama_engine import llama_engine
+    return jsonify(llama_engine.get_status())
+
+@app.route("/api/llama/models", methods=["GET"])
+def llama_models_api():
+    """Discovers all local GGUF models and Ollama models available on this workstation."""
+    from core.llama_engine import llama_engine
+    return jsonify(llama_engine.list_models())
+
+@app.route("/api/llama/generate", methods=["POST"])
+def llama_generate_api():
+    """Executes hardware-accelerated local LLM inference with tokens/sec metrics."""
+    data = request.get_json(silent=True) or {}
+    prompt = data.get("prompt", "").strip()
+    if not prompt:
+        return jsonify({"status": "error", "error": "Prompt payload required."}), 400
+    model = data.get("model")
+    system_prompt = data.get("system_prompt")
+    max_tokens = int(data.get("max_tokens", 512))
+    temperature = float(data.get("temperature", 0.7))
+    top_p = float(data.get("top_p", 0.9))
+
+    from core.llama_engine import llama_engine
+    res = llama_engine.generate(
+        prompt=prompt,
+        model=model,
+        system_prompt=system_prompt,
+        max_tokens=max_tokens,
+        temperature=temperature,
+        top_p=top_p
+    )
+    return jsonify(res)
+
+@app.route("/api/llama/benchmark", methods=["POST", "GET"])
+def llama_benchmark_api():
+    """Runs a hardware benchmark measuring tokens per second on local GPU/CPU."""
+    data = request.get_json(silent=True) if request.method == "POST" else {}
+    data = data or {}
+    model = data.get("model") or request.args.get("model")
+    prompt = data.get("prompt") or request.args.get("prompt") or "Explain artificial intelligence in three concise sentences."
+    max_tokens = int(data.get("max_tokens") or request.args.get("max_tokens") or 128)
+
+    from core.llama_engine import llama_engine
+    res = llama_engine.benchmark(model=model, prompt=prompt, max_tokens=max_tokens)
+    return jsonify(res)
+
 @app.route("/api/tts", methods=["POST"])
 def tts_api():
     """Neural Vocalization: Synchronizing text to Tony Stark J.A.R.V.I.S. modulated voice."""

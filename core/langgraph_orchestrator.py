@@ -235,6 +235,19 @@ class LangGraphOrchestrator:
                 "approval_status": "pending"
             })
 
+        # Local LLM / llama.cpp offline execution workflow
+        elif any(k in t_low for k in ["local llm", "offline ai", "llama", "benchmark local", "gguf", "offline inference"]):
+            steps.append({
+                "id": 1,
+                "description": f"Execute local hardware-accelerated inference: {task}",
+                "tool": "llama_local",
+                "arguments": {"prompt": task},
+                "status": "pending",
+                "result": None,
+                "requires_approval": False,
+                "approval_status": "pending"
+            })
+
         # OS / Command / System workflow
         elif any(k in t_low for k in ["run", "system", "file", "folder", "open app", "launch", "clean", "optimize", "delete"]):
             requires_approval = self._is_sensitive_command(task)
@@ -398,6 +411,19 @@ class LangGraphOrchestrator:
                 else:
                     analysis = openhands_agent.analyze_codebase(goal_str)
                     result = f"OpenHands analyzed codebase: {analysis.get('strategy')}. Candidate files: {analysis.get('candidate_files')}"
+
+            elif tool in ["llama_local", "llama_cpp", "local_inference"]:
+                from core.llama_engine import llama_engine
+                prompt_str = args.get("prompt") or step.get("description")
+                if "benchmark" in prompt_str.lower():
+                    b_res = llama_engine.benchmark()
+                    result = f"Llama Local Benchmark: {b_res.get('performance_rating')} at {b_res.get('tokens_per_second')} tokens/sec ({b_res.get('duration_seconds')}s)."
+                else:
+                    l_res = llama_engine.generate(prompt=prompt_str)
+                    if l_res.get("status") == "success":
+                        result = f"[LOCAL GPU INFERENCE ({l_res.get('tokens_per_second')} t/s)]: {l_res.get('response')}"
+                    else:
+                        error = l_res.get("error", "Local inference failed.")
 
             else:  # "direct_answer" or fallback
                 from core.model_manager import ModelManager

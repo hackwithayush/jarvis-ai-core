@@ -462,6 +462,13 @@ class ModelManager:
         if is_local_ollama_req and self.is_ollama_running():
             ollama_target = "llama2-uncensored:latest" if ("llama2" in primary_model.lower() or "uncensored" in primary_model.lower()) else ("llama3.2:latest" if "llama3.2" in primary_model.lower() else primary_model)
             logger.info(f"Ollama Local Priority: Streaming via local node '{ollama_target}'...")
+            
+            try:
+                from core.llama_engine import llama_engine
+                opts = llama_engine.hardware_profile.get("optimal_settings", {})
+            except Exception:
+                opts = {"n_ctx": 4096, "n_threads": 8, "n_gpu_layers": 33, "n_batch": 512}
+
             payload = {
                 "model": ollama_target,
                 "messages": [{"role": "system", "content": system_prompt}] + messages,
@@ -469,7 +476,10 @@ class ModelManager:
                 "options": {
                     "temperature": active_temp,
                     "top_p": active_p,
-                    "num_ctx": 4096,
+                    "num_ctx": opts.get("n_ctx", 4096),
+                    "num_gpu": opts.get("n_gpu_layers", 33),
+                    "num_thread": opts.get("n_threads", 8),
+                    "num_batch": opts.get("n_batch", 512),
                 }
             }
             try:
@@ -1015,6 +1025,11 @@ class ModelManager:
         """Get current status summary."""
         running = self.is_ollama_running()
         models = self.list_models() if running else []
+        try:
+            from core.llama_engine import llama_engine
+            hw = llama_engine.hardware_profile
+        except Exception:
+            hw = {}
         return {
             "ollama_running": running,
             "current_model": self.current_model,
@@ -1022,4 +1037,5 @@ class ModelManager:
             "model_count": len(models),
             "temperature": self.temperature,
             "host": self.host,
+            "hardware_profile": hw,
         }
