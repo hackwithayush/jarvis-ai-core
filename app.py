@@ -3643,6 +3643,68 @@ def visual_click_api():
     res = omni_parser.visual_action(directive)
     return jsonify(res)
 
+@app.route("/api/orchestrator/mission", methods=["POST"])
+def orchestrator_mission_api():
+    """LangGraph Autonomous Intelligence 2.0: Multi-step DAG planning, execution, verification, and recovery."""
+    data = request.get_json(silent=True) or {}
+    task = data.get("task", "").strip()
+    if not task:
+        return jsonify({"status": "error", "error": "No task provided."}), 400
+    auto_approve = bool(data.get("auto_approve", False))
+    session_id = data.get("session_id")
+    
+    from core.langgraph_orchestrator import langgraph_orchestrator
+    res = langgraph_orchestrator.run_mission(task=task, auto_approve=auto_approve, session_id=session_id)
+    return jsonify({
+        "status": "success",
+        "session_id": res.get("session_id"),
+        "mission_status": res.get("status"),
+        "plan": res.get("plan"),
+        "current_step_index": res.get("current_step_index"),
+        "pending_approval": res.get("pending_approval"),
+        "final_response": res.get("final_response"),
+        "verification": res.get("verification"),
+        "retry_count": res.get("retry_count")
+    })
+
+@app.route("/api/orchestrator/approve", methods=["POST"])
+def orchestrator_approve_api():
+    """Security Guardian Approval Gate: Authorize or reject a paused sensitive mission step."""
+    data = request.get_json(silent=True) or {}
+    session_id = data.get("session_id", "").strip()
+    if not session_id:
+        return jsonify({"status": "error", "error": "session_id required."}), 400
+    approved = bool(data.get("approved", True))
+    
+    from core.langgraph_orchestrator import langgraph_orchestrator
+    res = langgraph_orchestrator.approve_mission_step(session_id=session_id, approved=approved)
+    return jsonify({
+        "status": "success",
+        "session_id": session_id,
+        "mission_status": res.get("status"),
+        "pending_approval": res.get("pending_approval"),
+        "final_response": res.get("final_response"),
+        "plan": res.get("plan")
+    })
+
+@app.route("/api/orchestrator/session/<session_id>", methods=["GET"])
+def orchestrator_session_status(session_id):
+    """Retrieve state and step progress for a LangGraph autonomous mission."""
+    from core.langgraph_orchestrator import langgraph_orchestrator
+    state = langgraph_orchestrator.active_sessions.get(session_id)
+    if not state:
+        return jsonify({"status": "error", "error": f"Session '{session_id}' not found."}), 404
+    return jsonify({
+        "status": "success",
+        "session_id": session_id,
+        "mission_status": state.get("status"),
+        "plan": state.get("plan"),
+        "current_step_index": state.get("current_step_index"),
+        "pending_approval": state.get("pending_approval"),
+        "final_response": state.get("final_response"),
+        "retry_count": state.get("retry_count")
+    })
+
 @app.route("/api/tts", methods=["POST"])
 def tts_api():
     """Neural Vocalization: Synchronizing text to Tony Stark J.A.R.V.I.S. modulated voice."""

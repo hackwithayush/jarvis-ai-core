@@ -4,7 +4,7 @@ Coordinates specialized agents using confidence scoring, voting, and arbitration
 Agents: Planner, Vision, Memory, OS Control, and MCP External Extensions.
 """
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 logger = logging.getLogger("jarvis.orchestrator")
 
@@ -231,6 +231,16 @@ class AgentOrchestrator:
         """Main entry point for handling an ambiguous command."""
         target_agent = self.arbitrate(task)
         return target_agent.execute(task)
+
+    def run_autonomous_mission(self, task: str, auto_approve: bool = False, session_id: Optional[str] = None) -> Dict[str, Any]:
+        """LangGraph Autonomous Intelligence 2.0: Multi-step DAG planning, verification, and recovery."""
+        from core.langgraph_orchestrator import langgraph_orchestrator
+        return langgraph_orchestrator.run_mission(task=task, auto_approve=auto_approve, session_id=session_id)
+
+    def approve_mission(self, session_id: str, approved: bool = True) -> Dict[str, Any]:
+        """Resumes a paused mission after security guardian human-in-the-loop approval."""
+        from core.langgraph_orchestrator import langgraph_orchestrator
+        return langgraph_orchestrator.approve_mission_step(session_id=session_id, approved=approved)
 
 # Global Orchestrator Instance
 orchestrator = AgentOrchestrator()
