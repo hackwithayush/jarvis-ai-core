@@ -3836,6 +3836,73 @@ def qdrant_index_workspace_api():
     res = qdrant_engine.index_workspace(workspace_path=workspace_dir, max_files=max_files)
     return jsonify(res)
 
+# ─── OpenHands Autonomous Coding Agent API Endpoints ──────────────────
+@app.route("/api/coding/analyze", methods=["POST"])
+def coding_analyze_api():
+    """Explores target files and formulates a plan for software engineering tasks."""
+    data = request.get_json(silent=True) or {}
+    goal = data.get("goal", "").strip()
+    if not goal:
+        return jsonify({"status": "error", "error": "Directive/goal is required."}), 400
+    target_files = data.get("target_files")
+    from core.openhands_agent import openhands_agent
+    res = openhands_agent.analyze_codebase(goal=goal, target_files=target_files)
+    return jsonify(res)
+
+@app.route("/api/coding/patch", methods=["POST"])
+def coding_patch_api():
+    """Generates and applies an AST-verified surgical patch to a source file."""
+    data = request.get_json(silent=True) or {}
+    file_path = data.get("file_path", "").strip()
+    instruction = data.get("instruction", "").strip()
+    if not file_path or not instruction:
+        return jsonify({"status": "error", "error": "file_path and instruction are required."}), 400
+    context = data.get("context")
+    from core.openhands_agent import openhands_agent
+    res = openhands_agent.generate_and_apply_patch(file_path=file_path, instruction=instruction, context=context)
+    return jsonify(res)
+
+@app.route("/api/coding/repair", methods=["POST"])
+def coding_repair_api():
+    """Executes iterative test-driven autonomous code repair loop."""
+    data = request.get_json(silent=True) or {}
+    goal = data.get("goal", "").strip()
+    target_file = data.get("target_file", "").strip()
+    if not goal or not target_file:
+        return jsonify({"status": "error", "error": "goal and target_file are required."}), 400
+    test_command = data.get("test_command")
+    max_iterations = int(data.get("max_iterations", 3))
+    from core.openhands_agent import openhands_agent
+    res = openhands_agent.autonomous_code_repair(
+        goal=goal,
+        target_file=target_file,
+        test_command=test_command,
+        max_iterations=max_iterations
+    )
+    return jsonify(res)
+
+@app.route("/api/coding/test", methods=["POST"])
+def coding_test_api():
+    """Executes sandboxed test runner within project environment."""
+    data = request.get_json(silent=True) or {}
+    test_command = data.get("test_command")
+    timeout = int(data.get("timeout", 30))
+    from core.openhands_agent import openhands_agent
+    res = openhands_agent.run_tests(test_command=test_command, timeout=timeout)
+    return jsonify(res)
+
+@app.route("/api/coding/rollback", methods=["POST"])
+def coding_rollback_api():
+    """Rolls back a modified file to a previous backup snapshot."""
+    data = request.get_json(silent=True) or {}
+    backup_path = data.get("backup_path", "").strip()
+    target_file = data.get("target_file", "").strip()
+    if not backup_path or not target_file:
+        return jsonify({"status": "error", "error": "backup_path and target_file are required."}), 400
+    from core.openhands_agent import openhands_agent
+    res = openhands_agent.rollback_file(backup_path=backup_path, target_file=target_file)
+    return jsonify(res)
+
 @app.route("/api/tts", methods=["POST"])
 def tts_api():
     """Neural Vocalization: Synchronizing text to Tony Stark J.A.R.V.I.S. modulated voice."""

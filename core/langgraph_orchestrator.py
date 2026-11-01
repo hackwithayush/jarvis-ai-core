@@ -222,6 +222,19 @@ class LangGraphOrchestrator:
                 "approval_status": "pending"
             })
 
+        # Autonomous coding workflow (OpenHands)
+        elif any(k in t_low for k in ["code", "script", "refactor", "bug", "patch", "unit test", "write python", "implement function", "fix error"]):
+            steps.append({
+                "id": 1,
+                "description": f"Autonomous software engineering & code repair: {task}",
+                "tool": "openhands",
+                "arguments": {"goal": task},
+                "status": "pending",
+                "result": None,
+                "requires_approval": False,
+                "approval_status": "pending"
+            })
+
         # OS / Command / System workflow
         elif any(k in t_low for k in ["run", "system", "file", "folder", "open app", "launch", "clean", "optimize", "delete"]):
             requires_approval = self._is_sensitive_command(task)
@@ -371,6 +384,20 @@ class LangGraphOrchestrator:
                     result = "\n".join([f"- [{h['title']}] {h['text']}" for h in hits])
                 else:
                     result = "No matching knowledge entries found in Qdrant."
+
+            elif tool in ["openhands", "coding", "code_repair"]:
+                from core.openhands_agent import openhands_agent
+                goal_str = args.get("goal") or step.get("description")
+                target_f = args.get("target_file")
+                if target_f:
+                    rep_res = openhands_agent.generate_and_apply_patch(target_f, instruction=goal_str)
+                    if rep_res.get("status") == "success":
+                        result = f"OpenHands patched '{target_f}' ({rep_res.get('lines_written', 0)} lines written)."
+                    else:
+                        error = rep_res.get("error", "Patch generation failed.")
+                else:
+                    analysis = openhands_agent.analyze_codebase(goal_str)
+                    result = f"OpenHands analyzed codebase: {analysis.get('strategy')}. Candidate files: {analysis.get('candidate_files')}"
 
             else:  # "direct_answer" or fallback
                 from core.model_manager import ModelManager

@@ -225,6 +225,30 @@ class MemoryAgentNode(BaseAgent):
         except Exception as e:
             return f"Memory Agent Failed: {e}"
 
+class CodingAgentNode(BaseAgent):
+    def __init__(self):
+        super().__init__("CodingAgent")
+
+    def evaluate_confidence(self, task: str) -> float:
+        t = task.lower()
+        if any(k in t for k in ["code", "script", "refactor", "bug", "patch", "unit test", "write python", "fix error", "repair code", "run tests"]):
+            return 0.93
+        return 0.05
+
+    def execute(self, task: str) -> str:
+        try:
+            from core.openhands_agent import openhands_agent
+            t = task.lower()
+            if any(k in t for k in ["run test", "execute test", "test suite"]):
+                res = openhands_agent.run_tests()
+                status = "PASSED" if res.get("passed") else "FAILED"
+                return f"[OPENHANDS TEST RUN] Status: {status} (Exit {res.get('exit_code')}, Duration {res.get('duration_seconds')}s)\n{res.get('stdout') or res.get('stderr')}"
+            else:
+                analysis = openhands_agent.analyze_codebase(task)
+                return f"[OPENHANDS CODING AGENT]\nStrategy: {analysis.get('strategy')}\nCandidate Files: {analysis.get('candidate_files')}\nInspected: {analysis.get('inspected_files')}"
+        except Exception as e:
+            return f"Coding Agent Failed: {e}"
+
 class AgentOrchestrator:
     def __init__(self):
         self.agents: List[BaseAgent] = [
@@ -233,6 +257,7 @@ class AgentOrchestrator:
             ComputerControlAgentNode(),
             PlannerAgentNode(),
             MemoryAgentNode(),
+            CodingAgentNode(),
             MCPExtensionAgent()
         ]
         
