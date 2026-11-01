@@ -203,7 +203,19 @@ class LlamaCppEngine:
         Executes local inference with GPU acceleration and performance metrics.
         Returns generated text, token count, tokens/sec, and latency.
         """
-        target_model = model or getattr(config, "DEFAULT_MODEL", "llama3.2:latest")
+        # Select target model: prioritize explicit model, then local installed models
+        if model:
+            target_model = model
+        else:
+            models_info = self.list_models()
+            server_mods = [m["name"] for m in models_info.get("server_models", [])]
+            if "llama3.2:latest" in server_mods:
+                target_model = "llama3.2:latest"
+            elif server_mods:
+                target_model = server_mods[0]
+            else:
+                target_model = "llama3.2:latest"
+
         opts = self.hardware_profile["optimal_settings"]
 
         payload = {
@@ -251,17 +263,72 @@ class LlamaCppEngine:
                     }
                 }
             else:
-                return {
-                    "status": "error",
-                    "error": f"Inference server returned status code {resp.status_code}: {resp.text}"
-                }
-        except requests.exceptions.Timeout:
-            return {
-                "status": "error",
-                "error": f"Local inference timed out after {timeout} seconds."
-            }
+                resp_text = resp.text.lower()
+                if "out of memory" in resp_text or "cuda" in resp_text or resp.status_code == 500:
+                    raise MemoryError(f"GPU Server OOM / CUDA error: {resp.text}")
+                raise RuntimeError(f"Inference server status {resp.status_code}: {resp.text}")
+        except requests.exceptions.Timeout as timeout_err:
+            logger.warning(f"Local inference timed out ({timeout}s). Escalating to failover grid...")
+            return self._execute_cloud_fallback(prompt, system_prompt, reason="Local inference timeout")
         except Exception as e:
-            return {"status": "error", "error": str(e)}
+            err_msg = str(e).lower()
+            logger.warning(f"[GPU INFERENCE RECOVERY] Error encountered: {e}. Initiating automated failover hierarchy...")
+
+            # Attempt 1: CPU-only fallback (0 GPU layers)
+            if opts.get("n_gpu_layers", 0) > 0 or "memory" in err_msg or "cuda" in err_msg:
+                try:
+                    logger.info("[GPU OOM RECOVERY] Re-attempting inference in CPU-only mode (num_gpu=0)...")
+                    cpu_payload = dict(payload)
+                    cpu_payload["options"] = dict(payload["options"])
+                    cpu_payload["options"]["num_gpu"] = 0
+                    cpu_payload["options"]["num_thread"] = opts.get("n_threads", 8)
+                    cpu_payload["options"]["num_ctx"] = 2048
+
+                    cpu_resp = requests.post(f"{self.host}/api/generate", json=cpu_payload, timeout=timeout)
+                    if cpu_resp.status_code == 200:
+                        c_data = cpu_resp.json()
+                        eval_c = c_data.get("eval_count", 0)
+                        dur_ns = c_data.get("eval_duration", 0)
+                        tps = round(eval_c / (dur_ns / 1e9), 2) if dur_ns else 0.0
+                        return {
+                            "status": "success",
+                            "model": target_model,
+                            "response": c_data.get("response", "").strip(),
+                            "tokens_generated": eval_c,
+                            "duration_seconds": round(time.time() - start_t, 3),
+                            "tokens_per_second": tps,
+                            "fallback_triggered": True,
+                            "fallback_mode": "cpu_only",
+                            "fallback_reason": f"GPU memory offload failed ({e}). Re-routed to CPU."
+                        }
+                except Exception as cpu_err:
+                    logger.warning(f"[CPU FALLBACK FAILED] {cpu_err}. Escalating to Cloud Grid...")
+
+            # Attempt 2: Cloud Intelligence Grid Failover via ModelManager
+            return self._execute_cloud_fallback(prompt, system_prompt, reason=str(e))
+
+    def _execute_cloud_fallback(self, prompt: str, system_prompt: Optional[str] = None, reason: str = "") -> Dict[str, Any]:
+        """Auto-heals execution by routing through Cloud Intelligence Grid."""
+        try:
+            from core.model_manager import ModelManager
+            mgr = ModelManager()
+            cloud_resp = mgr.generate(
+                messages=[{"role": "user", "content": prompt}],
+                system_prompt=system_prompt or "You are J.A.R.V.I.S., Tony Stark's autonomous AI assistant."
+            )
+            return {
+                "status": "success",
+                "model": "cloud_failover",
+                "response": cloud_resp,
+                "tokens_generated": len(cloud_resp.split()),
+                "duration_seconds": 0.5,
+                "tokens_per_second": 0.0,
+                "fallback_triggered": True,
+                "fallback_mode": "cloud_grid",
+                "fallback_reason": f"Local hardware failover triggered: {reason}"
+            }
+        except Exception as cloud_err:
+            return {"status": "error", "error": f"GPU, CPU, and Cloud failover exhausted: {cloud_err}"}
 
     def stream_generate(
         self,
@@ -272,7 +339,19 @@ class LlamaCppEngine:
         top_p: float = 0.9
     ) -> Generator[str, None, None]:
         """Streams completion chunks from the local llama.cpp / Ollama server."""
-        target_model = model or getattr(config, "DEFAULT_MODEL", "llama3.2:latest")
+        # Select target model: prioritize explicit model, then local installed models
+        if model:
+            target_model = model
+        else:
+            models_info = self.list_models()
+            server_mods = [m["name"] for m in models_info.get("server_models", [])]
+            if "llama3.2:latest" in server_mods:
+                target_model = "llama3.2:latest"
+            elif server_mods:
+                target_model = server_mods[0]
+            else:
+                target_model = "llama3.2:latest"
+
         opts = self.hardware_profile["optimal_settings"]
 
         payload = {

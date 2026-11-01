@@ -30,15 +30,28 @@ class OpenHandsAgent:
         logger.info(f"OpenHands Autonomous Coding Agent active. Workspace: {self.workspace_root}")
 
     def _resolve_path(self, file_path: str) -> str:
-        """Resolves file path relative to workspace root with traversal protection."""
+        """
+        Resolves file path relative to workspace root with canonical traversal
+        and symlink escape protection.
+        """
         if os.path.isabs(file_path):
             target = os.path.abspath(file_path)
         else:
             target = os.path.abspath(os.path.join(self.workspace_root, file_path))
 
-        # Check traversal
-        if not target.startswith(self.workspace_root):
-            raise PermissionError(f"Access denied: Path '{file_path}' attempts to traverse outside workspace.")
+        # Canonical real path resolution (resolves all symlinks, junctions, and relative parent markers)
+        real_target = os.path.realpath(target)
+        real_workspace = os.path.realpath(self.workspace_root)
+
+        # Strict security boundary check
+        try:
+            rel = os.path.relpath(real_target, real_workspace)
+            if rel.startswith("..") or os.path.isabs(rel) or (not real_target.lower().startswith(real_workspace.lower())):
+                raise PermissionError(f"Access denied: Path '{file_path}' resolves outside authorized workspace.")
+        except ValueError:
+            # Cross-drive traversal on Windows
+            raise PermissionError(f"Access denied: Path '{file_path}' traverses to another drive outside workspace.")
+
         return target
 
     def _create_backup(self, resolved_path: str) -> str:

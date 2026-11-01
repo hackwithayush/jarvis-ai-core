@@ -36,6 +36,7 @@ class AutonomousAgentState(TypedDict):
     plan: List[Dict[str, Any]]
     current_step_index: int
     guardian_approved: bool
+    approved_step_ids: Optional[List[int]]
     pending_approval: Optional[Dict[str, Any]]
     execution_history: List[Dict[str, Any]]
     verification: Dict[str, Any]
@@ -52,6 +53,7 @@ class LangGraphOrchestrator:
     """
     Stateful Agent Orchestrator built on LangGraph StateGraph.
     Implements the Plan -> Guardian Gate -> Execute -> Verify -> Recover lifecycle.
+    Features disk-persisted checkpoints for cross-session continuity and strict Guardian HITL gates.
     """
 
     SENSITIVE_PATTERNS = [
@@ -64,9 +66,59 @@ class LangGraphOrchestrator:
 
     def __init__(self):
         self.checkpointer = MemorySaver()
+        self.checkpoint_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "data", "langgraph_checkpoints")
+        os.makedirs(self.checkpoint_dir, exist_ok=True)
         self.active_sessions: Dict[str, AutonomousAgentState] = {}
         self.graph = self._compile_graph()
-        logger.info("LangGraph Stateful Autonomous Orchestrator 2.0 initialized.")
+        logger.info(f"LangGraph Stateful Autonomous Orchestrator 3.0 initialized. Checkpoints: {self.checkpoint_dir}")
+
+    def _save_session_checkpoint(self, session_id: str, state: AutonomousAgentState):
+        """Persists mission state to disk for cross-session continuity."""
+        try:
+            target_p = os.path.join(self.checkpoint_dir, f"{session_id}.json")
+            temp_p = f"{target_p}.tmp"
+            with open(temp_p, "w", encoding="utf-8") as f:
+                json.dump(dict(state), f, indent=2, default=str)
+            if os.path.exists(target_p):
+                os.replace(temp_p, target_p)
+            else:
+                os.rename(temp_p, target_p)
+        except Exception as e:
+            logger.warning(f"Failed to persist session checkpoint '{session_id}': {e}")
+
+    def _load_session_checkpoint(self, session_id: str) -> Optional[AutonomousAgentState]:
+        """Loads mission state from persistent disk storage."""
+        target_p = os.path.join(self.checkpoint_dir, f"{session_id}.json")
+        if not os.path.isfile(target_p):
+            return None
+        try:
+            with open(target_p, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            self.active_sessions[session_id] = data
+            return data
+        except Exception as e:
+            logger.error(f"Failed to load session checkpoint '{session_id}': {e}")
+            return None
+
+    def list_pending_missions(self) -> List[Dict[str, Any]]:
+        """Scans disk checkpoints and returns all unfinished or paused missions."""
+        pending = []
+        if not os.path.exists(self.checkpoint_dir):
+            return pending
+        for fname in os.listdir(self.checkpoint_dir):
+            if fname.endswith(".json"):
+                sid = fname[:-5]
+                st = self._load_session_checkpoint(sid)
+                if st and st.get("status") in ["awaiting_approval", "executing", "recovering", "planning"]:
+                    pending.append({
+                        "session_id": sid,
+                        "task": st.get("task"),
+                        "status": st.get("status"),
+                        "current_step": st.get("current_step_index", 0),
+                        "total_steps": len(st.get("plan", [])),
+                        "pending_approval": st.get("pending_approval")
+                    })
+        return pending
 
     def _compile_graph(self):
         """Builds and compiles the stateful LangGraph execution graph."""
@@ -130,7 +182,18 @@ class LangGraphOrchestrator:
         Planner Node:
         Deconstructs the user goal into a structured Task DAG of discrete, typed steps.
         Integrates Mem0 persistent intelligent memory recall for personalized planning.
+        Preserves existing plan if resuming an active or checkpointed session.
         """
+        # If an existing plan is in progress (resuming a session), preserve it
+        existing_plan = state.get("plan")
+        if existing_plan:
+            logger.info(f"[PLANNER NODE] Preserving existing plan ({len(existing_plan)} steps) for session: {state.get('session_id')}")
+            return {
+                "plan": existing_plan,
+                "current_step_index": state.get("current_step_index", 0),
+                "status": "planning"
+            }
+
         task = state.get("task", "").strip()
         logger.info(f"[PLANNER NODE] Generating task DAG for: '{task[:60]}...'")
 
@@ -281,6 +344,7 @@ class LangGraphOrchestrator:
         """
         Zero-Trust Guardian Gate Node:
         Inspects the active step for privileged/destructive operations before allowing execution.
+        Strict anti-bypass: Each privileged step must be explicitly authorized.
         """
         plan = state.get("plan", [])
         idx = state.get("current_step_index", 0)
@@ -294,11 +358,15 @@ class LangGraphOrchestrator:
         args = json.dumps(step.get("arguments", {}))
 
         # Check sensitive patterns
-        is_sensitive = self._is_sensitive_command(desc + " " + args)
+        is_sensitive = self._is_sensitive_command(desc + " " + args) or (tool in ["os_engine", "powershell", "system_execute"])
         step["requires_approval"] = is_sensitive
 
-        # If already globally approved or marked approved
-        if state.get("guardian_approved", False) or step.get("approval_status") == "approved":
+        approved_ids = list(state.get("approved_step_ids") or [])
+
+        # Anti-Bypass Rule: Step is cleared ONLY if not sensitive OR if this specific step ID has been explicitly authorized
+        is_step_authorized = (not is_sensitive) or (step["id"] in approved_ids and step.get("approval_status") == "approved")
+
+        if is_step_authorized:
             step["approval_status"] = "approved"
             logger.info(f"[GUARDIAN GATE] Step [{step['id']}] cleared for execution.")
             return {
@@ -308,27 +376,19 @@ class LangGraphOrchestrator:
             }
 
         # If sensitive and not yet approved, pause and request human authorization
-        if is_sensitive:
-            logger.warning(f"[GUARDIAN GATE] Privileged operation paused at safety gate: '{desc}'")
-            pending_details = {
-                "step_id": step["id"],
-                "tool": tool,
-                "description": desc,
-                "risk_level": "HIGH",
-                "timestamp": time.time(),
-                "reason": "Destructive or privileged system operation requires explicit human-in-the-loop authorization."
-            }
-            return {
-                "plan": plan,
-                "pending_approval": pending_details,
-                "status": "awaiting_approval"
-            }
-
-        step["approval_status"] = "approved"
+        logger.warning(f"[GUARDIAN GATE] Privileged operation paused at safety gate: '{desc}'")
+        pending_details = {
+            "step_id": step["id"],
+            "tool": tool,
+            "description": desc,
+            "risk_level": "HIGH",
+            "timestamp": time.time(),
+            "reason": "Destructive or privileged system operation requires explicit human-in-the-loop authorization."
+        }
         return {
             "plan": plan,
-            "pending_approval": None,
-            "status": "executing"
+            "pending_approval": pending_details,
+            "status": "awaiting_approval"
         }
 
     def _executor_node(self, state: AutonomousAgentState) -> Dict[str, Any]:
@@ -532,6 +592,12 @@ class LangGraphOrchestrator:
             failed_step = plan[idx]
             tool = failed_step.get("tool")
             failed_step["status"] = "pending"
+            # Strict Anti-Bypass: Reset approval status so retries must pass through safety gate
+            failed_step["approval_status"] = "pending"
+            approved_ids = list(state.get("approved_step_ids") or [])
+            if failed_step.get("id") in approved_ids:
+                approved_ids.remove(failed_step.get("id"))
+                state["approved_step_ids"] = approved_ids
 
             if tool == "browser":
                 # Fallback to headless or direct query
@@ -615,6 +681,7 @@ class LangGraphOrchestrator:
         """
         Executes an autonomous mission through the stateful LangGraph DAG.
         Returns full execution state, final response, and approval requirement if paused.
+        Saves checkpoint to disk for cross-session continuity.
         """
         sid = session_id or f"sess_{uuid.uuid4().hex[:8]}"
         initial_state: AutonomousAgentState = {
@@ -623,6 +690,7 @@ class LangGraphOrchestrator:
             "plan": [],
             "current_step_index": 0,
             "guardian_approved": auto_approve,
+            "approved_step_ids": [],
             "pending_approval": None,
             "execution_history": [],
             "verification": {},
@@ -636,13 +704,15 @@ class LangGraphOrchestrator:
         config = {"configurable": {"thread_id": sid}}
         result_state = self.graph.invoke(initial_state, config=config)
         self.active_sessions[sid] = result_state
+        self._save_session_checkpoint(sid, result_state)
         return result_state
 
     def approve_mission_step(self, session_id: str, approved: bool = True) -> Dict[str, Any]:
         """
         Resumes a paused mission after human-in-the-loop guardian approval.
+        Survives application restarts by retrieving persisted disk checkpoints.
         """
-        session_state = self.active_sessions.get(session_id)
+        session_state = self.active_sessions.get(session_id) or self._load_session_checkpoint(session_id)
         if not session_state:
             return {"status": "error", "error": f"Session '{session_id}' not found."}
 
@@ -650,8 +720,20 @@ class LangGraphOrchestrator:
             session_state["status"] = "failed"
             session_state["final_response"] = "Mission halted: Human supervisor rejected the privileged operation."
             session_state["pending_approval"] = None
+            self.active_sessions[session_id] = session_state
+            self._save_session_checkpoint(session_id, session_state)
             return session_state
 
+        approved_ids = list(session_state.get("approved_step_ids") or [])
+        idx = session_state.get("current_step_index", 0)
+        plan = session_state.get("plan", [])
+        if idx < len(plan):
+            step_id = plan[idx].get("id")
+            if step_id not in approved_ids:
+                approved_ids.append(step_id)
+            plan[idx]["approval_status"] = "approved"
+
+        session_state["approved_step_ids"] = approved_ids
         session_state["guardian_approved"] = True
         session_state["pending_approval"] = None
         session_state["status"] = "executing"
@@ -659,7 +741,12 @@ class LangGraphOrchestrator:
         config = {"configurable": {"thread_id": session_id}}
         resumed_state = self.graph.invoke(session_state, config=config)
         self.active_sessions[session_id] = resumed_state
+        self._save_session_checkpoint(session_id, resumed_state)
         return resumed_state
+
+    def get_session(self, session_id: str) -> Optional[AutonomousAgentState]:
+        """Returns the state of an active or persisted session."""
+        return self.active_sessions.get(session_id) or self._load_session_checkpoint(session_id)
 
 
 # Global Singleton Instance

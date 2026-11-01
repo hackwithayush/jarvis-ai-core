@@ -296,5 +296,20 @@ class AgentOrchestrator:
         from core.langgraph_orchestrator import langgraph_orchestrator
         return langgraph_orchestrator.approve_mission_step(session_id=session_id, approved=approved)
 
+    def execute_mission(self, directive: str, user_id: str = "Ayush", auto_approve: bool = False, session_id: Optional[str] = None) -> Dict[str, Any]:
+        """J.A.R.V.I.S. 3.0: Unified Autonomous Mission Control Pipeline."""
+        from core.mission_control import mission_control
+        return mission_control.execute_mission(directive=directive, user_id=user_id, auto_approve=auto_approve, session_id=session_id)
+
+    def get_situational_awareness(self) -> Dict[str, Any]:
+        """J.A.R.V.I.S. 3.0: Telemetry, GPU status, pending missions, and active context."""
+        from core.mission_control import mission_control
+        return mission_control.get_situational_awareness()
+
+    def get_proactive_briefing(self, user_id: str = "Ayush") -> Dict[str, Any]:
+        """J.A.R.V.I.S. 3.0: Proactive assistance recommendations and pending missions."""
+        from core.mission_control import mission_control
+        return mission_control.get_proactive_briefing(user_id=user_id)
+
 # Global Orchestrator Instance
 orchestrator = AgentOrchestrator()

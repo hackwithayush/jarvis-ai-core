@@ -147,11 +147,16 @@ class Mem0Engine:
         try:
             filters = {"user_id": user_id}
             raw = self.memory.search(query.strip(), filters=filters, limit=limit)
-            if isinstance(raw, dict):
-                return raw.get("results", [])
-            elif isinstance(raw, list):
-                return raw
-            return []
+            items = raw.get("results", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
+            # Multi-User Strict Isolation: Purge any cross-user memories
+            isolated = []
+            for r in items:
+                r_user = r.get("user_id") or (r.get("metadata") or {}).get("user_id")
+                if r_user is None or str(r_user) == str(user_id):
+                    isolated.append(r)
+                else:
+                    logger.warning(f"[SECURITY] Blocked cross-user memory access: requested '{user_id}', item belongs to '{r_user}'")
+            return isolated
         except Exception as e:
             logger.warning(f"Mem0 search error: {e}")
             return []
@@ -178,18 +183,20 @@ class Mem0Engine:
 
     def get_all_memories(self, user_id: str = "Ayush") -> List[Dict[str, Any]]:
         """
-        Fetches all memories recorded for the given user.
+        Fetches all memories recorded for the given user with strict isolation.
         """
         if not self.is_available():
             return []
 
         try:
             raw = self.memory.get_all(filters={"user_id": user_id})
-            if isinstance(raw, dict):
-                return raw.get("results", [])
-            elif isinstance(raw, list):
-                return raw
-            return []
+            items = raw.get("results", []) if isinstance(raw, dict) else (raw if isinstance(raw, list) else [])
+            isolated = []
+            for r in items:
+                r_user = r.get("user_id") or (r.get("metadata") or {}).get("user_id")
+                if r_user is None or str(r_user) == str(user_id):
+                    isolated.append(r)
+            return isolated
         except Exception as e:
             logger.error(f"Mem0 get_all error: {e}")
             return []

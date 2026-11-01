@@ -29,3 +29,4 @@ UI/frontend/node_modules/
 *.jsonl
 conversation_transcript.md
 .venv_browser/
+prototypes/

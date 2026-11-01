@@ -3953,6 +3953,49 @@ def llama_benchmark_api():
     res = llama_engine.benchmark(model=model, prompt=prompt, max_tokens=max_tokens)
     return jsonify(res)
 
+# ─── J.A.R.V.I.S. 3.0 Unified Mission Control API ─────────────────────
+@app.route("/api/mission/execute", methods=["POST"])
+def mission_execute_api():
+    """Executes an end-to-end multi-agent autonomous mission."""
+    data = request.get_json(silent=True) or {}
+    directive = data.get("directive", "").strip()
+    if not directive:
+        return jsonify({"status": "error", "error": "Mission directive payload required."}), 400
+    user_id = data.get("user_id", "Ayush")
+    auto_approve = bool(data.get("auto_approve", False))
+    session_id = data.get("session_id")
+
+    from core.mission_control import mission_control
+    res = mission_control.execute_mission(
+        directive=directive,
+        user_id=user_id,
+        auto_approve=auto_approve,
+        session_id=session_id
+    )
+    return jsonify(res)
+
+@app.route("/api/mission/telemetry", methods=["GET"])
+def mission_telemetry_api():
+    """Returns real-time situational awareness, hardware telemetry, and active context."""
+    from core.mission_control import mission_control
+    return jsonify(mission_control.get_situational_awareness())
+
+@app.route("/api/mission/proactive", methods=["GET"])
+def mission_proactive_api():
+    """Returns proactive assistance briefing, pending cross-session tasks, and recommendations."""
+    user_id = request.args.get("user_id", "Ayush")
+    from core.mission_control import mission_control
+    return jsonify(mission_control.get_proactive_briefing(user_id=user_id))
+
+@app.route("/api/mission/pending", methods=["GET"])
+def mission_pending_api():
+    """Returns cross-session pending missions that can be resumed."""
+    from core.langgraph_orchestrator import langgraph_orchestrator
+    return jsonify({
+        "status": "success",
+        "pending_missions": langgraph_orchestrator.list_pending_missions()
+    })
+
 @app.route("/api/tts", methods=["POST"])
 def tts_api():
     """Neural Vocalization: Synchronizing text to Tony Stark J.A.R.V.I.S. modulated voice."""
