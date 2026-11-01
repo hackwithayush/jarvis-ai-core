@@ -3,6 +3,7 @@ True Multi-Agent Orchestrator
 Coordinates specialized agents using confidence scoring, voting, and arbitration.
 Agents: Planner, Vision, Memory, OS Control, and MCP External Extensions.
 """
+import re
 import logging
 from typing import Dict, Any, List, Optional
 
@@ -197,6 +198,33 @@ class BrowserAgentNode(BaseAgent):
         except Exception as e:
             return f"Browser Agent Failed: {e}"
 
+class MemoryAgentNode(BaseAgent):
+    def __init__(self):
+        super().__init__("MemoryAgent")
+
+    def evaluate_confidence(self, task: str) -> float:
+        t = task.lower()
+        if any(k in t for k in ["remember", "what do you remember", "my preference", "do you know my", "recall", "favorite", "save to memory", "what language do i"]):
+            return 0.94
+        return 0.05
+
+    def execute(self, task: str) -> str:
+        try:
+            from core.mem0_engine import mem0_engine
+            t = task.lower()
+            if any(k in t for k in ["remember that", "remember:", "save to memory", "my preference is", "my favorite"]):
+                clean = re.sub(r"^(?:please\s+)?remember\s+(?:that\s+)?", "", task, flags=re.IGNORECASE).strip()
+                res = mem0_engine.add_memory(clean)
+                return f"[MEM0 MEMORY STORED] Stored in persistent memory: '{clean}'"
+            else:
+                memories = mem0_engine.search_memory(task)
+                if memories:
+                    facts = [f"- {m.get('memory', '')}" for m in memories if m.get('memory')]
+                    return "[MEM0 RECALL]\n" + "\n".join(facts)
+                return "[MEM0 RECALL] No matching persistent memories found for your query, sir."
+        except Exception as e:
+            return f"Memory Agent Failed: {e}"
+
 class AgentOrchestrator:
     def __init__(self):
         self.agents: List[BaseAgent] = [
@@ -204,6 +232,7 @@ class AgentOrchestrator:
             BrowserAgentNode(),
             ComputerControlAgentNode(),
             PlannerAgentNode(),
+            MemoryAgentNode(),
             MCPExtensionAgent()
         ]
         

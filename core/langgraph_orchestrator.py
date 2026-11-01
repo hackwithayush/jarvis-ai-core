@@ -129,20 +129,32 @@ class LangGraphOrchestrator:
         """
         Planner Node:
         Deconstructs the user goal into a structured Task DAG of discrete, typed steps.
+        Integrates Mem0 persistent intelligent memory recall for personalized planning.
         """
         task = state.get("task", "").strip()
         logger.info(f"[PLANNER NODE] Generating task DAG for: '{task[:60]}...'")
 
+        # 0. Retrieve persistent user memory context from Mem0
+        user_context = ""
+        try:
+            from core.mem0_engine import mem0_engine
+            user_context = mem0_engine.get_user_context(task)
+            if user_context:
+                logger.info(f"[PLANNER NODE] Injected Mem0 persistent recall for task: {task[:40]}")
+        except Exception as mem_err:
+            logger.debug(f"[PLANNER NODE] Mem0 context recall note: {mem_err}")
+
         # 1. Check for simple informational / conversational queries
         t_low = task.lower()
-        is_direct_chat = any(k in t_low for k in ["who are you", "what is your name", "hello", "hi jarvis", "explain", "what is", "tell me about"]) and not any(k in t_low for k in ["browse", "click", "search web", "run", "file", "delete", "open"])
+        is_direct_chat = any(k in t_low for k in ["who are you", "what is your name", "hello", "hi jarvis", "explain", "what is", "tell me about", "what language do i", "my preference"]) and not any(k in t_low for k in ["browse", "click", "search web", "run", "file", "delete", "open"])
 
         if is_direct_chat:
+            enhanced_prompt = f"{task}\n{user_context}" if user_context else task
             steps = [{
                 "id": 1,
                 "description": f"Answer informational query: {task}",
                 "tool": "direct_answer",
-                "arguments": {"prompt": task},
+                "arguments": {"prompt": enhanced_prompt, "user_context": user_context},
                 "status": "pending",
                 "result": None,
                 "requires_approval": False,

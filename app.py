@@ -3705,6 +3705,67 @@ def orchestrator_session_status(session_id):
         "retry_count": state.get("retry_count")
     })
 
+# ─── Mem0 Persistent Intelligent Memory Endpoints ───────────────────
+
+@app.route("/api/memory/mem0/add", methods=["POST"])
+def mem0_add_memory_api():
+    """Add explicit or conversational memories to user's persistent knowledge graph."""
+    data = request.get_json(silent=True) or {}
+    content = data.get("content") or data.get("text") or ""
+    if not content.strip():
+        return jsonify({"status": "error", "error": "Content required."}), 400
+    user_id = data.get("user_id", "Ayush")
+    metadata = data.get("metadata") or {}
+    
+    from core.mem0_engine import mem0_engine
+    res = mem0_engine.add_memory(content=content, user_id=user_id, metadata=metadata)
+    return jsonify(res)
+
+@app.route("/api/memory/mem0/search", methods=["GET", "POST"])
+def mem0_search_memory_api():
+    """Semantically search persistent user memories."""
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        query = data.get("query", "")
+        user_id = data.get("user_id", "Ayush")
+        limit = int(data.get("limit", 5))
+    else:
+        query = request.args.get("query", "")
+        user_id = request.args.get("user_id", "Ayush")
+        limit = int(request.args.get("limit", 5))
+        
+    if not query.strip():
+        return jsonify({"status": "error", "error": "Query required."}), 400
+        
+    from core.mem0_engine import mem0_engine
+    results = mem0_engine.search_memory(query=query, user_id=user_id, limit=limit)
+    return jsonify({
+        "status": "success",
+        "query": query,
+        "count": len(results),
+        "results": results
+    })
+
+@app.route("/api/memory/mem0/all", methods=["GET"])
+def mem0_all_memories_api():
+    """Retrieve all persistent memories for the user."""
+    user_id = request.args.get("user_id", "Ayush")
+    from core.mem0_engine import mem0_engine
+    results = mem0_engine.get_all_memories(user_id=user_id)
+    return jsonify({
+        "status": "success",
+        "user_id": user_id,
+        "count": len(results),
+        "results": results
+    })
+
+@app.route("/api/memory/mem0/<memory_id>", methods=["DELETE"])
+def mem0_delete_memory_api(memory_id):
+    """Delete a memory entry by ID."""
+    from core.mem0_engine import mem0_engine
+    res = mem0_engine.delete_memory(memory_id=memory_id)
+    return jsonify(res)
+
 @app.route("/api/tts", methods=["POST"])
 def tts_api():
     """Neural Vocalization: Synchronizing text to Tony Stark J.A.R.V.I.S. modulated voice."""

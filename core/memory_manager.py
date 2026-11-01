@@ -39,11 +39,16 @@ class MemoryManager:
                         logger.info(f"Memory Extract: Found {key} -> {value}")
                         new_prefs[key] = value
                         found_any = True
+                        try:
+                            from core.mem0_engine import mem0_engine
+                            mem0_engine.add_memory(f"User preference: {key} is {value}")
+                        except Exception:
+                            pass
         
         return new_prefs if found_any else current_prefs
 
     def learn_permanent_facts(self, message: str, model_manager: Any, knowledge_manager: Any) -> bool:
-        """Use Neural Audit to extract and save permanent facts to Vector DB."""
+        """Use Neural Audit to extract and save permanent facts to Vector DB & Mem0."""
         # 1. Audit Message for Fact Potential
         neural_prompt = f"Audit the user message: '{message}'. Is there a permanent fact about the user (name, job, birthday, home, hobby)? If yes, extract it as a short fact string. If no, answer 'NONE'."
         fact = model_manager.generate(
@@ -55,14 +60,29 @@ class MemoryManager:
         if fact and "NONE" not in fact.upper() and len(fact) > 5:
             logger.info(f"Neural Memory: Extracted fact -> {fact}")
             # 2. Sync to Vector DB
-            knowledge_manager.add_document(
-                content=fact,
-                source="Neural Memory Engine",
-                title="Personal Fact",
-                category="personal"
-            )
+            if knowledge_manager:
+                knowledge_manager.add_document(
+                    content=fact,
+                    source="Neural Memory Engine",
+                    title="Personal Fact",
+                    category="personal"
+                )
+            # 3. Sync to Mem0
+            try:
+                from core.mem0_engine import mem0_engine
+                mem0_engine.add_memory(fact)
+            except Exception:
+                pass
             return True
         return False
+
+    def get_context_for_prompt(self, query: str, user_id: str = "Ayush") -> str:
+        """Retrieves formatted Mem0 long-term memory context to inject into cognitive prompts."""
+        try:
+            from core.mem0_engine import mem0_engine
+            return mem0_engine.get_user_context(query, user_id=user_id)
+        except Exception:
+            return ""
 
     def learn_interests(self, message: str, current_prefs: Dict[str, Any]) -> Dict[str, Any]:
         """Track user interest frequency based on message content."""
