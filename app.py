@@ -3255,40 +3255,139 @@ VOICE_PROFILES = [
         "badge": "Research Core",
         "description": "Crisp American engineering voice for technical programming and laboratory logs.",
         "sample": "Neural link verified, sir. Compiling technical schematics now."
+    },
+    {
+        "id": "prabhat-academic",
+        "name": "J.A.R.V.I.S. (Indian English)",
+        "voice": "en-IN-PrabhatNeural",
+        "pitch": "-1Hz",
+        "rate": "+0%",
+        "volume": "+0%",
+        "tag": "ACADEMIC",
+        "badge": "Indian English",
+        "description": "Articulate, precise Indian English voice for analytical reasoning and scientific dialogue.",
+        "sample": "Good day, Sir. Systems are fully calibrated and ready for your directives."
     }
 ]
+
+@app.route("/api/personality", methods=["GET"])
+def get_personality_api():
+    """Return complete personality metadata, current settings, charter, and sample phrases."""
+    try:
+        from core.personality import personality_engine
+        meta = personality_engine.get_personality_metadata()
+        meta["sample_phrases"] = personality_engine.get_sample_phrases()
+        return jsonify({"status": "success", **meta})
+    except Exception as e:
+        logger.error(f"Error fetching personality metadata: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+@app.route("/api/personality", methods=["POST"])
+def update_personality_api():
+    """Update personality, identity, address title, humour level, autonomy level, and voice."""
+    try:
+        from core.personality import personality_engine
+        data = request.get_json(silent=True) or request.form.to_dict() or {}
+        updated = personality_engine.update_settings(data)
+        
+        # Synchronize runtime config
+        if "voice_name" in updated:
+            config.TTS_VOICE = updated["voice_name"]
+        if "voice_pitch" in updated:
+            config.TTS_PITCH = updated["voice_pitch"]
+        if "voice_rate" in updated:
+            config.TTS_RATE = updated["voice_rate"]
+        if "voice_volume" in updated:
+            config.TTS_VOLUME = updated["voice_volume"]
+        if "auto_speak" in updated:
+            config.VOICE_AUTO_SPEAK = updated["auto_speak"]
+        if "continuous_mode" in updated:
+            config.VOICE_CONTINUOUS_MODE = updated["continuous_mode"]
+            
+        if current_user.is_authenticated:
+            try:
+                prefs = dict(current_user.preferences or {})
+                prefs.update({
+                    "assistant_name": updated.get("assistant_name"),
+                    "user_title": updated.get("user_title"),
+                    "personality": updated.get("personality"),
+                    "humour_level": updated.get("humour_level"),
+                    "autonomy_level": updated.get("autonomy_level"),
+                    "voice_accent": updated.get("voice_accent"),
+                    "voice_name": updated.get("voice_name"),
+                    "voice_pitch": updated.get("voice_pitch"),
+                    "voice_rate": updated.get("voice_rate"),
+                    "voice_volume": updated.get("voice_volume"),
+                    "voice_auto_speak": updated.get("auto_speak"),
+                    "voice_continuous_mode": updated.get("continuous_mode")
+                })
+                current_user.preferences = prefs
+                db.session.commit()
+            except Exception as e:
+                logger.warning(f"Could not persist user personality preferences: {e}")
+
+        return jsonify({
+            "status": "success",
+            "message": f"Personality matrix configured as {updated.get('personality')} for {updated.get('user_title')}.",
+            "settings": updated,
+            "sample_phrases": personality_engine.get_sample_phrases()
+        })
+    except Exception as e:
+        logger.error(f"Error updating personality: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+@app.route("/api/personality/charter", methods=["GET"])
+def get_charter_api():
+    """Return the 7 constitutional articles of the JARVIS Operating Charter."""
+    from core.personality import personality_engine
+    return jsonify({"status": "success", "charter": personality_engine.get_charter()})
+
+@app.route("/api/personality/samples", methods=["GET"])
+def get_personality_samples_api():
+    """Return canonical spoken samples customized with user's title."""
+    from core.personality import personality_engine
+    return jsonify({"status": "success", "sample_phrases": personality_engine.get_sample_phrases()})
 
 @app.route("/api/voice/profiles", methods=["GET"])
 def get_voice_profiles():
     """Return all available Tony Stark and Iron Man vocal matrix profiles."""
+    from core.personality import personality_engine
+    p_cfg = personality_engine.get_settings()
     return jsonify({
         "status": "success",
         "profiles": VOICE_PROFILES,
-        "active_voice": getattr(config, "TTS_VOICE", "en-GB-RyanNeural"),
-        "active_pitch": getattr(config, "TTS_PITCH", "-2Hz"),
-        "active_rate": getattr(config, "TTS_RATE", "+0%"),
-        "active_volume": getattr(config, "TTS_VOLUME", "+0%"),
-        "auto_speak": getattr(config, "VOICE_AUTO_SPEAK", True),
-        "continuous_mode": getattr(config, "VOICE_CONTINUOUS_MODE", False),
+        "active_voice": p_cfg.get("voice_name") or getattr(config, "TTS_VOICE", "en-GB-RyanNeural"),
+        "active_pitch": p_cfg.get("voice_pitch") or getattr(config, "TTS_PITCH", "-2Hz"),
+        "active_rate": p_cfg.get("voice_rate") or getattr(config, "TTS_RATE", "+0%"),
+        "active_volume": p_cfg.get("voice_volume") or getattr(config, "TTS_VOLUME", "+0%"),
+        "auto_speak": p_cfg.get("auto_speak", getattr(config, "VOICE_AUTO_SPEAK", True)),
+        "continuous_mode": p_cfg.get("continuous_mode", getattr(config, "VOICE_CONTINUOUS_MODE", False)),
     })
 
 @app.route("/api/voice/settings", methods=["GET", "POST"])
 def voice_settings_endpoint():
     """Query or update active J.A.R.V.I.S. vocal matrix settings."""
+    from core.personality import personality_engine
     if request.method == "POST":
-        data = request.get_json(silent=True) or {}
+        data = request.get_json(silent=True) or request.form.to_dict() or {}
         if "voice" in data and isinstance(data["voice"], str) and data["voice"].strip():
             config.TTS_VOICE = data["voice"].strip()
+            personality_engine.update_settings({"voice_name": config.TTS_VOICE})
         if "pitch" in data and isinstance(data["pitch"], str) and data["pitch"].strip():
             config.TTS_PITCH = data["pitch"].strip()
+            personality_engine.update_settings({"voice_pitch": config.TTS_PITCH})
         if "rate" in data and isinstance(data["rate"], str) and data["rate"].strip():
             config.TTS_RATE = data["rate"].strip()
+            personality_engine.update_settings({"voice_rate": config.TTS_RATE})
         if "volume" in data and isinstance(data["volume"], str) and data["volume"].strip():
             config.TTS_VOLUME = data["volume"].strip()
+            personality_engine.update_settings({"voice_volume": config.TTS_VOLUME})
         if "auto_speak" in data:
             config.VOICE_AUTO_SPEAK = bool(data["auto_speak"])
+            personality_engine.update_settings({"auto_speak": config.VOICE_AUTO_SPEAK})
         if "continuous_mode" in data:
             config.VOICE_CONTINUOUS_MODE = bool(data["continuous_mode"])
+            personality_engine.update_settings({"continuous_mode": config.VOICE_CONTINUOUS_MODE})
             
         if current_user.is_authenticated:
             try:
@@ -3317,23 +3416,24 @@ def voice_settings_endpoint():
             }
         })
 
+    p_cfg = personality_engine.get_settings()
     return jsonify({
         "status": "success",
         "settings": {
-            "voice": getattr(config, "TTS_VOICE", "en-GB-RyanNeural"),
-            "pitch": getattr(config, "TTS_PITCH", "-2Hz"),
-            "rate": getattr(config, "TTS_RATE", "+0%"),
-            "volume": getattr(config, "TTS_VOLUME", "+0%"),
-            "auto_speak": getattr(config, "VOICE_AUTO_SPEAK", True),
-            "continuous_mode": getattr(config, "VOICE_CONTINUOUS_MODE", False)
+            "voice": p_cfg.get("voice_name") or getattr(config, "TTS_VOICE", "en-GB-RyanNeural"),
+            "pitch": p_cfg.get("voice_pitch") or getattr(config, "TTS_PITCH", "-2Hz"),
+            "rate": p_cfg.get("voice_rate") or getattr(config, "TTS_RATE", "+0%"),
+            "volume": p_cfg.get("voice_volume") or getattr(config, "TTS_VOLUME", "+0%"),
+            "auto_speak": p_cfg.get("auto_speak", getattr(config, "VOICE_AUTO_SPEAK", True)),
+            "continuous_mode": p_cfg.get("continuous_mode", getattr(config, "VOICE_CONTINUOUS_MODE", False))
         }
     })
 
 @app.route("/api/voice/command", methods=["POST"])
 def voice_command_endpoint():
     """Full Autonomous Voice Control: Parse and execute speech commands immediately."""
-    data = request.get_json(silent=True) or {}
-    raw_cmd = (data.get("transcript") or data.get("command") or "").strip()
+    data = request.get_json(silent=True) or request.form.to_dict() or {}
+    raw_cmd = (data.get("transcript") or data.get("command") or data.get("text") or "").strip()
     if not raw_cmd:
         return jsonify({"status": "error", "error": "No voice command provided"}), 400
 
@@ -4143,8 +4243,15 @@ def evaluator_evaluate_api():
 def tts_api():
     """Neural Vocalization: Synchronizing text to Tony Stark J.A.R.V.I.S. modulated voice."""
     try:
-        data = request.json or {}
+        data = request.get_json(silent=True) or request.form.to_dict() or {}
         text = data.get("text", "")
+        if not text:
+            try:
+                raw_b = request.get_data(as_text=True)
+                if raw_b and not raw_b.startswith("{"):
+                    text = raw_b.strip()
+            except Exception:
+                pass
         if not text:
             return jsonify({"error": "Vocal payload empty"}), 400
             
@@ -4159,12 +4266,14 @@ def tts_api():
         if not clean_text:
             clean_text = text[:600]
 
-        # Pull voice parameters (Priority: Request > User Prefs > Defaults)
+        # Pull voice parameters from Personality Engine > Request > User Prefs > Defaults
+        from core.personality import personality_engine
+        p_cfg = personality_engine.get_settings()
         prefs = getattr(current_user, "preferences", None) or {}
-        rate = data.get("rate") or prefs.get("voice_rate") or getattr(config, "TTS_RATE", "+0%")
-        pitch = data.get("pitch") or prefs.get("voice_pitch") or getattr(config, "TTS_PITCH", "-2Hz")
-        volume = data.get("volume") or prefs.get("voice_volume") or getattr(config, "TTS_VOLUME", "+0%")
-        voice = (data.get("voice") or prefs.get("voice_name") or getattr(config, "TTS_VOICE", "en-GB-RyanNeural")).strip()
+        rate = data.get("rate") or prefs.get("voice_rate") or p_cfg.get("voice_rate") or getattr(config, "TTS_RATE", "+0%")
+        pitch = data.get("pitch") or prefs.get("voice_pitch") or p_cfg.get("voice_pitch") or getattr(config, "TTS_PITCH", "-2Hz")
+        volume = data.get("volume") or prefs.get("voice_volume") or p_cfg.get("voice_volume") or getattr(config, "TTS_VOLUME", "+0%")
+        voice = (data.get("voice") or prefs.get("voice_name") or p_cfg.get("voice_name") or getattr(config, "TTS_VOICE", "en-GB-RyanNeural")).strip()
 
         # Unique file to prevent collision
         filename = f"speech_{uuid.uuid4().hex}.mp3"

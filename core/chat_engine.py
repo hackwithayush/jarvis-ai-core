@@ -1139,11 +1139,18 @@ class ChatEngine:
         if config.UNCENSORED_MODE and getattr(config, "STARK_RAW_PROTOCOL", ""):
             system_prompt += f"\n\n{config.STARK_RAW_PROTOCOL}"
         
-        # Personality Injection
+        # Personality & Operating Charter Injection
+        try:
+            from core.personality import personality_engine
+            system_prompt += f"\n\n{personality_engine.generate_system_directive()}"
+        except Exception as pe_err:
+            logger.warning(f"Personality directive injection error: {pe_err}")
+
+        # Personality Injection (Legacy mode mapping)
         if user and hasattr(user, 'preferences'):
             active_personality = (user.preferences or {}).get("personality", "normal")
             personality_prompt = config.PERSONALITY_PROMPTS.get(active_personality, config.PERSONALITY_PROMPTS["normal"])
-            system_prompt += f"\n\n# ACTIVE PERSONALITY: {active_personality}\n{personality_prompt}"
+            system_prompt += f"\n\n# ACTIVE PERSONALITY MODE: {active_personality}\n{personality_prompt}"
 
         # Custom Instructions Injection (Priority #4)
         custom_inst = getattr(config, "CUSTOM_INSTRUCTIONS", "")

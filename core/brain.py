@@ -235,7 +235,15 @@ class JarvisBrain:
             emotion_engine.update_mood(user_msg, emotion)
             mood_inject = emotion_engine.get_mood_persona_prompt()
             
-            full_system = f"{identity}\n\n# PERSONALITY PROTOCOL:\n{persona}\n{mood_inject}\n\n# CURRENT MISSION:\n{custom_prompt}"
+            # Operating Charter & Personality Constitution Inject
+            charter_directive = ""
+            try:
+                from core.personality import personality_engine
+                charter_directive = f"\n\n{personality_engine.generate_system_directive()}"
+            except Exception as p_err:
+                logger.warning(f"Personality injection in brain failed: {p_err}")
+
+            full_system = f"{identity}\n\n# PERSONALITY PROTOCOL:\n{persona}\n{mood_inject}{charter_directive}\n\n# CURRENT MISSION:\n{custom_prompt}"
             
             # Conversational memory: inject recent context
             prior_history = self.get_history(user_id)

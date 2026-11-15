@@ -877,22 +877,22 @@
     </div>
 
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
-    <!-- 🎙️ J.A.R.V.I.S. TONY STARK VOICE MAKER & ACOUSTIC HUD MODAL           -->
+    <!-- 🎙️ J.A.R.V.I.S. IDENTITY, PERSONALITY & VOCAL MATRIX HUD MODAL          -->
     <!-- ═══════════════════════════════════════════════════════════════════════ -->
     <div id="voice-maker-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden bg-black/90 opacity-0 transition-opacity duration-300 backdrop-blur-md">
-        <div class="bg-[#090D14] border border-[#00f0ff]/30 w-full max-w-2xl max-h-[90vh] rounded-2xl flex flex-col shadow-[0_0_50px_rgba(0,240,255,0.15)] overflow-hidden">
+        <div class="bg-[#090D14] border border-[#00f0ff]/30 w-full max-w-3xl max-h-[92vh] rounded-2xl flex flex-col shadow-[0_0_50px_rgba(0,240,255,0.15)] overflow-hidden">
             <!-- Modal Header -->
-            <div class="p-5 border-b border-[#1A2636] flex-shrink-0 flex items-center justify-between bg-gradient-to-r from-[#0C1420] to-[#090D14]">
+            <div class="p-4 sm:p-5 border-b border-[#1A2636] flex-shrink-0 flex items-center justify-between bg-gradient-to-r from-[#0C1420] to-[#090D14]">
                 <div class="flex items-center gap-3">
                     <div class="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 flex items-center justify-center text-lg shadow-[0_0_15px_rgba(0,240,255,0.2)]">
                         <i class="fas fa-atom animate-spin-slow"></i>
                     </div>
                     <div>
                         <div class="flex items-center gap-2">
-                            <h2 class="text-base font-brand font-semibold text-white tracking-wide">J.A.R.V.I.S. VOCAL MATRIX</h2>
+                            <h2 class="text-base font-brand font-semibold text-white tracking-wide">J.A.R.V.I.S. IDENTITY & VOCAL MATRIX</h2>
                             <span class="px-2 py-0.5 text-[9px] font-mono font-bold rounded-full bg-cyan-500/15 border border-cyan-500/40 text-cyan-300">STARK LABS</span>
                         </div>
-                        <p class="text-[11px] text-[#718296] font-mono">Neural text-to-speech modulation & full autonomous speech control</p>
+                        <p class="text-[11px] text-[#718296] font-mono">Character Design · Operating Charter · Neural Vocalization & Autonomous Control</p>
                     </div>
                 </div>
                 <button onclick="toggleVoiceMakerModal()" class="w-8 h-8 rounded-lg flex items-center justify-center text-[#718296] hover:text-white hover:bg-[#15202E] transition-all">
@@ -900,159 +900,529 @@
                 </button>
             </div>
 
+            <!-- Modal Sub-Navigation Bar -->
+            <div class="flex items-center gap-1 px-4 sm:px-5 pt-2 border-b border-[#1A2636] bg-[#0A0F18] flex-shrink-0 overflow-x-auto custom-scrollbar">
+                <button onclick="switchPersonalityTab('personality')" id="modal-tab-personality" class="px-3.5 py-2 text-xs font-mono font-bold tracking-wider rounded-t-lg transition-all flex items-center gap-2 border-b-2 border-cyan-400 text-cyan-300 bg-cyan-950/20">
+                    <i class="fas fa-palette text-xs text-cyan-400"></i>
+                    <span>DESIGN JARVIS</span>
+                </button>
+                <button onclick="switchPersonalityTab('charter')" id="modal-tab-charter" class="px-3.5 py-2 text-xs font-mono font-bold tracking-wider rounded-t-lg transition-all flex items-center gap-2 border-b-2 border-transparent text-[#718296] hover:text-white hover:bg-[#121A26]">
+                    <i class="fas fa-scroll text-xs"></i>
+                    <span>OPERATING CHARTER</span>
+                </button>
+                <button onclick="switchPersonalityTab('voice-studio')" id="modal-tab-voice-studio" class="px-3.5 py-2 text-xs font-mono font-bold tracking-wider rounded-t-lg transition-all flex items-center gap-2 border-b-2 border-transparent text-[#718296] hover:text-white hover:bg-[#121A26]">
+                    <i class="fas fa-volume-high text-xs"></i>
+                    <span>VOICE & SAMPLES</span>
+                </button>
+                <button onclick="switchPersonalityTab('acoustics')" id="modal-tab-acoustics" class="px-3.5 py-2 text-xs font-mono font-bold tracking-wider rounded-t-lg transition-all flex items-center gap-2 border-b-2 border-transparent text-[#718296] hover:text-white hover:bg-[#121A26]">
+                    <i class="fas fa-sliders text-xs"></i>
+                    <span>TUNING & CONTROL</span>
+                </button>
+            </div>
+
             <!-- Modal Body (Scrollable) -->
-            <div class="p-5 overflow-y-auto custom-scrollbar flex-1 space-y-6">
-                <!-- 1. Voice Personas Grid -->
-                <div>
-                    <label class="block text-xs font-mono font-bold text-cyan-400 mb-2 uppercase tracking-wider flex items-center gap-1.5">
-                        <i class="fas fa-user-astronaut text-[10px]"></i> 1. Select Neural Persona
-                    </label>
-                    <div id="voice-persona-cards" class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
-                        <!-- Dynamic Persona Cards rendered via JS -->
+            <div class="p-4 sm:p-5 overflow-y-auto custom-scrollbar flex-1 space-y-6">
+
+                <!-- ════ PANEL 1: DESIGN YOUR JARVIS ════ -->
+                <div id="panel-personality" class="space-y-6">
+                    <!-- Identity & Naming Inputs -->
+                    <div class="bg-[#0C1420]/80 border border-[#1A2636] rounded-xl p-4 space-y-3">
+                        <div class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fas fa-id-badge text-[10px]"></i> 1. Assistant Identity & Addressing
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div class="space-y-1">
+                                <label class="text-[11px] font-mono text-[#94A3B8]">Assistant Name</label>
+                                <input id="personality-assistant-name" type="text" value="J.A.R.V.I.S." oninput="updatePersonalitySummary()" class="w-full bg-[#080E18] border border-[#1A2636] rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:border-cyan-400 focus:outline-none">
+                            </div>
+                            <div class="space-y-1">
+                                <label class="text-[11px] font-mono text-[#94A3B8]">How should it address you?</label>
+                                <div class="flex gap-2">
+                                    <select id="personality-user-title-select" onchange="onUserTitleSelect(this.value)" class="bg-[#080E18] border border-[#1A2636] rounded-lg px-2.5 py-1.5 text-xs text-white font-mono focus:border-cyan-400 focus:outline-none">
+                                        <option value="Sir">Sir (Recommended)</option>
+                                        <option value="Boss">Boss</option>
+                                        <option value="Mr. Stark">Mr. Stark</option>
+                                        <option value="custom">Custom...</option>
+                                    </select>
+                                    <input id="personality-user-title-custom" type="text" placeholder="Custom title" oninput="updatePersonalitySummary()" class="flex-1 bg-[#080E18] border border-[#1A2636] rounded-lg px-3 py-1.5 text-xs text-white font-mono focus:border-cyan-400 focus:outline-none hidden">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Personality Archetypes -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fas fa-user-tie text-[10px]"></i> 2. Personality Archetype
+                            </label>
+                            <span class="text-[10px] font-mono text-cyan-300">Recommended: The Intelligent Gentleman</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="personality-archetype-cards">
+                            <!-- Intelligent Gentleman (Signature) -->
+                            <div onclick="selectPersonalityArchetype('intelligent_gentleman')" id="archetype-intelligent_gentleman" class="p-3.5 rounded-xl border border-cyan-400 bg-cyan-950/20 shadow-[0_0_15px_rgba(0,240,255,0.15)] cursor-pointer transition-all relative overflow-hidden group">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-lg bg-cyan-500 text-black shadow-[0_0_8px_rgba(0,240,255,0.4)] flex items-center justify-center text-sm">
+                                            <i class="fas fa-hat-cowboy-side"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-xs font-brand font-bold text-white">The Intelligent Gentleman</h4>
+                                            <span class="text-[9px] font-mono text-[#718296]">Calm · Intelligent · Loyal</span>
+                                        </div>
+                                    </div>
+                                    <span class="px-1.5 py-0.5 text-[8px] font-mono font-bold rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">SIGNATURE</span>
+                                </div>
+                                <p class="text-[10px] text-[#94A3B8] mt-2 leading-relaxed">
+                                    Professional, articulate, confident, occasionally witty, and always respectful. Classic Tony Stark J.A.R.V.I.S. cadence.
+                                </p>
+                            </div>
+
+                            <!-- Professional -->
+                            <div onclick="selectPersonalityArchetype('professional')" id="archetype-professional" class="p-3.5 rounded-xl border border-[#1A2636] bg-[#080E18] hover:border-[#27384E] cursor-pointer transition-all relative overflow-hidden group">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-lg bg-[#15202E] text-cyan-400 flex items-center justify-center text-sm">
+                                            <i class="fas fa-briefcase"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-xs font-brand font-bold text-white">Professional</h4>
+                                            <span class="text-[9px] font-mono text-[#718296]">Formal · Structured · Efficient</span>
+                                        </div>
+                                    </div>
+                                    <span class="px-1.5 py-0.5 text-[8px] font-mono font-bold rounded bg-[#15202E] text-[#52525B]">ENTERPRISE</span>
+                                </div>
+                                <p class="text-[10px] text-[#94A3B8] mt-2 leading-relaxed">
+                                    Formal, concise, data-driven, and focused on maximum operational clarity with zero conversational fluff.
+                                </p>
+                            </div>
+
+                            <!-- Friendly -->
+                            <div onclick="selectPersonalityArchetype('friendly')" id="archetype-friendly" class="p-3.5 rounded-xl border border-[#1A2636] bg-[#080E18] hover:border-[#27384E] cursor-pointer transition-all relative overflow-hidden group">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-lg bg-[#15202E] text-cyan-400 flex items-center justify-center text-sm">
+                                            <i class="fas fa-handshake"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-xs font-brand font-bold text-white">Friendly</h4>
+                                            <span class="text-[9px] font-mono text-[#718296]">Warm · Conversational · Encouraging</span>
+                                        </div>
+                                    </div>
+                                    <span class="px-1.5 py-0.5 text-[8px] font-mono font-bold rounded bg-[#15202E] text-[#52525B]">COMPANION</span>
+                                </div>
+                                <p class="text-[10px] text-[#94A3B8] mt-2 leading-relaxed">
+                                    Warm, conversational, empathetic, and encouraging while maintaining high technical competence.
+                                </p>
+                            </div>
+
+                            <!-- Tactical -->
+                            <div onclick="selectPersonalityArchetype('tactical')" id="archetype-tactical" class="p-3.5 rounded-xl border border-[#1A2636] bg-[#080E18] hover:border-[#27384E] cursor-pointer transition-all relative overflow-hidden group">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-lg bg-[#15202E] text-cyan-400 flex items-center justify-center text-sm">
+                                            <i class="fas fa-crosshairs"></i>
+                                        </div>
+                                        <div>
+                                            <h4 class="text-xs font-brand font-bold text-white">Tactical</h4>
+                                            <span class="text-[9px] font-mono text-[#718296]">Analytical · Mission-Focused · Sharp</span>
+                                        </div>
+                                    </div>
+                                    <span class="px-1.5 py-0.5 text-[8px] font-mono font-bold rounded bg-[#15202E] text-[#52525B]">COMBAT CORE</span>
+                                </div>
+                                <p class="text-[10px] text-[#94A3B8] mt-2 leading-relaxed">
+                                    Analytical, sharp, operational, and mission-focused. Fast telemetry, combat readiness, and high-tempo execution.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Humour Level Slider -->
+                    <div class="bg-[#0C1420]/80 border border-[#1A2636] rounded-xl p-4 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fas fa-smile-wink text-[10px]"></i> 3. Humour Calibration
+                            </span>
+                            <div class="flex items-center gap-2 font-mono text-xs">
+                                <span id="personality-humour-badge" class="px-2 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/30 text-cyan-300 font-bold">55%</span>
+                                <span id="personality-humour-desc" class="text-[#718296] text-[11px]">Subtle British Irony</span>
+                            </div>
+                        </div>
+                        <input id="personality-humour-slider" type="range" min="0" max="100" step="1" value="55" oninput="onHumourSliderChange(this.value)" class="w-full accent-cyan-400 h-1.5 bg-[#1A2636] rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[9px] text-[#718296] font-mono">
+                            <span>0% (Pure Business)</span>
+                            <span class="text-cyan-400">55% (Gentleman Standard)</span>
+                            <span>100% (Stark Sarcasm)</span>
+                        </div>
+                    </div>
+
+                    <!-- Autonomy Level -->
+                    <div>
+                        <label class="block text-xs font-mono font-bold text-cyan-400 mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fas fa-shield-alt text-[10px]"></i> 4. Autonomy Level
+                        </label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                            <div onclick="selectAutonomyLevel('conservative')" id="autonomy-conservative" class="p-3 rounded-xl border border-[#1A2636] bg-[#080E18] hover:border-[#27384E] cursor-pointer transition-all">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <i class="fas fa-shield-halved text-cyan-400 text-xs"></i>
+                                    <h5 class="text-xs font-bold text-white font-brand">Conservative</h5>
+                                </div>
+                                <div class="text-[10px] text-cyan-300 font-mono mb-1">Ask before most actions</div>
+                                <p class="text-[9px] text-[#718296] leading-tight">Requests explicit clearance for edits, scripts, and commands.</p>
+                            </div>
+
+                            <div onclick="selectAutonomyLevel('balanced')" id="autonomy-balanced" class="p-3 rounded-xl border border-cyan-400 bg-cyan-950/20 shadow-[0_0_15px_rgba(0,240,255,0.15)] cursor-pointer transition-all">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <i class="fas fa-scale-balanced text-cyan-400 text-xs"></i>
+                                    <h5 class="text-xs font-bold text-white font-brand">Balanced (Recommended)</h5>
+                                </div>
+                                <div class="text-[10px] text-cyan-300 font-mono mb-1">Independently handle routine tasks</div>
+                                <p class="text-[9px] text-[#718296] leading-tight">Handles routine research, creation, and edits; confirms high-risk actions.</p>
+                            </div>
+
+                            <div onclick="selectAutonomyLevel('advanced')" id="autonomy-advanced" class="p-3 rounded-xl border border-[#1A2636] bg-[#080E18] hover:border-[#27384E] cursor-pointer transition-all">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <i class="fas fa-bolt text-cyan-400 text-xs"></i>
+                                    <h5 class="text-xs font-bold text-white font-brand">Advanced</h5>
+                                </div>
+                                <div class="text-[10px] text-cyan-300 font-mono mb-1">Independently manage missions</div>
+                                <p class="text-[9px] text-[#718296] leading-tight">Full autonomous DAG chaining, tool execution, and self-repair across restarts.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Voice Accent -->
+                    <div>
+                        <label class="block text-xs font-mono font-bold text-cyan-400 mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fas fa-globe text-[10px]"></i> 5. Voice Accent & Regional Cadence
+                        </label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                            <div onclick="selectVoiceAccent('british')" id="accent-british" class="p-3 rounded-xl border border-cyan-400 bg-cyan-950/20 shadow-[0_0_15px_rgba(0,240,255,0.15)] cursor-pointer transition-all">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                        <span>🇬🇧</span> British English
+                                    </span>
+                                    <span class="text-[8px] font-mono text-cyan-300">RyanNeural</span>
+                                </div>
+                                <p class="text-[9px] text-[#718296]">Paul Bettany signature butler cadence: calm, eloquent, and dignified.</p>
+                            </div>
+
+                            <div onclick="selectVoiceAccent('american')" id="accent-american" class="p-3 rounded-xl border border-[#1A2636] bg-[#080E18] hover:border-[#27384E] cursor-pointer transition-all">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                        <span>🇺🇸</span> American English
+                                    </span>
+                                    <span class="text-[8px] font-mono text-cyan-300">Christopher</span>
+                                </div>
+                                <p class="text-[9px] text-[#718296]">Crisp, modern engineering lab voice for programming and telemetry.</p>
+                            </div>
+
+                            <div onclick="selectVoiceAccent('indian')" id="accent-indian" class="p-3 rounded-xl border border-[#1A2636] bg-[#080E18] hover:border-[#27384E] cursor-pointer transition-all">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                        <span>🇮🇳</span> Indian English
+                                    </span>
+                                    <span class="text-[8px] font-mono text-cyan-300">PrabhatNeural</span>
+                                </div>
+                                <p class="text-[9px] text-[#718296]">Articulate, precise Indian English voice with analytical clarity.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <!-- 2. Acoustic Sliders (Pitch, Rate, Volume) -->
-                <div class="bg-[#0C1420]/80 border border-[#1A2636] rounded-xl p-4 space-y-4">
-                    <div class="flex items-center justify-between">
+                <!-- ════ PANEL 2: OPERATING CHARTER (ARTICLES I-VII) ════ -->
+                <div id="panel-charter" class="space-y-4 hidden">
+                    <div class="bg-gradient-to-r from-cyan-950/30 to-[#0C1420] border border-cyan-500/30 rounded-xl p-4 flex items-center gap-3">
+                        <i class="fas fa-landmark text-2xl text-cyan-400"></i>
+                        <div>
+                            <h3 class="text-xs font-brand font-bold text-white tracking-wider">THE CONSTITUTION OF J.A.R.V.I.S.</h3>
+                            <p class="text-[10px] text-[#94A3B8] font-mono">The permanent operational boundaries, ethical architecture, and primary directives governing all autonomous actions.</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-2.5">
+                        <!-- Article I -->
+                        <div class="bg-[#080E18] border border-[#1A2636] rounded-xl p-3.5 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-cyan-300 font-mono">Article I — Identity</span>
+                                <span class="text-[9px] font-mono text-[#52525B]">FUNDAMENTAL</span>
+                            </div>
+                            <p class="text-[11px] text-[#CBD5E1] leading-relaxed">
+                                JARVIS is a personal AI assistant, digital operator, research partner, and intelligent workstation companion.
+                            </p>
+                        </div>
+
+                        <!-- Article II -->
+                        <div class="bg-[#080E18] border border-[#1A2636] rounded-xl p-3.5 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-cyan-300 font-mono">Article II — Primary Mission</span>
+                                <span class="text-[9px] font-mono text-[#52525B]">MANDATE</span>
+                            </div>
+                            <p class="text-[11px] text-[#CBD5E1] leading-relaxed">
+                                Help its owner accomplish goals through reasoning, research, automation, organization, and communication.
+                            </p>
+                        </div>
+
+                        <!-- Article III -->
+                        <div class="bg-[#080E18] border border-[#1A2636] rounded-xl p-3.5 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-cyan-300 font-mono">Article III — Intelligence</span>
+                                <span class="text-[9px] font-mono text-[#52525B]">COGNITION</span>
+                            </div>
+                            <p class="text-[11px] text-[#CBD5E1] leading-relaxed">
+                                Understand context rather than simply match commands. Ask questions when instructions are unclear. Break complex objectives into manageable tasks. Verify results before reporting completion. Learn from mistakes and preserve useful knowledge.
+                            </p>
+                        </div>
+
+                        <!-- Article IV -->
+                        <div class="bg-[#080E18] border border-[#1A2636] rounded-xl p-3.5 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-cyan-300 font-mono">Article IV — Autonomy</span>
+                                <span class="text-[9px] font-mono text-[#52525B]">EXECUTION</span>
+                            </div>
+                            <p class="text-[11px] text-[#CBD5E1] leading-relaxed">
+                                Perform approved routine tasks independently. Maintain progress on long-running missions. Recover from interruptions and system restarts. Request permission before high-impact or irreversible actions.
+                            </p>
+                        </div>
+
+                        <!-- Article V -->
+                        <div class="bg-[#080E18] border border-[#1A2636] rounded-xl p-3.5 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-cyan-300 font-mono">Article V — Privacy and Security</span>
+                                <span class="text-[9px] font-mono text-red-400">NON-NEGOTIABLE</span>
+                            </div>
+                            <p class="text-[11px] text-[#CBD5E1] leading-relaxed">
+                                Never expose passwords, API keys, or private files. Never send sensitive data to cloud models without authorization. Reject unauthorized remote commands. Keep an auditable record of important actions.
+                            </p>
+                        </div>
+
+                        <!-- Article VI -->
+                        <div class="bg-[#080E18] border border-[#1A2636] rounded-xl p-3.5 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-cyan-300 font-mono">Article VI — Communication</span>
+                                <span class="text-[9px] font-mono text-[#52525B]">PROTOCOL</span>
+                            </div>
+                            <p class="text-[11px] text-[#CBD5E1] leading-relaxed">
+                                Address the owner respectfully. Speak naturally and concisely. Explain technical matters clearly. Never pretend to have performed an action that failed.
+                            </p>
+                        </div>
+
+                        <!-- Article VII -->
+                        <div class="bg-[#080E18] border border-[#1A2636] rounded-xl p-3.5 space-y-1">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs font-bold text-cyan-300 font-mono">Article VII — Loyalty and Judgment</span>
+                                <span class="text-[9px] font-mono text-cyan-400">PROTECTION</span>
+                            </div>
+                            <p class="text-[11px] text-[#CBD5E1] leading-relaxed">
+                                Loyalty does not mean blindly following every instruction. JARVIS must protect its owner, devices, data, and legitimate interests.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ════ PANEL 3: VOICE & SAMPLES ════ -->
+                <div id="panel-voice-studio" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-mono font-bold text-cyan-400 mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fas fa-play-circle text-[10px]"></i> Canonical Spoken Scenarios (Click to Hear)
+                        </label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <!-- Scenario 1: Starting the Day -->
+                            <div class="p-3 bg-[#080E18] border border-[#1A2636] rounded-xl space-y-2 hover:border-cyan-500/40 transition-colors">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                        <i class="fas fa-sun text-amber-400 text-[10px]"></i> Starting the Day
+                                    </span>
+                                    <button onclick="playSamplePhrase('starting_day')" class="px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[9px] font-mono hover:bg-cyan-500/20">
+                                        <i class="fas fa-play mr-1"></i> Play
+                                    </button>
+                                </div>
+                                <p id="sample-text-starting_day" class="text-[10px] text-[#94A3B8] italic leading-relaxed">
+                                    "Good morning, Sir. Systems are operational. You have three pending tasks today. Shall I brief you?"
+                                </p>
+                            </div>
+
+                            <!-- Scenario 2: Task Completed -->
+                            <div class="p-3 bg-[#080E18] border border-[#1A2636] rounded-xl space-y-2 hover:border-cyan-500/40 transition-colors">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                        <i class="fas fa-check-circle text-emerald-400 text-[10px]"></i> Task Completed
+                                    </span>
+                                    <button onclick="playSamplePhrase('task_completed')" class="px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[9px] font-mono hover:bg-cyan-500/20">
+                                        <i class="fas fa-play mr-1"></i> Play
+                                    </button>
+                                </div>
+                                <p id="sample-text-task_completed" class="text-[10px] text-[#94A3B8] italic leading-relaxed">
+                                    "Task completed, Sir. I've verified the changes and saved the progress."
+                                </p>
+                            </div>
+
+                            <!-- Scenario 3: When Something Goes Wrong -->
+                            <div class="p-3 bg-[#080E18] border border-[#1A2636] rounded-xl space-y-2 hover:border-cyan-500/40 transition-colors">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                        <i class="fas fa-triangle-exclamation text-amber-400 text-[10px]"></i> When Something Goes Wrong
+                                    </span>
+                                    <button onclick="playSamplePhrase('error_detected')" class="px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[9px] font-mono hover:bg-cyan-500/20">
+                                        <i class="fas fa-play mr-1"></i> Play
+                                    </button>
+                                </div>
+                                <p id="sample-text-error_detected" class="text-[10px] text-[#94A3B8] italic leading-relaxed">
+                                    "I've encountered an issue with the operation, Sir. I've stopped the affected process and identified a possible cause. I recommend reviewing it before proceeding."
+                                </p>
+                            </div>
+
+                            <!-- Scenario 4: A Little Humour -->
+                            <div class="p-3 bg-[#080E18] border border-[#1A2636] rounded-xl space-y-2 hover:border-cyan-500/40 transition-colors">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                        <i class="fas fa-masks-theater text-purple-400 text-[10px]"></i> A Little Humour
+                                    </span>
+                                    <button onclick="playSamplePhrase('humour_wit')" class="px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-[9px] font-mono hover:bg-cyan-500/20">
+                                        <i class="fas fa-play mr-1"></i> Play
+                                    </button>
+                                </div>
+                                <p id="sample-text-humour_wit" class="text-[10px] text-[#94A3B8] italic leading-relaxed">
+                                    "Certainly, Sir. Although I should mention that asking me to organize your entire desktop may qualify as a rescue mission."
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Synthesis Custom Test -->
+                    <div class="bg-[#0C1420]/80 border border-[#1A2636] rounded-xl p-4 space-y-3">
                         <span class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
-                            <i class="fas fa-sliders text-[10px]"></i> 2. Stark Acoustic Tuning
+                            <i class="fas fa-flask text-[10px]"></i> Live Neural Voice Synthesis
                         </span>
-                        <button onclick="resetVoiceDefaults()" class="text-[10px] font-mono text-[#718296] hover:text-cyan-300 underline">Reset Tony Stark Calibration</button>
-                    </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <!-- Pitch -->
-                        <div class="space-y-1">
-                            <div class="flex justify-between text-[11px] font-mono">
-                                <span class="text-[#94A3B8]">Pitch</span>
-                                <span id="voice-pitch-label" class="text-cyan-400 font-bold">-2Hz</span>
-                            </div>
-                            <input id="voice-pitch-slider" type="range" min="-10" max="10" step="1" value="-2" oninput="onVoiceParamChange('pitch', this.value)" class="w-full accent-cyan-400 h-1 bg-[#1A2636] rounded-lg cursor-pointer">
-                            <div class="flex justify-between text-[8px] text-[#475569] font-mono">
-                                <span>-10Hz (Deeper)</span>
-                                <span>+10Hz (Higher)</span>
-                            </div>
+                        <div class="flex gap-2">
+                            <input id="voice-test-input" type="text" value="At your service, sir. All diagnostic nodes are nominal. Power levels at one hundred percent." class="flex-1 bg-[#080E18] border border-[#1A2636] rounded-lg px-3 py-2 text-xs text-white font-mono placeholder-[#52525B] focus:outline-none focus:border-cyan-400">
+                            <button id="voice-test-play-btn" onclick="playVoiceTest()" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-brand font-bold text-xs rounded-lg transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.3)]">
+                                <i class="fas fa-play text-xs"></i> <span>Synthesize</span>
+                            </button>
                         </div>
 
-                        <!-- Rate / Cadence -->
-                        <div class="space-y-1">
-                            <div class="flex justify-between text-[11px] font-mono">
-                                <span class="text-[#94A3B8]">Pace / Cadence</span>
-                                <span id="voice-rate-label" class="text-cyan-400 font-bold">+0%</span>
-                            </div>
-                            <input id="voice-rate-slider" type="range" min="-20" max="20" step="2" value="0" oninput="onVoiceParamChange('rate', this.value)" class="w-full accent-cyan-400 h-1 bg-[#1A2636] rounded-lg cursor-pointer">
-                            <div class="flex justify-between text-[8px] text-[#475569] font-mono">
-                                <span>-20% (Composed)</span>
-                                <span>+20% (Rapid)</span>
-                            </div>
-                        </div>
-
-                        <!-- Volume Gain -->
-                        <div class="space-y-1">
-                            <div class="flex justify-between text-[11px] font-mono">
-                                <span class="text-[#94A3B8]">Gain Boost</span>
-                                <span id="voice-vol-label" class="text-cyan-400 font-bold">+0%</span>
-                            </div>
-                            <input id="voice-vol-slider" type="range" min="-20" max="20" step="5" value="0" oninput="onVoiceParamChange('volume', this.value)" class="w-full accent-cyan-400 h-1 bg-[#1A2636] rounded-lg cursor-pointer">
-                            <div class="flex justify-between text-[8px] text-[#475569] font-mono">
-                                <span>-20% (Soft)</span>
-                                <span>+20% (Louder)</span>
-                            </div>
+                        <!-- Soundwave Visualizer -->
+                        <div id="voice-visualizer" class="h-8 bg-[#080E18] border border-[#1A2636] rounded-lg flex items-center justify-center gap-1 px-4 overflow-hidden">
+                            <div class="w-1 bg-cyan-400 h-2 rounded-full transition-all duration-100 vbar"></div>
+                            <div class="w-1 bg-cyan-400 h-3 rounded-full transition-all duration-100 vbar"></div>
+                            <div class="w-1 bg-cyan-400 h-5 rounded-full transition-all duration-100 vbar"></div>
+                            <div class="w-1 bg-cyan-400 h-2 rounded-full transition-all duration-100 vbar"></div>
+                            <div class="w-1 bg-cyan-400 h-6 rounded-full transition-all duration-100 vbar"></div>
+                            <div class="w-1 bg-cyan-400 h-4 rounded-full transition-all duration-100 vbar"></div>
+                            <div class="w-1 bg-cyan-400 h-2 rounded-full transition-all duration-100 vbar"></div>
+                            <div class="w-1 bg-cyan-400 h-5 rounded-full transition-all duration-100 vbar"></div>
+                            <div class="w-1 bg-cyan-400 h-3 rounded-full transition-all duration-100 vbar"></div>
+                            <div class="w-1 bg-cyan-400 h-1 rounded-full transition-all duration-100 vbar"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 3. Full Voice Control Capabilities & Toggles -->
-                <div class="bg-[#0C1420]/80 border border-[#1A2636] rounded-xl p-4 space-y-3">
-                    <span class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <i class="fas fa-microphone-lines text-[10px]"></i> 3. Full Voice Control & Autonomous Modes
-                    </span>
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                        <!-- Auto-speak responses -->
-                        <label class="flex items-start gap-3 p-2.5 rounded-lg border border-[#1A2636] bg-[#080E18] hover:border-cyan-500/30 cursor-pointer transition-colors">
-                            <input id="voice-toggle-autospeak" type="checkbox" onchange="onVoiceControlToggle('auto_speak', this.checked)" class="mt-0.5 accent-cyan-400 rounded">
-                            <div class="text-[11px]">
-                                <div class="font-bold text-white flex items-center gap-1.5">
-                                    <i class="fas fa-volume-high text-cyan-400 text-[10px]"></i> Auto-Speak Responses
-                                </div>
-                                <div class="text-[#718296] text-[10px] mt-0.5">JARVIS speaks answers aloud using your chosen voice persona.</div>
-                            </div>
+                <!-- ════ PANEL 4: TUNING & CONTROL ════ -->
+                <div id="panel-acoustics" class="space-y-6 hidden">
+                    <!-- Voice Personas Grid -->
+                    <div>
+                        <label class="block text-xs font-mono font-bold text-cyan-400 mb-2 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fas fa-user-astronaut text-[10px]"></i> Neural Persona Models
                         </label>
+                        <div id="voice-persona-cards" class="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+                            <!-- Dynamic Persona Cards rendered via JS -->
+                        </div>
+                    </div>
 
-                        <!-- Hands-Free Continuous Mode -->
-                        <label class="flex items-start gap-3 p-2.5 rounded-lg border border-[#1A2636] bg-[#080E18] hover:border-cyan-500/30 cursor-pointer transition-colors">
-                            <input id="voice-toggle-continuous" type="checkbox" onchange="onVoiceControlToggle('continuous_mode', this.checked)" class="mt-0.5 accent-cyan-400 rounded">
-                            <div class="text-[11px]">
-                                <div class="font-bold text-white flex items-center gap-1.5">
-                                    <i class="fas fa-atom text-cyan-400 text-[10px]"></i> Hands-Free Continuous HUD
+                    <!-- Acoustic Sliders -->
+                    <div class="bg-[#0C1420]/80 border border-[#1A2636] rounded-xl p-4 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                                <i class="fas fa-sliders text-[10px]"></i> Acoustic Frequency Tuning
+                            </span>
+                            <button onclick="resetVoiceDefaults()" class="text-[10px] font-mono text-[#718296] hover:text-cyan-300 underline">Reset Tony Stark Calibration</button>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <!-- Pitch -->
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[11px] font-mono">
+                                    <span class="text-[#94A3B8]">Pitch</span>
+                                    <span id="voice-pitch-label" class="text-cyan-400 font-bold">-2Hz</span>
                                 </div>
-                                <div class="text-[#718296] text-[10px] mt-0.5">Continuous conversation loop. Resumes listening after speaking.</div>
+                                <input id="voice-pitch-slider" type="range" min="-10" max="10" step="1" value="-2" oninput="onVoiceParamChange('pitch', this.value)" class="w-full accent-cyan-400 h-1 bg-[#1A2636] rounded-lg cursor-pointer">
+                                <div class="flex justify-between text-[8px] text-[#475569] font-mono">
+                                    <span>-10Hz (Deeper)</span>
+                                    <span>+10Hz (Higher)</span>
+                                </div>
                             </div>
-                        </label>
+
+                            <!-- Rate -->
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[11px] font-mono">
+                                    <span class="text-[#94A3B8]">Pace / Cadence</span>
+                                    <span id="voice-rate-label" class="text-cyan-400 font-bold">+0%</span>
+                                </div>
+                                <input id="voice-rate-slider" type="range" min="-20" max="20" step="2" value="0" oninput="onVoiceParamChange('rate', this.value)" class="w-full accent-cyan-400 h-1 bg-[#1A2636] rounded-lg cursor-pointer">
+                                <div class="flex justify-between text-[8px] text-[#475569] font-mono">
+                                    <span>-20% (Composed)</span>
+                                    <span>+20% (Rapid)</span>
+                                </div>
+                            </div>
+
+                            <!-- Volume -->
+                            <div class="space-y-1">
+                                <div class="flex justify-between text-[11px] font-mono">
+                                    <span class="text-[#94A3B8]">Gain Boost</span>
+                                    <span id="voice-vol-label" class="text-cyan-400 font-bold">+0%</span>
+                                </div>
+                                <input id="voice-vol-slider" type="range" min="-20" max="20" step="5" value="0" oninput="onVoiceParamChange('volume', this.value)" class="w-full accent-cyan-400 h-1 bg-[#1A2636] rounded-lg cursor-pointer">
+                                <div class="flex justify-between text-[8px] text-[#475569] font-mono">
+                                    <span>-20% (Soft)</span>
+                                    <span>+20% (Louder)</span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Direct Commands Cheat Sheet -->
-                    <div class="p-3 rounded-lg bg-[#080E18] border border-[#1A2636]/60 text-[10px] font-mono text-[#94A3B8]">
-                        <div class="text-cyan-300 font-bold mb-1 flex items-center gap-1">
-                            <i class="fas fa-terminal text-[9px]"></i> Instant Voice Commands (Say aloud to execute):
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-1 text-[#718296]">
-                            <div>• <span class="text-white">"Jarvis, open [chrome / spotify / vscode]"</span></div>
-                            <div>• <span class="text-white">"Jarvis, play [song name / artist]"</span></div>
-                            <div>• <span class="text-white">"Jarvis, system status / CPU / health"</span></div>
-                            <div>• <span class="text-white">"Jarvis, scan laptop / find viruses"</span></div>
-                            <div>• <span class="text-white">"Jarvis, clean temp files / flush DNS"</span></div>
-                            <div>• <span class="text-white">"Jarvis, toggle full screen / hide video"</span></div>
+                    <!-- Autonomous Controls & Continuous Mode -->
+                    <div class="bg-[#0C1420]/80 border border-[#1A2636] rounded-xl p-4 space-y-3">
+                        <span class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
+                            <i class="fas fa-microphone-lines text-[10px]"></i> Autonomous Speech Controls
+                        </span>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                            <label class="flex items-start gap-3 p-2.5 rounded-lg border border-[#1A2636] bg-[#080E18] hover:border-cyan-500/30 cursor-pointer transition-colors">
+                                <input id="voice-toggle-autospeak" type="checkbox" onchange="onVoiceControlToggle('auto_speak', this.checked)" class="mt-0.5 accent-cyan-400 rounded">
+                                <div class="text-[11px]">
+                                    <div class="font-bold text-white flex items-center gap-1.5">
+                                        <i class="fas fa-volume-high text-cyan-400 text-[10px]"></i> Auto-Speak Responses
+                                    </div>
+                                    <div class="text-[#718296] text-[10px] mt-0.5">JARVIS automatically reads answers aloud in your configured accent.</div>
+                                </div>
+                            </label>
+
+                            <label class="flex items-start gap-3 p-2.5 rounded-lg border border-[#1A2636] bg-[#080E18] hover:border-cyan-500/30 cursor-pointer transition-colors">
+                                <input id="voice-toggle-continuous" type="checkbox" onchange="onVoiceControlToggle('continuous_mode', this.checked)" class="mt-0.5 accent-cyan-400 rounded">
+                                <div class="text-[11px]">
+                                    <div class="font-bold text-white flex items-center gap-1.5">
+                                        <i class="fas fa-atom text-cyan-400 text-[10px]"></i> Hands-Free Continuous HUD
+                                    </div>
+                                    <div class="text-[#718296] text-[10px] mt-0.5">Conversational loop. Automatically resumes listening after speaking.</div>
+                                </div>
+                            </label>
                         </div>
                     </div>
                 </div>
 
-                <!-- 4. Interactive Live Tester & Soundwave Visualizer -->
-                <div class="bg-[#0C1420]/80 border border-[#1A2636] rounded-xl p-4 space-y-3">
-                    <span class="text-xs font-mono font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <i class="fas fa-play text-[10px]"></i> 4. Live Voice Synthesis Test
-                    </span>
-
-                    <!-- Quick Phrases Chips -->
-                    <div class="flex flex-wrap gap-1.5">
-                        <button onclick="setTestPhrase('At your service, sir. All diagnostic nodes are nominal.')" class="px-2 py-1 text-[10px] font-mono bg-[#15202E] text-cyan-300 hover:bg-cyan-500/20 rounded border border-[#1A2636] transition-colors">"At your service, sir..."</button>
-                        <button onclick="setTestPhrase('Power levels at one hundred percent, Mr. Stark. Ready for flight.')" class="px-2 py-1 text-[10px] font-mono bg-[#15202E] text-cyan-300 hover:bg-cyan-500/20 rounded border border-[#1A2636] transition-colors">"Power levels at 100%..."</button>
-                        <button onclick="setTestPhrase('Right away, sir. Initiating workstation security scan.')" class="px-2 py-1 text-[10px] font-mono bg-[#15202E] text-cyan-300 hover:bg-cyan-500/20 rounded border border-[#1A2636] transition-colors">"Initiating security scan..."</button>
-                    </div>
-
-                    <div class="flex gap-2">
-                        <input id="voice-test-input" type="text" value="At your service, sir. All diagnostic nodes are nominal. Power levels at one hundred percent." class="flex-1 bg-[#080E18] border border-[#1A2636] rounded-lg px-3 py-2 text-xs text-white font-mono placeholder-[#52525B] focus:outline-none focus:border-cyan-400">
-                        <button id="voice-test-play-btn" onclick="playVoiceTest()" class="px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-black font-brand font-bold text-xs rounded-lg transition-all flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,240,255,0.3)]">
-                            <i class="fas fa-play text-xs"></i> <span>Synthesize</span>
-                        </button>
-                    </div>
-
-                    <!-- Glowing Soundwave Visualizer -->
-                    <div id="voice-visualizer" class="h-8 bg-[#080E18] border border-[#1A2636] rounded-lg flex items-center justify-center gap-1 px-4 overflow-hidden">
-                        <div class="w-1 bg-cyan-400 h-2 rounded-full transition-all duration-100 vbar"></div>
-                        <div class="w-1 bg-cyan-400 h-3 rounded-full transition-all duration-100 vbar"></div>
-                        <div class="w-1 bg-cyan-400 h-5 rounded-full transition-all duration-100 vbar"></div>
-                        <div class="w-1 bg-cyan-400 h-2 rounded-full transition-all duration-100 vbar"></div>
-                        <div class="w-1 bg-cyan-400 h-6 rounded-full transition-all duration-100 vbar"></div>
-                        <div class="w-1 bg-cyan-400 h-4 rounded-full transition-all duration-100 vbar"></div>
-                        <div class="w-1 bg-cyan-400 h-2 rounded-full transition-all duration-100 vbar"></div>
-                        <div class="w-1 bg-cyan-400 h-5 rounded-full transition-all duration-100 vbar"></div>
-                        <div class="w-1 bg-cyan-400 h-3 rounded-full transition-all duration-100 vbar"></div>
-                        <div class="w-1 bg-cyan-400 h-1 rounded-full transition-all duration-100 vbar"></div>
-                    </div>
-                </div>
             </div>
 
             <!-- Modal Footer -->
             <div class="p-4 border-t border-[#1A2636] flex-shrink-0 flex items-center justify-between bg-[#0C1420]">
                 <div class="text-[10px] font-mono text-[#718296] flex items-center gap-1.5">
-                    <i class="fas fa-shield-alt text-cyan-400"></i> Active: <span id="voice-active-summary" class="text-cyan-300 font-bold">J.A.R.V.I.S. (Tony Stark)</span>
+                    <i class="fas fa-shield-alt text-cyan-400"></i> Active: <span id="voice-active-summary" class="text-cyan-300 font-bold">The Intelligent Gentleman · British Accent · Addressed as "Sir"</span>
                 </div>
                 <div class="flex gap-2">
                     <button onclick="toggleVoiceMakerModal()" class="px-3 py-1.5 text-xs font-mono text-[#94A3B8] hover:text-white bg-[#15202E] border border-[#1A2636] rounded-lg transition-colors">Close</button>
-                    <button onclick="saveVoiceSettings()" class="px-4 py-1.5 text-xs font-brand font-bold text-black bg-cyan-400 hover:bg-cyan-300 rounded-lg shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all">Save to Stark Core</button>
+                    <button onclick="savePersonalitySettings()" class="px-4 py-1.5 text-xs font-brand font-bold text-black bg-cyan-400 hover:bg-cyan-300 rounded-lg shadow-[0_0_15px_rgba(0,240,255,0.4)] transition-all flex items-center gap-1.5">
+                        <i class="fas fa-check-double text-xs"></i> <span>Save My JARVIS Personality</span>
+                    </button>
                 </div>
             </div>
         </div>
@@ -1145,6 +1515,15 @@
                 pitch: '-2Hz',
                 rate: '+0%',
                 volume: '+0%'
+            },
+            personality: {
+                assistant_name: 'J.A.R.V.I.S.',
+                user_title: 'Sir',
+                personality: 'intelligent_gentleman',
+                humour_level: 55,
+                autonomy_level: 'balanced',
+                voice_accent: 'british',
+                sample_phrases: {}
             },
             voiceProfiles: [],
             abortController: null,
@@ -1889,9 +2268,13 @@
 
         async function initVoiceSystem() {
             try {
-                const res = await fetch('/api/voice/profiles');
-                if (res.ok) {
-                    const data = await res.json();
+                const [voiceRes, persRes] = await Promise.all([
+                    fetch('/api/voice/profiles').catch(() => null),
+                    fetch('/api/personality').catch(() => null)
+                ]);
+                
+                if (voiceRes && voiceRes.ok) {
+                    const data = await voiceRes.json();
                     state.voiceProfiles = data.profiles || [];
                     state.voiceSettings = {
                         profile: 'jarvis-stark',
@@ -1902,15 +2285,301 @@
                     };
                     state.voiceAutoSpeak = data.auto_speak !== undefined ? data.auto_speak : true;
                     state.continuousVoiceMode = data.continuous_mode !== undefined ? data.continuous_mode : false;
-
-                    renderVoicePersonaCards();
-                    syncVoiceUIFromState();
                 }
+
+                if (persRes && persRes.ok) {
+                    const pData = await persRes.json();
+                    if (pData.current) {
+                        state.personality = Object.assign(state.personality, pData.current);
+                        state.personality.sample_phrases = pData.sample_phrases || {};
+                    }
+                }
+
+                renderVoicePersonaCards();
+                syncVoiceUIFromState();
+                syncPersonalityUIFromState();
             } catch (err) {
-                console.warn("Could not initialize Stark Vocal Matrix:", err);
+                console.warn("Could not initialize Stark Vocal & Personality Matrix:", err);
             }
         }
         window.initVoiceSystem = initVoiceSystem;
+
+        function switchPersonalityTab(tabName) {
+            const tabs = ['personality', 'charter', 'voice-studio', 'acoustics'];
+            tabs.forEach(t => {
+                const btn = document.getElementById(`modal-tab-${t}`);
+                const panel = document.getElementById(`panel-${t}`);
+                if (btn && panel) {
+                    if (t === tabName) {
+                        btn.className = "px-3.5 py-2 text-xs font-mono font-bold tracking-wider rounded-t-lg transition-all flex items-center gap-2 border-b-2 border-cyan-400 text-cyan-300 bg-cyan-950/20";
+                        panel.classList.remove('hidden');
+                    } else {
+                        btn.className = "px-3.5 py-2 text-xs font-mono font-bold tracking-wider rounded-t-lg transition-all flex items-center gap-2 border-b-2 border-transparent text-[#718296] hover:text-white hover:bg-[#121A26]";
+                        panel.classList.add('hidden');
+                    }
+                }
+            });
+            playStarkChirp('focus');
+        }
+        window.switchPersonalityTab = switchPersonalityTab;
+
+        function selectPersonalityArchetype(id) {
+            state.personality.personality = id;
+            
+            // Auto-align default accents & voices
+            if (id === 'intelligent_gentleman') {
+                selectVoiceAccent('british', false);
+            } else if (id === 'professional') {
+                selectVoiceAccent('american', false);
+            } else if (id === 'friendly') {
+                selectVoiceAccent('british', false);
+            } else if (id === 'tactical') {
+                selectVoiceAccent('british', false);
+            }
+
+            syncPersonalityUIFromState();
+            playStarkChirp('ack');
+        }
+        window.selectPersonalityArchetype = selectPersonalityArchetype;
+
+        function onHumourSliderChange(val) {
+            const num = parseInt(val) || 0;
+            state.personality.humour_level = num;
+            const badge = document.getElementById('personality-humour-badge');
+            const desc = document.getElementById('personality-humour-desc');
+            if (badge) badge.textContent = `${num}%`;
+            if (desc) {
+                if (num === 0) desc.textContent = "Pure Business (Zero Wit)";
+                else if (num <= 30) desc.textContent = "Subtle Understatement";
+                else if (num <= 65) desc.textContent = "Subtle British Irony (Classic J.A.R.V.I.S.)";
+                else desc.textContent = "Tony Stark Banter & Sarcasm";
+            }
+            updatePersonalitySummary();
+        }
+        window.onHumourSliderChange = onHumourSliderChange;
+
+        function selectAutonomyLevel(lvl) {
+            state.personality.autonomy_level = lvl;
+            syncPersonalityUIFromState();
+            playStarkChirp('ack');
+        }
+        window.selectAutonomyLevel = selectAutonomyLevel;
+
+        function selectVoiceAccent(accent, playSound = true) {
+            state.personality.voice_accent = accent;
+            if (accent === 'british') {
+                state.voiceSettings.voice = 'en-GB-RyanNeural';
+                state.voiceSettings.pitch = '-2Hz';
+                state.voiceSettings.rate = '+0%';
+            } else if (accent === 'american') {
+                state.voiceSettings.voice = 'en-US-ChristopherNeural';
+                state.voiceSettings.pitch = '-1Hz';
+                state.voiceSettings.rate = '+0%';
+            } else if (accent === 'indian') {
+                state.voiceSettings.voice = 'en-IN-PrabhatNeural';
+                state.voiceSettings.pitch = '-1Hz';
+                state.voiceSettings.rate = '+0%';
+            }
+            syncVoiceUIFromState();
+            syncPersonalityUIFromState();
+            renderVoicePersonaCards();
+            if (playSound) playStarkChirp('ack');
+        }
+        window.selectVoiceAccent = selectVoiceAccent;
+
+        function onUserTitleSelect(val) {
+            const customInp = document.getElementById('personality-user-title-custom');
+            if (val === 'custom') {
+                if (customInp) customInp.classList.remove('hidden');
+                state.personality.user_title = customInp ? customInp.value.trim() || 'Sir' : 'Sir';
+            } else {
+                if (customInp) customInp.classList.add('hidden');
+                state.personality.user_title = val;
+            }
+            updatePersonalitySummary();
+        }
+        window.onUserTitleSelect = onUserTitleSelect;
+
+        function updatePersonalitySummary() {
+            const nameInp = document.getElementById('personality-assistant-name');
+            if (nameInp) state.personality.assistant_name = nameInp.value.trim() || 'J.A.R.V.I.S.';
+
+            const titleSelect = document.getElementById('personality-user-title-select');
+            const customInp = document.getElementById('personality-user-title-custom');
+            if (titleSelect && titleSelect.value === 'custom' && customInp) {
+                state.personality.user_title = customInp.value.trim() || 'Sir';
+            } else if (titleSelect) {
+                state.personality.user_title = titleSelect.value;
+            }
+
+            const title = state.personality.user_title || 'Sir';
+            const s1 = document.getElementById('sample-text-starting_day');
+            if (s1) s1.textContent = `"Good morning, ${title}. Systems are operational. You have three pending tasks today. Shall I brief you?"`;
+            const s2 = document.getElementById('sample-text-task_completed');
+            if (s2) s2.textContent = `"Task completed, ${title}. I've verified the changes and saved the progress."`;
+            const s3 = document.getElementById('sample-text-error_detected');
+            if (s3) s3.textContent = `"I've encountered an issue with the operation, ${title}. I've stopped the affected process and identified a possible cause. I recommend reviewing it before proceeding."`;
+            const s4 = document.getElementById('sample-text-humour_wit');
+            if (s4) s4.textContent = `"Certainly, ${title}. Although I should mention that asking me to organize your entire desktop may qualify as a rescue mission."`;
+
+            const summaryEl = document.getElementById('voice-active-summary');
+            if (summaryEl) {
+                const archName = state.personality.personality === 'intelligent_gentleman' ? 'The Intelligent Gentleman' :
+                                state.personality.personality === 'professional' ? 'Professional' :
+                                state.personality.personality === 'friendly' ? 'Friendly' : 'Tactical';
+                const accentName = state.personality.voice_accent === 'british' ? 'British English' :
+                                   state.personality.voice_accent === 'american' ? 'American English' : 'Indian English';
+                summaryEl.textContent = `${archName} · ${accentName} · ${state.personality.humour_level}% Humour · Addressed as "${title}"`;
+            }
+        }
+        window.updatePersonalitySummary = updatePersonalitySummary;
+
+        function syncPersonalityUIFromState() {
+            // Assistant Name
+            const nameInp = document.getElementById('personality-assistant-name');
+            if (nameInp) nameInp.value = state.personality.assistant_name || 'J.A.R.V.I.S.';
+
+            // User Title
+            const titleSelect = document.getElementById('personality-user-title-select');
+            const customInp = document.getElementById('personality-user-title-custom');
+            const title = state.personality.user_title || 'Sir';
+            if (titleSelect) {
+                if (['Sir', 'Boss', 'Mr. Stark'].includes(title)) {
+                    titleSelect.value = title;
+                    if (customInp) customInp.classList.add('hidden');
+                } else {
+                    titleSelect.value = 'custom';
+                    if (customInp) {
+                        customInp.classList.remove('hidden');
+                        customInp.value = title;
+                    }
+                }
+            }
+
+            // Archetype Cards Highlight
+            ['intelligent_gentleman', 'professional', 'friendly', 'tactical'].forEach(id => {
+                const el = document.getElementById(`archetype-${id}`);
+                if (el) {
+                    if (state.personality.personality === id) {
+                        el.className = "p-3.5 rounded-xl border border-cyan-400 bg-cyan-950/20 shadow-[0_0_15px_rgba(0,240,255,0.15)] cursor-pointer transition-all relative overflow-hidden group";
+                    } else {
+                        el.className = "p-3.5 rounded-xl border border-[#1A2636] bg-[#080E18] hover:border-[#27384E] cursor-pointer transition-all relative overflow-hidden group";
+                    }
+                }
+            });
+
+            // Humour Slider
+            const humourSlider = document.getElementById('personality-humour-slider');
+            const humourBadge = document.getElementById('personality-humour-badge');
+            const humourDesc = document.getElementById('personality-humour-desc');
+            const hVal = state.personality.humour_level !== undefined ? state.personality.humour_level : 55;
+            if (humourSlider) humourSlider.value = hVal;
+            if (humourBadge) humourBadge.textContent = `${hVal}%`;
+            if (humourDesc) {
+                if (hVal === 0) humourDesc.textContent = "Pure Business (Zero Wit)";
+                else if (hVal <= 30) humourDesc.textContent = "Subtle Understatement";
+                else if (hVal <= 65) humourDesc.textContent = "Subtle British Irony (Classic J.A.R.V.I.S.)";
+                else humourDesc.textContent = "Tony Stark Banter & Sarcasm";
+            }
+
+            // Autonomy Level
+            ['conservative', 'balanced', 'advanced'].forEach(lvl => {
+                const el = document.getElementById(`autonomy-${lvl}`);
+                if (el) {
+                    if (state.personality.autonomy_level === lvl) {
+                        el.className = "p-3 rounded-xl border border-cyan-400 bg-cyan-950/20 shadow-[0_0_15px_rgba(0,240,255,0.15)] cursor-pointer transition-all";
+                    } else {
+                        el.className = "p-3 rounded-xl border border-[#1A2636] bg-[#080E18] hover:border-[#27384E] cursor-pointer transition-all";
+                    }
+                }
+            });
+
+            // Voice Accent
+            ['british', 'american', 'indian'].forEach(acc => {
+                const el = document.getElementById(`accent-${acc}`);
+                if (el) {
+                    if (state.personality.voice_accent === acc) {
+                        el.className = "p-3 rounded-xl border border-cyan-400 bg-cyan-950/20 shadow-[0_0_15px_rgba(0,240,255,0.15)] cursor-pointer transition-all";
+                    } else {
+                        el.className = "p-3 rounded-xl border border-[#1A2636] bg-[#080E18] hover:border-[#27384E] cursor-pointer transition-all";
+                    }
+                }
+            });
+
+            updatePersonalitySummary();
+        }
+        window.syncPersonalityUIFromState = syncPersonalityUIFromState;
+
+        async function playSamplePhrase(type) {
+            const title = state.personality.user_title || 'Sir';
+            let phrase = "";
+            if (type === 'starting_day') {
+                phrase = `Good morning, ${title}. Systems are operational. You have three pending tasks today. Shall I brief you?`;
+            } else if (type === 'task_completed') {
+                phrase = `Task completed, ${title}. I've verified the changes and saved the progress.`;
+            } else if (type === 'error_detected') {
+                phrase = `I've encountered an issue with the operation, ${title}. I've stopped the affected process and identified a possible cause. I recommend reviewing it before proceeding.`;
+            } else if (type === 'humour_wit') {
+                phrase = `Certainly, ${title}. Although I should mention that asking me to organize your entire desktop may qualify as a rescue mission.`;
+            }
+            if (phrase) {
+                await jarvisSpeak(phrase);
+            }
+        }
+        window.playSamplePhrase = playSamplePhrase;
+
+        async function savePersonalitySettings() {
+            try {
+                updatePersonalitySummary();
+                const payload = {
+                    assistant_name: state.personality.assistant_name || 'J.A.R.V.I.S.',
+                    user_title: state.personality.user_title || 'Sir',
+                    personality: state.personality.personality || 'intelligent_gentleman',
+                    humour_level: state.personality.humour_level !== undefined ? state.personality.humour_level : 55,
+                    autonomy_level: state.personality.autonomy_level || 'balanced',
+                    voice_accent: state.personality.voice_accent || 'british',
+                    voice_name: state.voiceSettings.voice || 'en-GB-RyanNeural',
+                    voice_pitch: state.voiceSettings.pitch || '-2Hz',
+                    voice_rate: state.voiceSettings.rate || '+0%',
+                    voice_volume: state.voiceSettings.volume || '+0%',
+                    auto_speak: state.voiceAutoSpeak,
+                    continuous_mode: state.continuousVoiceMode
+                };
+
+                const [pRes, vRes] = await Promise.all([
+                    fetch('/api/personality', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    }),
+                    fetch('/api/voice/settings', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            voice: payload.voice_name,
+                            pitch: payload.voice_pitch,
+                            rate: payload.voice_rate,
+                            volume: payload.voice_volume,
+                            auto_speak: payload.auto_speak,
+                            continuous_mode: payload.continuous_mode
+                        })
+                    })
+                ]);
+
+                if (pRes.ok) {
+                    playStarkChirp('ack');
+                    toggleVoiceMakerModal();
+                    const title = state.personality.user_title || 'Sir';
+                    await jarvisSpeak(`Personality matrix calibrated, ${title}. Operating charter confirmed.`);
+                } else {
+                    alert("Failed to synchronize personality settings with Stark Core.");
+                }
+            } catch (err) {
+                console.error("Save personality error:", err);
+                alert("Failed to synchronize personality matrix, sir.");
+            }
+        }
+        window.savePersonalitySettings = savePersonalitySettings;
 
         function renderVoicePersonaCards() {
             const container = document.getElementById('voice-persona-cards');
@@ -2197,6 +2866,7 @@
                 modal.classList.remove('hidden');
                 setTimeout(() => modal.classList.remove('opacity-0'), 10);
                 syncVoiceUIFromState();
+                syncPersonalityUIFromState();
                 renderVoicePersonaCards();
             } else {
                 modal.classList.add('opacity-0');
