@@ -3360,7 +3360,7 @@ def get_voice_profiles():
         "active_pitch": p_cfg.get("voice_pitch") or getattr(config, "TTS_PITCH", "-2Hz"),
         "active_rate": p_cfg.get("voice_rate") or getattr(config, "TTS_RATE", "+0%"),
         "active_volume": p_cfg.get("voice_volume") or getattr(config, "TTS_VOLUME", "+0%"),
-        "auto_speak": p_cfg.get("auto_speak", getattr(config, "VOICE_AUTO_SPEAK", True)),
+        "auto_speak": p_cfg.get("auto_speak", getattr(config, "VOICE_AUTO_SPEAK", False)),
         "continuous_mode": p_cfg.get("continuous_mode", getattr(config, "VOICE_CONTINUOUS_MODE", False)),
     })
 
@@ -3383,10 +3383,12 @@ def voice_settings_endpoint():
             config.TTS_VOLUME = data["volume"].strip()
             personality_engine.update_settings({"voice_volume": config.TTS_VOLUME})
         if "auto_speak" in data:
-            config.VOICE_AUTO_SPEAK = bool(data["auto_speak"])
+            raw_val = data["auto_speak"]
+            config.VOICE_AUTO_SPEAK = raw_val in (True, 1, "true", "True", "1", "yes", "on") if isinstance(raw_val, (str, int, bool)) else False
             personality_engine.update_settings({"auto_speak": config.VOICE_AUTO_SPEAK})
         if "continuous_mode" in data:
-            config.VOICE_CONTINUOUS_MODE = bool(data["continuous_mode"])
+            raw_cont = data["continuous_mode"]
+            config.VOICE_CONTINUOUS_MODE = raw_cont in (True, 1, "true", "True", "1", "yes", "on") if isinstance(raw_cont, (str, int, bool)) else False
             personality_engine.update_settings({"continuous_mode": config.VOICE_CONTINUOUS_MODE})
             
         if current_user.is_authenticated:
@@ -3424,7 +3426,7 @@ def voice_settings_endpoint():
             "pitch": p_cfg.get("voice_pitch") or getattr(config, "TTS_PITCH", "-2Hz"),
             "rate": p_cfg.get("voice_rate") or getattr(config, "TTS_RATE", "+0%"),
             "volume": p_cfg.get("voice_volume") or getattr(config, "TTS_VOLUME", "+0%"),
-            "auto_speak": p_cfg.get("auto_speak", getattr(config, "VOICE_AUTO_SPEAK", True)),
+            "auto_speak": p_cfg.get("auto_speak", getattr(config, "VOICE_AUTO_SPEAK", False)),
             "continuous_mode": p_cfg.get("continuous_mode", getattr(config, "VOICE_CONTINUOUS_MODE", False))
         }
     })

@@ -487,8 +487,8 @@
             </div>
         </div>
 
-        <!-- Floating Stark Voice Core Orb (Fixed Bottom Right, Always Visible) -->
-        <div id="floating-voice-orb" class="fixed bottom-24 right-6 z-40 flex items-center gap-2 group">
+        <!-- Floating Stark Voice Core Orb (Disabled / Hidden) -->
+        <div id="floating-voice-orb" class="hidden">
             <button onclick="toggleVoice()" id="floating-voice-btn" class="w-13 h-13 rounded-full bg-[#080d16] border-2 border-cyan-400 text-cyan-400 hover:text-white hover:border-cyan-300 flex items-center justify-center shadow-[0_0_25px_rgba(0,240,255,0.4)] hover:shadow-[0_0_35px_rgba(0,240,255,0.8)] hover:scale-105 transition-all duration-300 relative cursor-pointer" title="Speak to J.A.R.V.I.S. (Voice Control)">
                 <div class="absolute inset-0 rounded-full border border-cyan-400/40 animate-ping opacity-30"></div>
                 <i id="floating-voice-icon" class="fas fa-microphone text-lg drop-shadow-[0_0_6px_#00f0ff]"></i>
@@ -2283,7 +2283,7 @@
                         rate: data.active_rate || '+0%',
                         volume: data.active_volume || '+0%'
                     };
-                    state.voiceAutoSpeak = data.auto_speak !== undefined ? data.auto_speak : true;
+                    state.voiceAutoSpeak = data.auto_speak !== undefined ? data.auto_speak : false;
                     state.continuousVoiceMode = data.continuous_mode !== undefined ? data.continuous_mode : false;
                 }
 

@@ -194,7 +194,7 @@ DEFAULT_CONFIG = {
     "voice_pitch": "-2Hz",
     "voice_rate": "+0%",
     "voice_volume": "+0%",
-    "auto_speak": True,
+    "auto_speak": False,
     "continuous_mode": False
 }
 
@@ -281,7 +281,10 @@ class JarvisPersonalityEngine:
                     if cleaned:
                         self.config[k] = cleaned[:40]
                 elif k in {"auto_speak", "continuous_mode"}:
-                    self.config[k] = bool(v)
+                    if isinstance(v, str):
+                        self.config[k] = v.lower() in ("true", "1", "yes", "on")
+                    else:
+                        self.config[k] = bool(v)
                 elif k in {"voice_name", "voice_pitch", "voice_rate", "voice_volume"}:
                     self.config[k] = str(v).strip()
 

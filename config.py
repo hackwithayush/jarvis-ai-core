@@ -20,7 +20,7 @@ OLLAMA_NODES = [
     # "http://192.168.1.50:11434" # Secondary Worker Node example
 ]
 DEFAULT_MODEL = "qwen/qwen3.8-27b"
-FALLBACK_MODELS = ["llama2-uncensored:latest", "llama3.2:latest", "qwen/qwen3.8-27b", "meta-llama/llama-3.3-70b-instruct", "deepseek/deepseek-chat", "openai/gpt-oss-20b", "gemini-3.8-flash"]
+FALLBACK_MODELS = ["jarvis:latest", "qwen3:4b", "llama2-uncensored:latest", "llama3.2:latest", "qwen/qwen3.8-27b", "meta-llama/llama-3.3-70b-instruct", "deepseek/deepseek-chat", "openai/gpt-oss-20b", "gemini-3.8-flash"]
 CONTEXT_WINDOW = 1000000
 MODEL_TEMPERATURE = 0.4
 MODEL_TOP_P = 0.9
@@ -249,7 +249,7 @@ TTS_PITCH = os.getenv("TTS_PITCH", "-2Hz")             # Calibrated resonance
 TTS_RATE = os.getenv("TTS_RATE", "+0%")                # Composed butler cadence
 TTS_VOLUME = os.getenv("TTS_VOLUME", "+0%")
 STT_LANGUAGE = "en-US"
-VOICE_AUTO_SPEAK = True                               # Automatically speak back responses
+VOICE_AUTO_SPEAK = False                              # Automatically speak back responses (Disabled)
 VOICE_CONTINUOUS_MODE = False                         # Continuous hands-free loop
 
 # ─── Path Sync ──────────────────────────────────────────────────
