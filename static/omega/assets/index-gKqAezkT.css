@@ -1131,3 +1131,6 @@ body:before {
   border-radius: 3px !important;
   box-shadow: 0 0 8px rgba(0, 245, 255, 0.5) !important;
 }
+
+/* Hide chatbox voice controls */
+#omega-chat-voice-btn, #omega-chat-maker-btn, button[title*='Voice input'], button[title*='Stop listening'], button[data-jarvis-voice-reply-btn], button[title*='Toggle JARVIS Spoken Voice Reply'], .jarvis-dock-btn[title*='Voice'], .jarvis-dock-btn[title*='listening'], .jarvis-dock-btn[title*='Mic'], #mic-btn, #continuous-voice-btn, #header-voice-btn, #floating-voice-orb, #empty-voice-btn { display: none !important; }

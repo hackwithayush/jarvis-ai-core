@@ -9,9 +9,28 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Sora:wght@300;400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&family=Exo+2:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
-    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.30"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.30">
+    <script type="module" crossorigin src="/assets/index-Bdxi6DKK.js?v=16.31"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-gKqAezkT.css?v=16.31">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <style>
+      /* Remove all voice / mic / studio buttons from chatbox and interface */
+      #omega-chat-voice-btn,
+      #omega-chat-maker-btn,
+      button[title*="Voice input"],
+      button[title*="Stop listening"],
+      button[data-jarvis-voice-reply-btn],
+      button[title*="Toggle JARVIS Spoken Voice Reply"],
+      .jarvis-dock-btn[title*="Voice"],
+      .jarvis-dock-btn[title*="listening"],
+      .jarvis-dock-btn[title*="Mic"],
+      #mic-btn,
+      #continuous-voice-btn,
+      #header-voice-btn,
+      #floating-voice-orb,
+      #empty-voice-btn {
+        display: none !important;
+      }
+    </style>
   </head>
   <body>
     <div id="jarvis-bg-stage" aria-hidden="true">
@@ -3836,43 +3855,7 @@
           },
 
           initDOMObserver: function() {
-            // Injects glowing Voice & Voice Maker buttons into React chat input container
-            const injectButtons = () => {
-              const ta = document.querySelector('textarea');
-              if (!ta || !ta.parentElement) return;
-
-              const parent = ta.parentElement;
-              if (parent.querySelector('#omega-chat-voice-btn')) return;
-
-              const btnWrap = document.createElement('div');
-              btnWrap.style.display = 'flex';
-              btnWrap.style.alignItems = 'center';
-              btnWrap.style.gap = '6px';
-              btnWrap.style.marginRight = '4px';
-
-              btnWrap.innerHTML = `
-                <button type="button" id="omega-chat-voice-btn" style="padding:6px 10px;border-radius:10px;background:rgba(0,240,255,0.12);border:1px solid rgba(0,240,255,0.35);color:#00f0ff;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all 0.2s;" title="Speak to J.A.R.V.I.S. (Push-to-Talk)">
-                  <span>🎙️</span> <span>VOICE</span>
-                </button>
-                <button type="button" id="omega-chat-maker-btn" style="padding:6px 10px;border-radius:10px;background:rgba(168,85,247,0.12);border:1px solid rgba(168,85,247,0.35);color:#d8b4fe;font-family:'Orbitron',monospace;font-size:10px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;transition:all 0.2s;" title="Open Tony Stark Voice Maker Studio">
-                  <span>🎛️</span> <span>STUDIO</span>
-                </button>
-              `;
-
-              const vBtn = btnWrap.querySelector('#omega-chat-voice-btn');
-              const mBtn = btnWrap.querySelector('#omega-chat-maker-btn');
-
-              if (vBtn) vBtn.addEventListener('click', () => this.toggleVoice());
-              if (mBtn) mBtn.addEventListener('click', () => this.openModal());
-
-              // Place before textarea
-              parent.insertBefore(btnWrap, ta);
-            };
-
-            const obs = new MutationObserver(injectButtons);
-            obs.observe(document.body, { childList: true, subtree: true });
-            setTimeout(injectButtons, 500);
-            setTimeout(injectButtons, 1500);
+            // Chatbox voice button injection disabled
           }
         };
 
